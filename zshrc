@@ -27,3 +27,6 @@ if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/complet
 
 # kubectl
 source <(kubectl completion zsh)
+
+# fzf
+bindkey '^r' fzf-history
