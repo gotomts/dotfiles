@@ -1,11 +1,15 @@
 #!/bin/zsh
 
 formulas=(
+  docker
   fzf
+  gh
+  lazydocker
+  kubectl
+  kubectx
+  sops
 )
 
 brew upgrade
 
-for formula in ${formulas[@]}; do
-  brew install ${formula}
-done
+brew install ${formulas[@]}
