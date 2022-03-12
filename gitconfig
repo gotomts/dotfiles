@@ -1,0 +1,6 @@
+# This is Git's per-user configuration file.
+[user]
+	email = mh.goto.web@gmail.com
+	name = gotomts
+[core]
+	excludesFile = ~/.gitignore_global
