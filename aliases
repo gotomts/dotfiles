@@ -1,0 +1,6 @@
+# general
+alias history='history 1'
+
+# fzf
+alias repo='ghq list -p | fzf'
+alias repoc='cd "$(repo)"'

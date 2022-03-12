@@ -30,3 +30,6 @@ source <(kubectl completion zsh)
 
 # fzf
 bindkey '^r' fzf-history
+
+# load aliases
+source ${HOME}/.aliases
