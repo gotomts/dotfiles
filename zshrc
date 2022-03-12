@@ -1,10 +1,3 @@
-eval "$(anyenv init -)"
-export GOPATH=${HOME}/go
-export PATH=${GOPATH}/bin:${PATH}
-
-export PATH=${PATH}:${GOPATH}/gqlgen
-export PATH=${PATH}:${GOPATH}/ent
-
 # git-promptの読み込み
 source ~/.zsh/git-prompt.sh
 
@@ -34,4 +27,3 @@ if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/complet
 
 # kubectl
 source <(kubectl completion zsh)
-
