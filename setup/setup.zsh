@@ -7,11 +7,13 @@ else
   git pull ${HOME}/.dotfiles
 fi
 
+cd ${HOME}/.dotfiles
+
 for name in *; do
-  if [[ ${name] != 'setup' ]; then
+  if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]]; then
     if [[ -L ${HOME}/.${name} ]]; then
-      unlink ${HOME}/.${name
+      unlink ${HOME}/.${name}
     fi
-    ln -sfv ${HOME}/.dotfiles/.zshrc
+    ln -sfv ${PWD}/${name}  ${HOME}/.${name}
   fi
 done
