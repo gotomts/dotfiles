@@ -4,7 +4,9 @@ formulas=(
   docker
   fzf
   gh
+  ghq
   lazydocker
+  lazygit
   kubectl
   kubectx
   sops
