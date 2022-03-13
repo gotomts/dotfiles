@@ -6,3 +6,7 @@ alias reload='exec $SHELL -l'
 alias repo='ghq list -p | fzf'
 alias repoc='cd "$(repo)"'
 alias npmr='npf run'
+
+# gcloud
+alias gcpa='gcloud config configurations activate $(gcloud config configurations list | fzf | awk "{print \$1}")'
+alias gcpp='gcloud config set project $(gcloud projects list | fzf | awk "{print \$1}")'
