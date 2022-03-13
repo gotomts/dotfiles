@@ -5,6 +5,7 @@ formulas=(
   fzf
   gh
   ghq
+  jq
   lazydocker
   lazygit
   kubectl
