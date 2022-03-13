@@ -4,3 +4,6 @@
 	name = gotomts
 [core]
 	excludesFile = ~/.gitignore_global
+[ghq]
+	root = ~/ghq
+	root = ~/.dotfiles
