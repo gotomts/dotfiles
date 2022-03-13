@@ -1,6 +1,8 @@
 # general
 alias history='history 1'
+alias reload='exec $SHELL -l'
 
 # fzf
 alias repo='ghq list -p | fzf'
 alias repoc='cd "$(repo)"'
+alias npmr='npf run'
