@@ -2,9 +2,14 @@
 alias history='history 1'
 alias reload='exec $SHELL -l'
 
+# git
+alias gp='git push origin HEAD'
+
 # fzf
 alias repo='ghq list -p | fzf'
 alias repoc='cd "$(repo)"'
+
+# npm
 alias npmr='npf run'
 
 # gcloud
