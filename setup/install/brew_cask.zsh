@@ -1,5 +1,6 @@
 casks=(
   1password
+  1password-cli
   contexts
   docker
   discord
@@ -13,5 +14,7 @@ casks=(
   visual-studio-code
   zoom
 )
+
+brew upgrade
 
 brew install --cask ${casks[@]}
