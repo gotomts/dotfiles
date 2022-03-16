@@ -4,6 +4,7 @@ alias reload='exec $SHELL -l'
 
 # git
 alias gp='git push origin HEAD'
+alias gch='git branch -a | fzf | xargs git checkout'
 
 # fzf
 alias repo='ghq list -p | fzf'
