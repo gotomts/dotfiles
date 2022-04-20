@@ -1,5 +1,6 @@
 casks=(
   alfred
+  altair-graphql-client
   1password
   1password-cli
   contexts
