@@ -1,6 +1,5 @@
 # Fig pre block. Keep at the top of this file.
-export PATH="${PATH}:${HOME}/.local/bin"
-eval "$(fig init zsh pre)"
+. "$HOME/.fig/shell/zshrc.pre.zsh"
 
 # git-promptの読み込み
 source ~/.zsh/git-prompt.sh
@@ -42,5 +41,4 @@ source ${HOME}/.aliases
 eval "$(anyenv init -)"
 
 # Fig post block. Keep at the bottom of this file.
-eval "$(fig init zsh post)"
-
+. "$HOME/.fig/shell/zshrc.post.zsh"
