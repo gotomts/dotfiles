@@ -11,6 +11,7 @@ formulas=(
   kubectl
   kubectx
   sops
+  stern
 )
 
 brew upgrade
