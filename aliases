@@ -4,7 +4,7 @@ alias reload='exec $SHELL -l'
 
 # git
 alias gp='git push origin HEAD'
-alias gch='git branch -a | fzf | xargs git checkout'
+alias gch="git branch --all | tr -d '* ' | grep -v -e '->' | fzf | sed -e 's+remotes/[^/]*/++g' | xargs git checkout"
 alias gchb='git checkout -b $1'
 alias grsh='git reset --soft HEAD^'
 
