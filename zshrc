@@ -29,7 +29,9 @@ if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zs
 if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc' ]; then . '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc'; fi
 
 # kubectl
-source <(kubectl completion zsh)
+if [ $commands[kubectl] ]; then
+  source <(kubectl completion zsh)
+fi
 
 # fzf
 bindkey '^r' fzf-history
@@ -39,6 +41,11 @@ source ${HOME}/.aliases
 
 # anyenv
 eval "$(anyenv init -)"
+
+# stern
+if [ $commands[stern] ]; then
+  source <(stern --completion=zsh)
+fi
 
 # Fig post block. Keep at the bottom of this file.
 . "$HOME/.fig/shell/zshrc.post.zsh"
