@@ -1,6 +1,6 @@
 Host github github.com
   HostName github.com
-  IdentityFile ~/.ssh/id_git_rsa.pub
+  IdentityFile ~/.ssh/id_git_rsa
   User git
   IdentitiesOnly yes
   Compression yes
