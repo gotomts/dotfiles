@@ -16,8 +16,10 @@ alias repoc='cd "$(repo)"'
 alias npmr='npf run'
 
 # gcloud
+alias gcal='gcloud auth login'
+alias gcadl='gcloud auth application-default login'
 alias gcpa='gcloud config configurations activate $(gcloud config configurations list | fzf | awk "{print \$1}")'
-alias gcpp='gcloud config set project $(gcloud projects list | fzf | awk "{print \$1}")'
+alias gcps='gcloud config set project $(gcloud projects list | fzf | awk "{print \$1}")'
 
 # kubectl
 alias -g KP='$(kubectl get pods | fzf | awk "{print \$1}")'

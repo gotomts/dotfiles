@@ -1,10 +1,15 @@
 # This is Git's per-user configuration file.
 [user]
 	email = mh.goto.web@gmail.com
-	name = gotomts
+	name = Mitsuharu Goto
 [core]
 	excludesFile = ~/.gitignore_global
 	ignorecase = false
 [ghq]
 	root = ~/.dotfiles
 	root = ~/ghq
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
