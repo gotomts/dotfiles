@@ -1,7 +1,6 @@
 #!/bin/zsh
 
 formulas=(
-  docker
   fzf
   gh
   ghq

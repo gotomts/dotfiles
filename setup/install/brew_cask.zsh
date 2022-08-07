@@ -9,6 +9,7 @@ casks=(
   fig
   figma
   graphiql
+  google-chrome
   google-japanese-ime
   iterm2
   notion
