@@ -29,3 +29,7 @@ for name in *; do
   ln -sfv ${PWD}/${name} ${HOME}/.ssh/${name}
 done
 cd ..
+
+# install
+FORCE=1
+. ${HOME}/.dotfiles/setup/install.zsh
