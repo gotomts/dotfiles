@@ -1,6 +1,7 @@
 #!/bin/zsh
 
 formulas=(
+  anyenv
   fzf
   gh
   ghq
