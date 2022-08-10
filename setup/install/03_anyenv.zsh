@@ -4,6 +4,7 @@ source ${HOME}/.dotfiles/setup/util.zsh
 util::info 'install anyenv...'
 
 if [[ ! -e ${HOME}/.anyenv ]]; then
+  util::info 'git clone anyenv...'
   git clone https://github.com/riywo/anyenv ${HOME}/.anyenv
   source ${HOME}/.zshenv
 
@@ -14,8 +15,12 @@ if [[ ! -e ${HOME}/.anyenv ]]; then
   git clone https://github.com/znz/anyenv-git.git $(anyenv root)/plugins/anyenv-git
 
   # install *env
+  util::info 'install rbenv...'
   anyenv install rbenv
+  util::info 'install nodenv...'
   anyenv install nodenv
+  util::info 'install goenv...'
+  anyenv install goenv
 fi
 anyenv update
 anyenv git pull
