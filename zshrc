@@ -38,9 +38,6 @@ bindkey '^r' fzf-history
 # load aliases
 source ${HOME}/.aliases
 
-# anyenv
-eval "$(anyenv init -)"
-
 # stern
 if [ $commands[stern] ]; then
   source <(stern --completion=zsh)

@@ -2,7 +2,8 @@
 export FPATH=${HOME}/.functions:${FPATH}
 
 # anyenv
-export PATH=${HOME}/.anyenv/bin:${PATH}
+export PATH="$HOME/.anyenv/bin:$PATH"
+eval "$(anyenv init -)"
 
 # golang
 export GOPATH=${HOME}/go
