@@ -6,6 +6,7 @@ casks=(
   contexts
   docker
   discord
+  dropbox
   fig
   figma
   graphiql
