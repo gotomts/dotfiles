@@ -45,3 +45,6 @@ fi
 
 # Fig post block. Keep at the bottom of this file.
 [[ -f "$HOME/.fig/shell/zshrc.post.zsh" ]] && . "$HOME/.fig/shell/zshrc.post.zsh"
+
+# anyenv
+eval "$(anyenv init -)"

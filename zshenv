@@ -3,7 +3,6 @@ export FPATH=${HOME}/.functions:${FPATH}
 
 # anyenv
 export PATH="$HOME/.anyenv/bin:$PATH"
-eval "$(anyenv init -)"
 
 # fzf
 export FZF_DEFAULT_COMMAND='rg --files --hidden --glob "!.git"'
