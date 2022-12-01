@@ -1,6 +1,7 @@
 # general
 alias history='history 1'
 alias reload='exec $SHELL -l'
+alias datetime='date '+%Y%m%d%T' | tr -d :'
 
 # git
 alias gp='git push origin HEAD'
