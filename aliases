@@ -7,6 +7,7 @@ alias gp='git push origin HEAD'
 alias gch="git branch --all | tr -d '* ' | grep -v -e '->' | fzf | sed -e 's+remotes/[^/]*/++g' | xargs git checkout"
 alias gchb='git checkout -b $1'
 alias grsh='git reset --soft HEAD^'
+alias gbclear="git branch --merged|egrep -v '\*|develop|main|master'|xargs git branch -d; git fetch -p"
 
 # fzf
 alias repo='ghq list -p | fzf'
