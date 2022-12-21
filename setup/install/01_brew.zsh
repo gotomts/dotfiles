@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 formulas=(
-  anyenv
+  asdf
   fzf
   gh
   ghq
