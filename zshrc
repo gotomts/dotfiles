@@ -1,5 +1,3 @@
-# Fig pre block. Keep at the top of this file.
-[[ -f "$HOME/.fig/shell/zshrc.pre.zsh" ]] && . "$HOME/.fig/shell/zshrc.pre.zsh"
 # git-promptの読み込み
 source ~/.zsh/git-prompt.sh
 
@@ -43,9 +41,5 @@ if [ $commands[stern] ]; then
   source <(stern --completion=zsh)
 fi
 
-# Fig post block. Keep at the bottom of this file.
-[[ -f "$HOME/.fig/shell/zshrc.post.zsh" ]] && . "$HOME/.fig/shell/zshrc.post.zsh"
-
 # asdf
 . /opt/homebrew/opt/asdf/libexec/asdf.sh
-
