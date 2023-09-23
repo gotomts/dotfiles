@@ -10,6 +10,7 @@ formulas=(
   lazygit
   kubectl
   kubectx
+  mas
   sops
   stern
 )

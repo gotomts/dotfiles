@@ -1,17 +1,16 @@
 casks=(
   1password
   alfred
-  bettertouchtool
   contexts
-  docker
   discord
+  docker
   dropbox
   fig
   figma
-  graphiql
   google-chrome
   google-japanese-ime
-  iterm2
+  insomnia
+  medis
   notion
   postman
   slack
