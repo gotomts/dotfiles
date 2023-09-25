@@ -1,6 +1,7 @@
 casks=(
   1password
   alfred
+  arctype
   contexts
   discord
   docker
@@ -8,6 +9,7 @@ casks=(
   fig
   figma
   google-chrome
+  google-cloud-sdk
   google-japanese-ime
   insomnia
   medis
