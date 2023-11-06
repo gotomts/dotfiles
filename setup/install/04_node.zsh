@@ -2,6 +2,7 @@
 source ${HOME}/.dotfiles/setup/util.zsh
 
 installs=(
+  expo-cli
   npm-fzf
 )
 

@@ -5,10 +5,13 @@ util::info 'install Ruby and gems...'
 
 gems=(
   bundler
+  cocoapods
 )
 
-rbenv install -s 2.7.3
-rbenv global 2.7.3
+asdf plugin-add ruby
+asdf install ruby latest
+asdf install ruby 3.2.2
+asdf global ruby 3.2.2
 for gem in ${gems[@]}; do
   gem install ${gem}
 done

@@ -1,7 +1,9 @@
 #!/bin/zsh
 
 formulas=(
+  android-studio
   asdf
+  flutter
   fzf
   gh
   ghq
