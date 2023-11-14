@@ -3,9 +3,11 @@ casks=(
   alfred
   arctype
   contexts
+  cursor
   discord
   docker
   dropbox
+  electron-fiddle
   fig
   figma
   google-chrome
