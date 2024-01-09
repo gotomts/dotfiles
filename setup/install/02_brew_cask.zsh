@@ -1,6 +1,7 @@
 casks=(
   1password
   alfred
+  android-studio
   arctype
   contexts
   cursor
@@ -10,6 +11,7 @@ casks=(
   electron-fiddle
   fig
   figma
+  flutter
   google-chrome
   google-cloud-sdk
   google-japanese-ime
