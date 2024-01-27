@@ -3,6 +3,7 @@
 formulas=(
   android-studio
   asdf
+  aws
   flutter
   fzf
   gh
@@ -13,6 +14,7 @@ formulas=(
   kubectl
   kubectx
   mas
+  pipx
   sops
   stern
 )
