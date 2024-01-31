@@ -44,5 +44,8 @@ fi
 # asdf
 . /opt/homebrew/opt/asdf/libexec/asdf.sh
 
+# bison
+export PATH="/opt/homebrew/opt/bison/bin:$PATH"
+
 # Created by `pipx` on 2024-01-27 05:56:55
 export PATH="$PATH:/Users/goto/.local/bin"

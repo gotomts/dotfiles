@@ -1,22 +1,41 @@
 #!/bin/zsh
 
 formulas=(
-  android-studio
+  automake
+  autoconf
   asdf
-  aws
+  android-studio
+  bison
   flutter
+  freetype
   fzf
-  gh
+  gd
+  gettext
+  gmp
   ghq
+  gh
+  icu4c
+  imagemagick
   jq
-  lazydocker
-  lazygit
-  kubectl
+  krb5
   kubectx
+  kubectl
+  lazygit
+  lazydocker
+  libiconv
+  libjpeg
+  libsodium
+  libpng
+  libxml2
+  libzip
   mas
+  openssl@3
+  pkg-config
   pipx
+  re2c
   sops
   stern
+  zlib
 )
 
 brew upgrade
