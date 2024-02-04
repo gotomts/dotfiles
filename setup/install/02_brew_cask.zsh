@@ -19,6 +19,7 @@ casks=(
   medis
   notion
   postman
+  pushplaylabs-sidekick
   slack
   tableplus
   visual-studio-code
