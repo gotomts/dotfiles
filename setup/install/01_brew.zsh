@@ -32,6 +32,7 @@ formulas=(
   openssl@3
   pkg-config
   pipx
+  pwgen
   re2c
   sops
   stern
