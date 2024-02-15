@@ -2,8 +2,8 @@
 source ${HOME}/.dotfiles/setup/util.zsh
 
 installs=(
-  expo-cli
-  npm-fzf
+    expo-cli
+    npm-fzf
 )
 
 asdf plugin-add nodejs
@@ -13,5 +13,5 @@ asdf install nodejs 18.12.1
 asdf global nodejs 18.12.1
 
 for install ${installs[@]} do
-  npm i -g ${install}
+    npm i -g ${install}
 done

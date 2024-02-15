@@ -1,4 +1,4 @@
 function fzf-history() {
-  BUFFER=`\\history -n 1 | tail -r | fzf --no-sort +m --query "$LBUFFER" --prompt="History > "`
-  CURSOR=$#BUFFER
+    BUFFER=`\\history -n 1 | tail -r | fzf --no-sort +m --query "$LBUFFER" --prompt="History > "`
+    CURSOR=$#BUFFER
 }
