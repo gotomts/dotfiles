@@ -15,3 +15,5 @@
 	required = true
 [rerere]
 	enabled = true
+[pull]
+	autostash = true
