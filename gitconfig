@@ -17,3 +17,5 @@
 	enabled = true
 [pull]
 	autostash = true
+[rebase]
+	autoStash = true
