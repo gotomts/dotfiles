@@ -3,7 +3,6 @@ casks=(
     alfred
     android-studio
     arctype
-    cleanmymac-zh
     contexts
     cursor
     discord
