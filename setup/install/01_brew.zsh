@@ -14,6 +14,7 @@ formulas=(
     gmp
     ghq
     gh
+    grpcurl
     icu4c
     imagemagick
     jq
