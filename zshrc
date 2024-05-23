@@ -49,3 +49,9 @@ export PATH="/opt/homebrew/opt/bison/bin:$PATH"
 
 # Created by `pipx` on 2024-01-27 05:56:55
 export PATH="$PATH:/Users/goto/.local/bin"
+
+## [Completion]
+## Completion scripts setup. Remove the following line to uninstall
+[[ -f /Users/goto/.dart-cli-completion/zsh-config.zsh ]] && . /Users/goto/.dart-cli-completion/zsh-config.zsh || true
+## [/Completion]
+

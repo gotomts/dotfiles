@@ -9,6 +9,7 @@ formulas=(
     flutter
     freetype
     fzf
+    fvm
     gd
     gettext
     gmp
@@ -40,6 +41,12 @@ formulas=(
     zlib
 )
 
+tap=(
+  leoafarias/fvm
+)
+
 brew upgrade
+
+brew tap ${tap[@]}
 
 brew install ${formulas[@]}
