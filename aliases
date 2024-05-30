@@ -22,6 +22,7 @@ alias gcal='gcloud auth login'
 alias gcadl='gcloud auth application-default login'
 alias gcpa='gcloud config configurations activate $(gcloud config configurations list | fzf | awk "{print \$1}")'
 alias gcps='gcloud config set project $(gcloud projects list | fzf | awk "{print \$1}")'
+alias gcgc='bash ./aliase/get-gke-credentials.sh'
 
 # kubectl
 alias -g KP='$(kubectl get pods | fzf | awk "{print \$1}")'
