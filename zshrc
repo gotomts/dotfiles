@@ -1,3 +1,5 @@
+# Amazon Q pre block. Keep at the top of this file.
+[[ -f "${HOME}/Library/Application Support/amazon-q/shell/zshrc.pre.zsh" ]] && builtin source "${HOME}/Library/Application Support/amazon-q/shell/zshrc.pre.zsh"
 # git-promptの読み込み
 source ~/.zsh/git-prompt.sh
 
@@ -13,7 +15,8 @@ GIT_PS1_SHOWSTASHSTATE=true
 GIT_PS1_SHOWUPSTREAM=auto
 
 # プロンプトの表示設定(好きなようにカスタマイズ可)
-setopt PROMPT_SUBST ; PS1='%F{green}%n@%m%f: %F{cyan}%~%f %F{red}$(__git_ps1 "(%s)")%f
+setopt PROMPT_SUBST
+PS1='%F{green}%n@%m%f: %F{cyan}%~%f %F{red}$(__git_ps1 "(%s)")%f
 \$ '
 
 autoload -U +X bashcompinit && bashcompinit
@@ -41,9 +44,6 @@ if [ $commands[stern] ]; then
   source <(stern --completion=zsh)
 fi
 
-# asdf
-. /opt/homebrew/opt/asdf/libexec/asdf.sh
-
 # bison
 export PATH="/opt/homebrew/opt/bison/bin:$PATH"
 
@@ -55,3 +55,12 @@ export PATH="$PATH:/Users/goto/.local/bin"
 [[ -f /Users/goto/.dart-cli-completion/zsh-config.zsh ]] && . /Users/goto/.dart-cli-completion/zsh-config.zsh || true
 ## [/Completion]
 
+# Amazon Q post block. Keep at the bottom of this file.
+[[ -f "${HOME}/Library/Application Support/amazon-q/shell/zshrc.post.zsh" ]] && builtin source "${HOME}/Library/Application Support/amazon-q/shell/zshrc.post.zsh"
+export PATH="/usr/local/opt/libpq/bin:$PATH"
+
+# mise
+if type mise &>/dev/null; then
+  eval "$(mise activate zsh)"
+  eval "$(mise activate --shims)"
+fi
