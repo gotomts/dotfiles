@@ -35,6 +35,10 @@ alias kubectle='kubectl exec -it KP $@'
 alias kubectll='kubectl stern $(kubectl get deploy | fzf | awk "{print \$1}")'
 alias kubectlo='kubectl get KA -o yaml'
 
+# claude
+alias cc='claude --dangerously-skip-permissions'
+alias ccr='claude --resume --dangerously-skip-permissions'
+
 # vscode
 alias codeo='code $(repo)'
 
