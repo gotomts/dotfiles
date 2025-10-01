@@ -64,3 +64,9 @@ if type mise &>/dev/null; then
   eval "$(mise activate zsh)"
   eval "$(mise activate --shims)"
 fi
+
+# Added by Windsurf
+export PATH="/Users/goto/.codeium/windsurf/bin:$PATH"
+
+# firebase
+export PATH="$PATH":"$HOME/.pub-cache/bin"
