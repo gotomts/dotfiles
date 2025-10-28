@@ -6,6 +6,7 @@ util::info 'install Ruby and gems...'
 gems=(
   bundler
   cocoapods
+  fastlane
 )
 
 mise install ruby@latest
