@@ -15,20 +15,11 @@ formulas=(
   ghq
   gh
   grpcurl
-  icu4c
-  imagemagick
   jq
-  krb5
   kubectx
   kubectl
   lazygit
   lazydocker
-  libiconv
-  libjpeg
-  libsodium
-  libpng
-  libxml2
-  libzip
   mas
   mise
   openssl@3
@@ -49,4 +40,10 @@ brew upgrade
 
 brew tap ${tap[@]}
 
-brew install ${formulas[@]}
+for formula in "${formulas[@]}"; do
+  if brew list "$formula" >/dev/null 2>&1; then
+    echo "Skipping $formula (already installed)"
+  else
+    brew install "$formula"
+  fi
+done

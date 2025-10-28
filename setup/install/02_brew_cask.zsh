@@ -1,25 +1,21 @@
 casks=(
   1password
-  alfred
+  alacritty
   android-studio
-  arctype
   contexts
   cursor
-  discord
   docker
   dropbox
-  electron-fiddle
-  fig
   figma
   flutter
   google-chrome
   google-cloud-sdk
   google-japanese-ime
-  insomnia
   medis
   notion
+  orbstack
   postman
-  pushplaylabs-sidekick
+  raycast
   slack
   tableplus
   visual-studio-code
@@ -29,4 +25,10 @@ casks=(
 
 brew upgrade
 
-brew install --cask ${casks[@]}
+for cask in "${casks[@]}"; do
+  if brew list --cask "$cask" >/dev/null 2>&1; then
+    echo "Skipping $cask (already installed)"
+  else
+    brew install --cask "$cask"
+  fi
+done
