@@ -59,12 +59,6 @@ export PATH="$PATH:/Users/goto/.local/bin"
 [[ -f "${HOME}/Library/Application Support/amazon-q/shell/zshrc.post.zsh" ]] && builtin source "${HOME}/Library/Application Support/amazon-q/shell/zshrc.post.zsh"
 export PATH="/usr/local/opt/libpq/bin:$PATH"
 
-# mise
-if type mise &>/dev/null; then
-  eval "$(mise activate zsh)"
-  eval "$(mise activate --shims)"
-fi
-
 # Added by Windsurf
 export PATH="/Users/goto/.codeium/windsurf/bin:$PATH"
 

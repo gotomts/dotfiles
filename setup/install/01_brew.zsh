@@ -21,6 +21,7 @@ formulas=(
   kubectl
   lazygit
   lazydocker
+  libyaml
   mas
   mise
   openssl@3
