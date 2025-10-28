@@ -5,10 +5,9 @@ installs=(
     poetry=1.2.0
 )
 
-asdf plugin-add python
-asdf install python latest
-asdf install python 3.12.1
-asdf global python 3.12.1
+mise install python@latest
+mise install python@3.12.1
+mise use --global python@3.12.1
 
 for install ${installs[@]} do
     pipx install ${install}

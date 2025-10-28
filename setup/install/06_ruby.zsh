@@ -8,10 +8,9 @@ gems=(
   cocoapods
 )
 
-asdf plugin-add ruby
-asdf install ruby latest
-asdf install ruby 3.2.2
-asdf global ruby 3.2.2
+mise install ruby@latest
+mise install ruby@3.2.2
+mise use --global ruby@3.2.2
 for gem in ${gems[@]}; do
   gem install ${gem}
 done
