@@ -4,6 +4,7 @@ formulas=(
   automake
   autoconf
   android-studio
+  amazon-photos
   bison
   flutter
   freetype
