@@ -1,37 +1,21 @@
-# Amazon Q pre block. Keep at the top of this file.
-[[ -f "${HOME}/Library/Application Support/amazon-q/shell/zshrc.pre.zsh" ]] && builtin source "${HOME}/Library/Application Support/amazon-q/shell/zshrc.pre.zsh"
-# git-promptの読み込み
-source ~/.zsh/git-prompt.sh
+# Oh My Zsh
+export ZSH="$HOME/.oh-my-zsh"
 
-# git-completionの読み込み
-fpath=(~/.zsh $fpath)
-zstyle ':completion:*:*:git:*' script ~/.zsh/git-completion.bash
-autoload -Uz compinit && compinit
+ZSH_THEME="robbyrussell"  # または好きなテーマに変更
 
-# プロンプトのオプション表示設定
-GIT_PS1_SHOWDIRTYSTATE=true
-GIT_PS1_SHOWUNTRACKEDFILES=true
-GIT_PS1_SHOWSTASHSTATE=true
-GIT_PS1_SHOWUPSTREAM=auto
+plugins=(
+  git
+  kubectl
+  terraform
+  gcloud
+  zsh-autosuggestions
+)
 
-# プロンプトの表示設定(好きなようにカスタマイズ可)
-setopt PROMPT_SUBST
-PS1='%F{green}%n@%m%f: %F{cyan}%~%f %F{red}$(__git_ps1 "(%s)")%f
-\$ '
-
-autoload -U +X bashcompinit && bashcompinit
-complete -o nospace -C /opt/homebrew/bin/terraform terraform
+source $ZSH/oh-my-zsh.sh
 
 # gcloud
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc' ]; then . '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'; fi
-# The next line enables shell command completion for gcloud.
-if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc' ]; then . '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/completion.zsh.inc'; fi
-
-# kubectl
-if [ $commands[kubectl] ]; then
-  source <(kubectl completion zsh)
-fi
 
 # fzf
 bindkey '^r' fzf-history
@@ -64,3 +48,5 @@ export PATH="/Users/goto/.codeium/windsurf/bin:$PATH"
 
 # firebase
 export PATH="$PATH":"$HOME/.pub-cache/bin"
+
+
