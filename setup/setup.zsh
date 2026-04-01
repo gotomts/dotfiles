@@ -4,7 +4,7 @@
 if [[ ! -e ${HOME}/.dotfiles ]]; then
     git clone https://github.com/gotomts/dotfiles.git ${HOME}/.dotfiles
 else
-    git pull ${HOME}/.dotfiles
+    git -C ${HOME}/.dotfiles pull
 fi
 
 cd ${HOME}/.dotfiles
