@@ -3,6 +3,7 @@ casks=(
   alacritty
   android-studio
   contexts
+  cmux
   cursor
   docker
   dropbox

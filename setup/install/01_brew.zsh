@@ -36,6 +36,7 @@ formulas=(
 
 tap=(
   leoafarias/fvm
+  manaflow-ai/cmux
 )
 
 brew upgrade
