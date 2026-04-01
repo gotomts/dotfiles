@@ -9,6 +9,6 @@ mise install python@latest
 mise install python@3.12.1
 mise use --global python@3.12.1
 
-for install ${installs[@]} do
+for install in ${installs[@]}; do
     pipx install ${install}
 done
