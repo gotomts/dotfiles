@@ -14,9 +14,6 @@ alias gbclear="git branch --merged|egrep -v '\*|develop|main|master'|xargs git b
 alias repo='ghq list -p | fzf'
 alias repoc='cd "$(repo)"'
 
-# npm
-alias npmr='npf run'
-
 # gcloud
 alias gcal='gcloud auth login'
 alias gcadl='gcloud auth application-default login'
