@@ -13,6 +13,11 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 
+# mise (interactive hook)
+if type mise &>/dev/null; then
+  eval "$(mise activate zsh)"
+fi
+
 # gcloud
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc' ]; then . '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'; fi
