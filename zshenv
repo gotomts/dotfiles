@@ -8,10 +8,6 @@ export FZF_DEFAULT_OPTS='--height 40% --reverse --border'
 # gcloud
 export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 
-# auto load
-autoload fzf-history
-zle -N fzf-history
-
 # golang
 export GOPATH=${HOME}/go
 export PATH=${GOPATH}/bin:${PATH}

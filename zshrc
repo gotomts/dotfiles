@@ -23,6 +23,8 @@ fi
 if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc' ]; then . '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'; fi
 
 # fzf
+autoload fzf-history
+zle -N fzf-history
 bindkey '^r' fzf-history
 
 # load aliases
