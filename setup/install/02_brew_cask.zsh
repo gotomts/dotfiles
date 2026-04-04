@@ -1,3 +1,5 @@
+sudo -v
+
 casks=(
   1password
   alacritty
