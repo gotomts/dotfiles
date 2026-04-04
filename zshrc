@@ -1,7 +1,7 @@
 # Oh My Zsh
 export ZSH="$HOME/.oh-my-zsh"
 
-ZSH_THEME="robbyrussell"  # または好きなテーマに変更
+ZSH_THEME=""  # starship が代替
 
 plugins=(
   git
@@ -45,6 +45,9 @@ export PATH="$PATH:/Users/goto/.local/bin"
 ## Completion scripts setup. Remove the following line to uninstall
 [[ -f /Users/goto/.dart-cli-completion/zsh-config.zsh ]] && . /Users/goto/.dart-cli-completion/zsh-config.zsh || true
 ## [/Completion]
+
+# starship
+eval "$(starship init zsh)"
 
 # Amazon Q post block. Keep at the bottom of this file.
 [[ -f "${HOME}/Library/Application Support/amazon-q/shell/zshrc.post.zsh" ]] && builtin source "${HOME}/Library/Application Support/amazon-q/shell/zshrc.post.zsh"

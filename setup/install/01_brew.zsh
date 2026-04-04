@@ -3,6 +3,7 @@
 formulas=(
   automake
   autoconf
+  bun
   android-studio
   amazon-photos
   bison
@@ -37,6 +38,7 @@ formulas=(
 tap=(
   leoafarias/fvm
   manaflow-ai/cmux
+  oven-sh/bun
 )
 
 brew upgrade

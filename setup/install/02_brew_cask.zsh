@@ -10,6 +10,7 @@ casks=(
   docker
   dropbox
   figma
+  font-sf-mono
   flutter
   google-chrome
   google-cloud-sdk
