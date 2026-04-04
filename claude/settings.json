@@ -5,7 +5,6 @@
     "DIRENV_LOG_FORMAT": ""
   },
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "allow": [
       "mcp__pencil",
       "Bash(sudo pmset *)",
@@ -134,8 +133,10 @@
       "Read(**/*.pem)",
       "Read(**/*.key)",
       "Read(**/credentials)"
-    ]
+    ],
+    "defaultMode": "bypassPermissions"
   },
+  "model": "claude-opus-4-6",
   "hooks": {
     "PreToolUse": [
       {
@@ -162,6 +163,6 @@
   },
   "language": "japanese",
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "effortLevel": "high"
 }
