@@ -33,6 +33,7 @@ alias kubectll='kubectl stern $(kubectl get deploy | fzf | awk "{print \$1}")'
 alias kubectlo='kubectl get KA -o yaml'
 
 # claude
+alias claude='claude --dangerously-skip-permissions'
 alias cc='claude --dangerously-skip-permissions'
 alias ccr='claude --resume --dangerously-skip-permissions'
 
