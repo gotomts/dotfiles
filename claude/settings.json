@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__pencil",
+      "Bash(sudo pmset *)",
+      "Bash(pmset *)"
+    ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true
+  },
+  "skipDangerousModePermissionPrompt": true
+}
