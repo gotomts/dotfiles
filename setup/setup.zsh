@@ -10,13 +10,25 @@ fi
 cd ${HOME}/.dotfiles
 
 for name in *; do
-    if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'ssh' ]]; then
+    if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'ssh' ]] && [[ ${name} != 'claude' ]]; then
         if [[ -L ${HOME}/.${name} ]]; then
             unlink ${HOME}/.${name}
         fi
         ln -sfv ${PWD}/${name}  ${HOME}/.${name}
     fi
 done
+
+if [[ ! -d ${HOME}/.claude ]]; then
+    mkdir ${HOME}/.claude
+fi
+cd claude
+for name in *; do
+    if [[ -L ${HOME}/.claude/$name ]]; then
+        unlink ${HOME}/.claude/$name
+    fi
+    ln -sfv ${PWD}/${name} ${HOME}/.claude/${name}
+done
+cd ..
 
 if [[ ! -d ${HOME}/.ssh ]]; then
     mkdir ${HOME}/.ssh
