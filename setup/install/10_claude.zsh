@@ -36,3 +36,16 @@ else
   ln -sfv "${SETTINGS_SRC}" "${SETTINGS_DST}"
   util::info "settings.json: linked"
 fi
+
+# 4. enabledPlugins に記載されたプラグインをインストール
+util::info "syncing Claude Code plugins..."
+claude plugin marketplace update 2>/dev/null || true
+jq -r '.enabledPlugins // {} | keys[]' "${SETTINGS_SRC}" 2>/dev/null | while read -r plugin; do
+  if claude plugin list --json 2>/dev/null | jq -e --arg p "${plugin}" '.[] | select(.id == $p)' &>/dev/null; then
+    claude plugin update "${plugin}" 2>/dev/null || util::warning "plugin ${plugin}: update failed"
+  else
+    claude plugin install "${plugin}" 2>/dev/null && \
+      util::info "plugin ${plugin}: installed" || \
+      util::warning "plugin ${plugin}: install failed"
+  fi
+done

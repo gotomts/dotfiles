@@ -5,6 +5,7 @@ casks=(
   alacritty
   android-studio
   contexts
+  claude-code
   cmux
   cursor
   docker
