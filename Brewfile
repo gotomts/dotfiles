@@ -1,0 +1,83 @@
+tap 'leoafarias/fvm'
+tap 'manaflow-ai/cmux'
+tap 'oven-sh/bun'
+
+# Utilities
+brew 'autoconf'
+brew 'automake'
+brew 'bison'
+brew 'freetype'
+brew 'gd'
+brew 'gettext'
+brew 'gmp'
+brew 'jq'
+brew 'libyaml'
+brew 'openssl@3'
+brew 'pkg-config'
+brew 're2c'
+brew 'zlib'
+brew 'pwgen'
+
+# Shell & Terminal
+brew 'fzf'
+brew 'mise'
+
+# Git & Version Control
+brew 'gh'
+brew 'ghq'
+brew 'lazygit'
+brew 'lazydocker'
+
+# Cloud & DevOps
+brew 'kubectl'
+brew 'kubectx'
+brew 'stern'
+brew 'sops'
+
+# Languages & Runtimes
+brew 'oven-sh/bun/bun'
+brew 'leoafarias/fvm/fvm'
+brew 'pipx'
+
+# Network & API
+brew 'grpcurl'
+
+# Other
+brew 'mas'
+
+# Casks
+cask '1password'
+cask 'alacritty'
+cask 'amazon-photos'
+cask 'android-studio'
+cask 'claude-code'
+cask 'cmux'
+cask 'contexts'
+cask 'cursor'
+cask 'docker'
+cask 'dropbox'
+cask 'figma'
+cask 'flutter'
+cask 'google-chrome'
+cask 'google-cloud-sdk'
+cask 'google-japanese-ime'
+cask 'medis'
+cask 'notion'
+cask 'orbstack'
+cask 'postman'
+cask 'raycast'
+cask 'slack'
+cask 'tableplus'
+cask 'visual-studio-code'
+cask 'zoom'
+
+# Fonts
+cask 'font-sf-mono'
+
+# Mac App Store
+mas 'LINE', id: 539883307
+mas 'Magnet', id: 441258766
+mas 'TestFlight', id: 899247664
+mas 'Apple Developer', id: 640199958
+mas 'Transporter', id: 1450874784
+mas 'Xcode', id: 497799835
