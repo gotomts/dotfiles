@@ -47,6 +47,13 @@ Linear を企画・設計層、GitHub Projects を実行層として活用する
 └─────────────────────────────────────────────────────────┘
 ```
 
+## 前提条件
+
+- Linear アカウントが作成済みであること
+- Linear 上にチーム（例: チーム識別子 `SCN`）とプロジェクトが作成済みであること
+- `linear` CLI で認証済みであること（`linear auth`）
+- Issue ID のプレフィックス（`SCN-42` の `SCN` 部分）は Linear のチーム識別子に由来する
+
 ## インフラストラクチャ
 
 ### 追加するもの
@@ -139,8 +146,8 @@ Linear を企画・設計層、GitHub Projects を実行層として活用する
 1. **Issue 読み込み + コンテキスト構築** — `gh issue view` で内容取得。受入条件、関連 Issue、ラベルを把握。ラベルからブランチタイプを推定（`bug` → `hotfix/`、それ以外 → `feature/`）
 2. **ブランチ作成** — 命名規則: `{type}/{slug}-issue-{number}`（例: `feature/coffee-equipment-category-issue-748`）
 3. **GitHub Project ステータス更新** — Status を「In Progress」に変更
-4. **開発作業** — Issue の受入条件をチェックリストとして Claude Code のコンテキストに渡す。開発自体はスキルのスコープ外
-5. **PR 作成** — Conventional Commits 形式のタイトル。Body は `## Issue\nResolves #{number}` を含む。`gh pr create` で作成
+4. **--- ここでスキルを終了し、通常の開発に移行 ---** — Issue の受入条件を Claude Code のコンテキストとして出力し、開発の指針を示す。開発作業自体はスキルのスコープ外
+5. **PR 作成（開発完了後にユーザーが再度スキルを起動、または手動で実行）** — Conventional Commits 形式のタイトル。Body は `## Issue\nResolves #{number}` を含む。`gh pr create` で作成
 6. **ステータス更新** — GitHub Project Status を「Review」に変更
 
 **ブランチタイプ推定ルール:**
