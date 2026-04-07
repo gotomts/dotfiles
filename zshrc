@@ -18,9 +18,13 @@ if type mise &>/dev/null; then
   eval "$(mise activate zsh)"
 fi
 
-# gcloud
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc' ]; then . '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'; fi
+# gcloud (supports both legacy google-cloud-sdk and renamed gcloud-cli)
+for _gcloud_inc in \
+    '/opt/homebrew/Caskroom/gcloud-cli/latest/google-cloud-sdk/path.zsh.inc' \
+    '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'; do
+    if [[ -f "${_gcloud_inc}" ]]; then source "${_gcloud_inc}"; break; fi
+done
+unset _gcloud_inc
 
 # fzf
 autoload fzf-history

@@ -54,12 +54,12 @@ cask 'claude-code'
 cask 'cmux'
 cask 'contexts'
 cask 'cursor'
-cask 'docker'
+cask 'docker-desktop'
 cask 'dropbox'
 cask 'figma'
 cask 'flutter'
 cask 'google-chrome'
-cask 'google-cloud-sdk'
+cask 'gcloud-cli'
 cask 'google-japanese-ime'
 cask 'medis'
 cask 'notion'
@@ -80,4 +80,5 @@ mas 'Magnet', id: 441258766
 mas 'TestFlight', id: 899247664
 mas 'Apple Developer', id: 640199958
 mas 'Transporter', id: 1450874784
-mas 'Xcode', id: 497799835
+# Xcode は macOS バージョン依存が強いため手動管理
+# mas 'Xcode', id: 497799835

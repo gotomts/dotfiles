@@ -35,4 +35,5 @@ ln -sfv "${HOME}/.dotfiles/config/yazi/keymap.toml" "${HOME}/.config/yazi/keymap
 
 # cmux (Ghostty)
 cmux_config_dir="${HOME}/Library/Application Support/com.cmuxterm.app"
+mkdir -p "${cmux_config_dir}"
 ln -sfv "${HOME}/.dotfiles/config/cmux/config.ghostty" "${cmux_config_dir}/config.ghostty"
