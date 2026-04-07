@@ -10,7 +10,7 @@ fi
 cd ${HOME}/.dotfiles
 
 for name in *; do
-    if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'ssh' ]] && [[ ${name} != 'claude' ]]; then
+    if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'ssh' ]] && [[ ${name} != 'claude' ]] && [[ ${name} != 'CLAUDE.md' ]]; then
         if [[ -L ${HOME}/.${name} ]]; then
             unlink ${HOME}/.${name}
         fi
