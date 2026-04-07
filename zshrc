@@ -49,12 +49,6 @@ export PATH="$PATH:/Users/goto/.local/bin"
 # starship
 eval "$(starship init zsh)"
 
-# Amazon Q post block. Keep at the bottom of this file.
-[[ -f "${HOME}/Library/Application Support/amazon-q/shell/zshrc.post.zsh" ]] && builtin source "${HOME}/Library/Application Support/amazon-q/shell/zshrc.post.zsh"
-export PATH="/usr/local/opt/libpq/bin:$PATH"
-
-# Added by Windsurf
-export PATH="/Users/goto/.codeium/windsurf/bin:$PATH"
 
 # firebase
 export PATH="$PATH":"$HOME/.pub-cache/bin"
