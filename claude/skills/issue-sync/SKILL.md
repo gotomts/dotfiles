@@ -111,13 +111,21 @@ Linear Issue のコメントに GitHub Issue の URL を記録する。
 linear issue comment add <Issue ID> --body "GitHub Issue: https://github.com/gotomts/socialcoffeenote/issues/<番号>"
 ```
 
-### 9. Sub-issue の処理
+### 9. Linear Issue を Done にする
 
-Linear Issue に Sub-issue がある場合、各 Sub-issue に対してステップ 2〜8 を再帰的に実行する。
+GitHub への同期が完了した Linear Issue のステータスを Done に変更する。
+
+```bash
+linear issue update <Issue ID> --state Done
+```
+
+### 10. Sub-issue の処理
+
+Linear Issue に Sub-issue がある場合、各 Sub-issue に対してステップ 2〜9 を再帰的に実行する。
 
 GitHub 側では Parent issue フィールドを設定して階層を再現する。
 
-### 10. 完了報告
+### 11. 完了報告
 
 作成した GitHub Issue の一覧を表示する:
 
