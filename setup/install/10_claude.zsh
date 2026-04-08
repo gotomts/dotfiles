@@ -14,17 +14,18 @@ else
   util::info "pmset sudoers: configured"
 fi
 
-# 2. sleep-guard スキルのシンボリックリンクを作成
-SKILL_SRC="${HOME}/.dotfiles/claude/skills/sleep-guard"
-SKILL_DST="${HOME}/.claude/skills/sleep-guard"
-
+# 2. 全スキルのシンボリックリンクを作成
 mkdir -p "${HOME}/.claude/skills"
-if [[ -L "${SKILL_DST}" ]]; then
-  util::info "sleep-guard skill: already linked"
-else
-  ln -sfv "${SKILL_SRC}" "${SKILL_DST}"
-  util::info "sleep-guard skill: linked"
-fi
+for skill_dir in ${HOME}/.dotfiles/claude/skills/*/; do
+  skill_name=$(basename "${skill_dir}")
+  skill_dst="${HOME}/.claude/skills/${skill_name}"
+  if [[ -L "${skill_dst}" ]]; then
+    util::info "${skill_name} skill: already linked"
+  else
+    ln -sfv "${skill_dir}" "${skill_dst}"
+    util::info "${skill_name} skill: linked"
+  fi
+done
 
 # 3. settings.json のシンボリックリンクを作成
 SETTINGS_SRC="${HOME}/.dotfiles/claude/settings.json"
