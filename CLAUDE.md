@@ -7,6 +7,7 @@
 - `Brewfile` — Homebrew パッケージ定義
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `config/` — アプリケーション設定（starship, yazi, cmux）（`~/.config/` にシンボリックリンク）
+- `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
 - `functions/` — zsh カスタム関数（`~/.functions/` にシンボリックリンク）
 - `gitconfig` — Git 設定（`~/.gitconfig` にシンボリックリンク）
 - `gitignore_global` — グローバル gitignore（`~/.gitignore_global` にシンボリックリンク）
@@ -20,7 +21,7 @@
 # シンボリックリンク管理
 
 - `setup/setup.zsh` がリポジトリルートのファイル/ディレクトリを `~/.${name}` にシンボリックリンクする
-- 以下はシンボリックリンク対象外として除外されている: `setup`, `README.md`, `ssh`, `claude`, `CLAUDE.md`
+- 以下はシンボリックリンク対象外として除外されている: `setup`, `README.md`, `ssh`, `claude`, `CLAUDE.md`, `docs`
 - `ssh/` と `claude/` は専用ループで個別にシンボリックリンクされる
 - ルートにファイルやディレクトリを追加する場合、シンボリックリンクが不要なものは `setup.zsh` の除外条件に追加すること
 
