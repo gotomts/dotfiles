@@ -22,7 +22,7 @@ allowed-tools:
 既存 Issue との重複を確認する。
 
 ```bash
-linear issue list --json
+linear issue mine --sort priority --team SCN
 ```
 
 関連する既存 Issue があれば一覧を提示し、重複の可能性を指摘する。
