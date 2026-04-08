@@ -1,6 +1,7 @@
 tap 'leoafarias/fvm'
 tap 'manaflow-ai/cmux'
 tap 'oven-sh/bun'
+tap 'schpet/tap'
 
 # Utilities
 brew 'autoconf'
@@ -41,6 +42,9 @@ brew 'pipx'
 
 # Network & API
 brew 'grpcurl'
+
+# Task Management
+brew 'schpet/tap/linear'
 
 # Other
 brew 'mas'
