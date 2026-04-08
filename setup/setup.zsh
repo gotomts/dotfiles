@@ -18,7 +18,7 @@ cd ${HOME}/.dotfiles
 skip_names=(setup README.md ssh claude config docs aliase)
 
 for name in *; do
-    if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'ssh' ]] && [[ ${name} != 'claude' ]] && [[ ${name} != 'CLAUDE.md' ]]; then
+    if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'ssh' ]] && [[ ${name} != 'claude' ]] && [[ ${name} != 'CLAUDE.md' ]] && [[ ${name} != 'docs' ]]; then
         if [[ -L ${HOME}/.${name} ]]; then
             unlink ${HOME}/.${name}
         fi
