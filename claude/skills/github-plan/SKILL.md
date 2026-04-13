@@ -307,18 +307,29 @@ gh issue comment <ISSUE_NUMBER> --repo <OWNER>/<REPO> --body "<実装プラン>"
 
 ### 7. GitHub Project に追加（自律実行・Project が検出された場合）
 
+**重要:** `gh project item-list` は Project 内の全アイテムを返す重い GraphQL クエリ。
+Issue ごとに呼ぶとレート制限に到達するため、以下のバッチパターンを使うこと。
+
 ```bash
-# Issue を Project に追加
-gh project item-add <PROJECT_NUMBER> --owner <OWNER> --url <Issue URL>
+# Step 1: 全 Issue（親 + サブタスク）を Project に追加（item-add は軽い API）
+for url in <全 Issue URL のリスト>; do
+  gh project item-add <PROJECT_NUMBER> --owner <OWNER> --url "$url"
+done
 
-# 追加されたアイテムの ID を取得
-ITEM_ID=$(gh project item-list <PROJECT_NUMBER> --owner <OWNER> --format json | jq -r '.items[] | select(.content.url == "<Issue URL>") | .id')
+# Step 2: item-list を 1 回だけ呼んで JSON をキャッシュ
+ITEMS_JSON=$(gh project item-list <PROJECT_NUMBER> --owner <OWNER> --format json --limit 1000)
 
-# Status を設定（Ready/Todo 等）
-gh project item-edit --project-id <PROJECT_ID> --id $ITEM_ID --field-id <STATUS_FIELD_ID> --single-select-option-id <READY_OPTION_ID>
+# Step 3: キャッシュした JSON から item ID を取り出してステータス設定
+for num in <全 Issue 番号のリスト>; do
+  ITEM_ID=$(echo "$ITEMS_JSON" | jq -r ".items[] | select(.content.number == ${num}) | .id")
+  if [ -n "$ITEM_ID" ]; then
+    gh project item-edit --project-id <PROJECT_ID> --id "$ITEM_ID" \
+      --field-id <STATUS_FIELD_ID> --single-select-option-id <READY_OPTION_ID>
+  fi
+done
 ```
 
-サブタスクの Issue も同様に Project に追加する。
+**注意:** `item-list` の `--limit` は Project 内の既存アイテム数以上に設定すること。
 
 ### 8. 完了報告
 
