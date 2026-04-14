@@ -406,7 +406,7 @@ gh pr view <PR_NUMBER> --json reviews --jq '.reviews[] | select(.author.login ==
 #### インラインコメント取得
 
 ```bash
-gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments --jq '[.[] | select(.user.login == "coderabbitai") | {path: .path, line: .line, body: .body}]'
+gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments --jq '[.[] | select(.user.login == "coderabbitai") | {id: .id, path: .path, line: .line, body: .body}]'
 ```
 
 - インラインコメントが 0 件 → B4 へ
@@ -416,9 +416,18 @@ gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments --jq '[.[] | select(.user
 
 CI チェックと同様、1 回自動修正を試み、2 回目の失敗でユーザーに判断を仰ぐ。
 
-**1. コメント分析**: 各インラインコメントの指摘内容を分析し、修正を実施する。
+**1. コメント分析・修正**: 各インラインコメントの指摘内容を分析し、修正を実施する。
 
-**2. 再プッシュ・再確認**: 修正をコミット・プッシュし、CodeRabbit の再レビューを待機する。
+**2. 対応内容をリプライ**: 修正した各コメントに対し、対応内容を返信する。
+
+```bash
+# 各コメントに対応内容をリプライ
+gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments/<COMMENT_ID>/replies -f body="<対応内容の説明>"
+```
+
+対応内容は簡潔に、何をどう修正したかを記載する（例: 「`nil` チェックを追加しました」「未使用の変数を削除しました」）。
+
+**3. 再プッシュ・再確認**: 修正をコミット・プッシュし、CodeRabbit の再レビューを待機する。
 
 ```bash
 git add <修正ファイル>
