@@ -1,6 +1,6 @@
 ---
 name: issue-dev
-description: GitHub Issue を起点にブランチ作成・Project ステータス更新・PR 作成・CI チェックまでのフルサイクル開発を管理する。サブ issue を検出した場合は依存関係を分析し、直列/並列実行の戦略を提案する。
+description: GitHub Issue を起点に worktrunk で worktree 作成・Project ステータス更新・PR 作成・CI チェックまでのフルサイクル開発を管理する。サブ issue を検出した場合は依存関係を分析し、直列/並列実行の戦略を提案する。
 argument-hint: <Issue番号> [--type hotfix|feature|refactor] [--finish]
 allowed-tools:
   - Bash
@@ -28,6 +28,7 @@ Issue 読み込み
 
 ## 前提
 
+- `wt`（worktrunk）がインストール済みであること
 - `gh` CLI が認証済みであること
 - 対象リポジトリのワーキングディレクトリにいること
 - GitHub Project を操作する場合、スコープ権限が必要（`gh auth refresh -s project`）
@@ -193,14 +194,29 @@ Phase 2: #YYY → 実行 → PR 作成
 
 #### 並列実行モード ⚡
 
-並列可能な全サブ issue に対して、Agent ツールを `isolation: "worktree"` で**同時起動**する。
+**ステップ 1: worktree を事前作成**
+
+並列可能な全サブ issue に対して、`wt switch -c` で worktree を順次作成し、パスを記録する。
+
+```bash
+# 各サブ issue に対して順次実行
+wt switch -c <ブランチ名1>
+# wt list から worktree パスを取得して記録
+wt switch -c <ブランチ名2>
+# ...
+```
+
+**ステップ 2: Agent を並列起動**
+
+各 worktree のパスで Agent を**同時起動**する（`isolation` なし）。
 
 各エージェントのプロンプトに含めるコンテキスト:
 - リポジトリ情報（OWNER, REPO, DEFAULT_BRANCH）
 - GitHub Project 情報（検出済みの場合）
 - サブ issue 番号
 - 親 issue の設計ドキュメント・実装プラン
-- **指示: 「このサブ issue に対してフェーズ A → C → B を実行し、PR を作成せよ」**
+- **worktree の絶対パス（このディレクトリ内で作業すること）**
+- **指示: 「このサブ issue に対してフェーズ C → B を実行し、PR を作成せよ」**（worktree 作成済みのためフェーズ A のステップ 2 はスキップ）
 
 全エージェント完了後、結果を集約して報告する:
 
@@ -243,7 +259,9 @@ Issue の内容を取得し、以下を把握する:
 - **設計ドキュメント**（コメントに含まれている場合）
 - **実装プラン**（コメントに含まれている場合）
 
-### 2. ブランチ作成
+### 2. Worktree 作成
+
+worktrunk (`wt`) を使って worktree を作成する。
 
 命名規則: `{type}/{slug}-issue-{number}`
 
@@ -258,10 +276,10 @@ slug は Issue タイトルから生成する:
 - Issue「焙煎日に null と表示されている」→ `hotfix/roast-date-null-display-issue-742`
 
 ```bash
-git checkout <DEFAULT_BRANCH>
-git pull origin <DEFAULT_BRANCH>
-git checkout -b <ブランチ名>
+wt switch -c <ブランチ名>
 ```
+
+> **注意:** Bash ツール経由では `wt switch -c` のシェル統合（自動 `cd`）が効かない場合がある。その場合は `wt list` の出力から worktree パスを取得し、以降の Bash コマンドをそのパス内で実行する。
 
 ### 3. GitHub Project ステータス更新（Project が検出された場合）
 
@@ -287,6 +305,7 @@ Item ID が見つからない場合（Issue が Project に未追加）:
 **Issue:** #<番号> - <タイトル>
 **リポジトリ:** <OWNER>/<REPO>
 **ブランチ:** <ブランチ名>
+**Worktree:** <worktree パス>
 **Project Status:** 🚲 In Progress
 
 ### 受入条件
@@ -411,6 +430,7 @@ gh project item-edit --project-id <PROJECT_ID> --id $ITEM_ID --field-id <STATUS_
 ```
 PR 作成完了:
 - PR: <PR URL>
+- Worktree: <worktree パス>
 - CI: ✅ All checks passed / ⚠️ Failed (continued) / ⏭️ No CI
 - CodeRabbit: ✅ No issues / 🔧 Fixed / ⚠️ Issues remaining / ⏭️ Not configured
 - Issue: #<番号> → Project Status: Review
