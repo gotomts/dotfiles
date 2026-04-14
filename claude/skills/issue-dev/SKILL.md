@@ -1,6 +1,6 @@
 ---
 name: issue-dev
-description: GitHub Issue を起点にブランチ作成・Project ステータス更新・PR 作成までのフルサイクル開発を管理する。サブ issue を検出した場合は依存関係を分析し、直列/並列実行の戦略を提案する。
+description: GitHub Issue を起点にブランチ作成・Project ステータス更新・PR 作成・CI チェックまでのフルサイクル開発を管理する。サブ issue を検出した場合は依存関係を分析し、直列/並列実行の戦略を提案する。
 argument-hint: <Issue番号> [--type hotfix|feature|refactor] [--finish]
 allowed-tools:
   - Bash
@@ -302,7 +302,7 @@ Item ID が見つからない場合（Issue が Project に未追加）:
 
 **フェーズ A 完了後、フェーズ C（開発）に進む。** フェーズ C 完了後、自動的にフェーズ B（PR 作成）に進む。
 
-## フェーズ B: PR 作成・ステータス更新
+## フェーズ B: PR 作成・CI チェック・ステータス更新
 
 通常はフェーズ C 完了後に自動実行される。
 `--finish` フラグ付きで起動した場合は、フェーズ A・C をスキップしてこのフェーズのみ実行する（既に実装済みのブランチで PR だけ作りたい場合）。
@@ -328,7 +328,66 @@ Resolves #<番号>
 gh pr create --repo <OWNER>/<REPO> --title "<タイトル>" --body "<body>"
 ```
 
-### B2. GitHub Project ステータス更新（Project が検出された場合）
+### B2. CI チェック・自動修正
+
+PR 作成後、CI の完了を待機し結果を確認する。
+
+#### チェック待機
+
+```bash
+gh pr checks <PR_URL> --watch
+```
+
+- チェックが 0 件（CI 未設定）→ スキップして B3 へ
+- 全チェック pass → B3 へ
+- チェック fail → エラー解析・修正サイクルに入る
+- 10 分以内に完了しない → 現在のステータスを報告し、ユーザーに待機/続行を確認する
+
+#### エラー解析・修正サイクル
+
+CI が fail した場合、原因を解析し自動修正を試みる。2 回目の失敗でユーザーに判断を仰ぐ。
+
+**1. エラーログ取得**
+
+```bash
+# 最新の workflow run ID を取得
+gh run list --branch <BRANCH> --limit 1 --json databaseId,conclusion -q '.[0].databaseId'
+
+# 失敗ログを確認
+gh run view <RUN_ID> --log-failed
+```
+
+**2. 原因分析・修正**: エラーログを解析し、原因を特定して修正を実施する。
+
+**3. 再プッシュ・再チェック**: 修正をコミット・プッシュし、CI を再トリガーする。
+
+```bash
+git add <修正ファイル>
+git commit -m "fix: CI エラーを修正"
+git push
+gh pr checks <PR_URL> --watch
+```
+
+- pass → B3 へ
+- 再度 fail（2 回目の失敗）→ ユーザーに報告し判断を仰ぐ:
+
+```
+## ⚠️ CI チェック失敗（2 回目）
+
+### 失敗したチェック
+- <チェック名>: <エラー概要>
+
+### 試行した修正
+1. 1 回目: <修正内容と結果>
+2. 2 回目: <修正内容と結果>
+
+### 選択肢
+1. 🔧 修正を続行（手動で調査・修正）
+2. ⏩ CI 失敗のまま Review に進む
+3. 🛑 中断する
+```
+
+### B3. GitHub Project ステータス更新（Project が検出された場合）
 
 Status を「Review」に変更する。
 
@@ -338,11 +397,12 @@ ITEM_ID=$(gh project item-list <PROJECT_NUMBER> --owner <OWNER> --format json | 
 gh project item-edit --project-id <PROJECT_ID> --id $ITEM_ID --field-id <STATUS_FIELD_ID> --single-select-option-id <REVIEW_OPTION_ID>
 ```
 
-### B3. 完了報告
+### B4. 完了報告
 
 ```
 PR 作成完了:
 - PR: <PR URL>
+- CI: ✅ All checks passed / ⚠️ Failed (continued) / ⏭️ No CI
 - Issue: #<番号> → Project Status: Review
 ```
 
