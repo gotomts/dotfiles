@@ -389,77 +389,12 @@ gh pr checks <PR_URL> --watch
 
 ### B3. CodeRabbit レビュー確認・対応
 
-PR 作成後、CodeRabbit のインラインコメントを待機し対応する。
+`/coderabbit-review` スキルを実行し、CodeRabbit のインラインコメントへの対応を行う。
+対象は B1 で作成した PR。
 
-#### コメント待機
-
-CodeRabbit のレビューが投稿されるまでポーリングする（30 秒間隔、最大 5 分）。
-
-```bash
-# CodeRabbit のレビューが投稿されたか確認
-gh pr view <PR_NUMBER> --json reviews --jq '.reviews[] | select(.author.login == "coderabbitai")'
-```
-
-- レビューが投稿されない（タイムアウト）→ CodeRabbit 未設定と判断しスキップして B4 へ
-- レビューが投稿された → インラインコメントを取得する
-
-#### インラインコメント取得
-
-```bash
-gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments --jq '[.[] | select(.user.login == "coderabbitai") | {id: .id, path: .path, line: .line, body: .body}]'
-```
-
-- インラインコメントが 0 件 → B4 へ
-- インラインコメントあり → 対応サイクルに入る
-
-#### 対応サイクル
-
-CI チェックと同様、1 回自動修正を試み、2 回目の失敗でユーザーに判断を仰ぐ。
-
-**1. コメント分析・修正**: 各インラインコメントの指摘内容を分析し、修正を実施する。
-
-**2. 対応内容をリプライ**: 修正した各コメントに対し、対応内容を返信する。
-
-```bash
-# 各コメントに対応内容をリプライ
-gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments/<COMMENT_ID>/replies -f body="@coderabbitai <対応内容の説明>
-
----
-🤖 *via Claude Code*"
-```
-
-対応内容は簡潔に、何をどう修正したかを記載する（例: 「`nil` チェックを追加しました」「未使用の変数を削除しました」）。
-末尾に `🤖 *via Claude Code*` を付与し、自動対応であることを明示する。
-
-**3. 再プッシュ・再確認**: 修正をコミット・プッシュし、CodeRabbit の再レビューを待機する。
-
-```bash
-git add <修正ファイル>
-git commit -m "fix: CodeRabbit の指摘を修正"
-git push
-```
-
-再度ポーリングし、新しいインラインコメントを確認する。
-
-- 新規コメントなし → B4 へ
-- 新規コメントあり（2 回目）→ ユーザーに報告し判断を仰ぐ:
-
-```
-## ⚠️ CodeRabbit レビュー指摘（2 回目）
-
-### 残存するインラインコメント
-- <ファイルパス>:<行番号> — <指摘内容>
-- ...
-
-### 試行した修正
-1. 1 回目: <修正内容と結果>
-2. 2 回目: <修正内容と結果>
-
-### 選択肢
-1. 🔧 修正を続行
-2. ⏩ 指摘を残したまま Review に進む
-3. 🛑 中断する
-```
+スキルの結果に応じて次のステップに進む:
+- ✅ No issues / 🔧 Fixed / ⏭️ Not configured → B4 へ
+- ⚠️ Issues remaining → ユーザーが「続行」を選択した場合のみ B4 へ
 
 ### B4. GitHub Project ステータス更新（Project が検出された場合）
 
