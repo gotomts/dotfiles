@@ -28,6 +28,7 @@ brew 'gh'
 brew 'ghq'
 brew 'lazygit'
 brew 'lazydocker'
+brew 'worktrunk'
 
 # Cloud & DevOps
 brew 'kubectl'

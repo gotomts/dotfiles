@@ -26,6 +26,9 @@ for _gcloud_inc in \
 done
 unset _gcloud_inc
 
+# worktrunk
+if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
+
 # fzf
 autoload fzf-history
 zle -N fzf-history
