@@ -52,7 +52,6 @@ brew 'mas'
 
 # Casks
 cask '1password'
-cask 'alacritty'
 cask 'amazon-photos'
 cask 'android-studio'
 cask 'claude-code'
