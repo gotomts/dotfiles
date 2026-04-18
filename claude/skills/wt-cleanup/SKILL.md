@@ -1,13 +1,14 @@
 ---
 name: wt-cleanup
-description: マージ済み PR の worktree を検出し、一括クリーンアップする
+description: PR 作成済みまたはマージ済みの worktree を検出し、一括クリーンアップする
 allowed-tools:
   - Bash
+  - AskUserQuestion
 ---
 
 # Worktree Cleanup
 
-マージ済み PR に対応する worktree を検出し、ユーザー確認のうえ一括削除する。
+PR に対応する worktree を検出し、ユーザー確認のうえ一括削除する。
 
 ## 前提
 
@@ -15,82 +16,116 @@ allowed-tools:
 - `gh` CLI が認証済みであること
 - 対象リポジトリのワーキングディレクトリにいること
 
+## 削除モード
+
+ユーザーの意図に応じて削除対象を切り替える:
+
+| モード | 削除対象 | 判定条件 |
+|--------|---------|---------|
+| **merged**（デフォルト） | マージ済み PR の worktree | `gh pr list --state merged` が 1件以上 |
+| **with-pr** | PR 作成済みの worktree（状態問わず） | `gh pr list --state all` が 1件以上 |
+
+- 明示的な指定がなければ **merged** モード
+- 「PR作成済みを削除」「PR があるものを消したい」等の指示があれば **with-pr** モード
+
 ## 実行フロー
 
-### 1. リポジトリ情報取得
+### 1. リポジトリ情報取得 + Worktree 一覧取得
 
 ```bash
-gh repo view --json owner,name -q '{owner: .owner.login, repo: .name}'
+REPO=$(gh repo view --json owner,name -q '.owner.login + "/" + .name')
+wt list --format=json
 ```
 
-### 2. Worktree 一覧取得
+worktree が main のみ（1件）の場合は「worktree はありません。」と表示して終了。
+
+### 2. PR ステータスの一括検出
+
+全ブランチの PR 状態を1コマンドで取得する:
 
 ```bash
-wt list
+wt list --format=json | jq -r '.[] | select(.is_main == false) | .branch' | while read b; do
+  pr=$(gh pr list --state all --head "$b" --repo "$REPO" --json number,title,state,mergedAt --jq '.[0] // empty')
+  if [ -n "$pr" ]; then
+    echo "$b|$(echo "$pr" | jq -r '[.number, .title, .state, (.mergedAt // "")] | join("|")')"
+  else
+    echo "$b|none"
+  fi
+done
 ```
 
-メインの worktree（デフォルトブランチ）を除く全 worktree のブランチ名とパスを取得する。
+### 3. 結果の分類と表示
 
-### 3. マージ済み PR の検出
+ステップ2の出力を以下の3カテゴリに分類して表示する:
+- **マージ済み**: `state == "MERGED"` → merged モードで削除対象
+- **未マージ（PR あり）**: `state == "OPEN"` or `state == "CLOSED"` → with-pr モードで削除対象
+- **PR なし**: `none` → 常に保持
 
-各 worktree のブランチに対応する PR を検索する:
-
-```bash
-gh pr list --state merged --head <ブランチ名> --repo <OWNER>/<REPO> --json number,title,mergedAt
-```
-
-結果を以下の3カテゴリに分類する:
-- **マージ済み**: PR が merged 状態 → 削除対象
-- **未マージ**: PR が open または closed（未マージ）状態 → 保持
-- **PR なし**: 対応する PR が存在しない → 保持（手動管理ブランチの可能性）
-
-### 4. 結果表示
-
-**削除対象がある場合:**
+**表示例（merged モード）:**
 
 ```
-## 🧹 Worktree クリーンアップ
+## 🧹 Worktree クリーンアップ（merged モード）
 
 ### マージ済み（削除対象）
 | ブランチ | PR | マージ日 |
 |---------|-----|---------|
 | feature/foo-issue-123 | #200 | 2026-04-14 |
-| hotfix/bar-issue-456 | #201 | 2026-04-15 |
 
 ### 未マージ（保持）
 | ブランチ | PR | 状態 |
 |---------|-----|------|
 | feature/baz-issue-789 | #202 | open |
 
+### PR なし（保持）
+| ブランチ |
+|---------|
+| experiment/local-only |
+
 削除しますか？ (Y/n)
 ```
 
-**削除対象がない場合:**
+**表示例（with-pr モード）:**
 
 ```
-クリーンアップ対象の worktree はありません。
+## 🧹 Worktree クリーンアップ（with-pr モード）
 
-### 現在の worktree
+### PR 作成済み（削除対象）
 | ブランチ | PR | 状態 |
 |---------|-----|------|
+| feature/foo-issue-123 | #200 | merged |
 | feature/baz-issue-789 | #202 | open |
+
+### PR なし（保持）
+| ブランチ |
+|---------|
+| experiment/local-only |
+
+削除しますか？ (Y/n)
 ```
 
-worktree が 1 つもない場合（メインのみ）:
+削除対象がない場合は「クリーンアップ対象の worktree はありません。」と現在の worktree 一覧を表示して終了。
 
-```
-worktree はありません。
-```
+### 4. ユーザー確認後、一括削除
 
-### 5. ユーザー確認・削除実行
+ユーザーが承認した場合、対象ブランチを1コマンドで削除する。
 
-ユーザーが承認した場合、マージ済み worktree を `wt remove` で削除する:
+**merged モード:**
 
 ```bash
-wt remove <ブランチ名>
+wt list --format=json | jq -r '.[] | select(.is_main == false) | .branch' | while read b; do
+  [ "$(gh pr list --state merged --head "$b" --repo "$REPO" --json number --jq 'length')" -gt 0 ] && wt remove "$b"
+done
 ```
 
-### 6. 結果報告
+**with-pr モード:**
+
+```bash
+wt list --format=json | jq -r '.[] | select(.is_main == false) | .branch' | while read b; do
+  [ "$(gh pr list --state all --head "$b" --repo "$REPO" --json number --jq 'length')" -gt 0 ] && wt remove "$b"
+done
+```
+
+### 5. 結果報告
 
 ```
 ✅ <N> worktree を削除しました
