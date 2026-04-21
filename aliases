@@ -32,9 +32,6 @@ alias kubectle='kubectl exec -it KP $@'
 alias kubectll='kubectl stern $(kubectl get deploy | fzf | awk "{print \$1}")'
 alias kubectlo='kubectl get KA -o yaml'
 
-# claude
-alias claude='claude --effort max --enable-auto-mode'
-
 # vscode
 alias codeo='code $(repo)'
 
