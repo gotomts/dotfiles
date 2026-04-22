@@ -43,6 +43,7 @@ brew 'pipx'
 
 # Network & API
 brew 'grpcurl'
+brew 'tailscale'
 
 # Task Management
 brew 'schpet/tap/linear'
@@ -72,6 +73,7 @@ cask 'orbstack'
 cask 'postman'
 cask 'raycast'
 cask 'slack'
+cask 'tailscale'
 cask 'tableplus'
 cask 'visual-studio-code'
 cask 'zoom'
