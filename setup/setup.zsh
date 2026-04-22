@@ -18,7 +18,7 @@ cd ${HOME}/.dotfiles
 skip_names=(setup README.md ssh claude config docs aliase)
 
 for name in *; do
-    if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'ssh' ]] && [[ ${name} != 'claude' ]] && [[ ${name} != 'CLAUDE.md' ]] && [[ ${name} != 'docs' ]]; then
+    if [[ ${name} != 'setup' ]] && [[ ${name} != 'README.md' ]] && [[ ${name} != 'ssh' ]] && [[ ${name} != 'claude' ]] && [[ ${name} != 'CLAUDE.md' ]] && [[ ${name} != 'config' ]] && [[ ${name} != 'docs' ]]; then
         if [[ -L ${HOME}/.${name} ]]; then
             unlink ${HOME}/.${name}
         fi
@@ -31,10 +31,47 @@ if [[ ! -d ${HOME}/.claude ]]; then
 fi
 cd claude
 for name in *; do
-    if [[ -L ${HOME}/.claude/$name ]]; then
-        unlink ${HOME}/.claude/$name
+    if [[ -d ${name} ]]; then
+        if [[ ! -d ${HOME}/.claude/${name} ]]; then
+            mkdir ${HOME}/.claude/${name}
+        elif [[ -L ${HOME}/.claude/${name} ]]; then
+            unlink ${HOME}/.claude/${name}
+            mkdir ${HOME}/.claude/${name}
+        fi
+        for sub in ${name}/**/*(N.); do
+            sub_dir=${HOME}/.claude/${sub:h}
+            [[ -d ${sub_dir} ]] || mkdir -p ${sub_dir}
+            if [[ -L ${HOME}/.claude/${sub} ]]; then
+                unlink ${HOME}/.claude/${sub}
+            fi
+            ln -sfv ${PWD}/${sub} ${HOME}/.claude/${sub}
+        done
+    else
+        if [[ -L ${HOME}/.claude/${name} ]]; then
+            unlink ${HOME}/.claude/${name}
+        fi
+        ln -sfv ${PWD}/${name} ${HOME}/.claude/${name}
     fi
-    ln -sfv ${PWD}/${name} ${HOME}/.claude/${name}
+done
+cd ..
+
+if [[ ! -d ${HOME}/.config ]]; then
+    mkdir ${HOME}/.config
+fi
+cd config
+for dir in */; do
+    dir=${dir%/}
+    if [[ ! -d ${HOME}/.config/${dir} ]]; then
+        mkdir ${HOME}/.config/${dir}
+    fi
+    for name in ${dir}/*(N); do
+        [[ -f ${name} ]] || continue
+        target=${HOME}/.config/${name}
+        if [[ -L ${target} ]]; then
+            unlink ${target}
+        fi
+        ln -sfv ${PWD}/${name} ${target}
+    done
 done
 cd ..
 
