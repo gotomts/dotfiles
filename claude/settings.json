@@ -18,6 +18,18 @@
       "TodoWrite",
       "NotebookEdit"
     ],
+    "deny": [
+      "Bash(sops *)",
+      "Bash(op *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/master.key)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/credentials)"
+    ],
     "ask": [
       "Bash(kubectl delete *)",
       "Bash(kubectl apply *)",
@@ -40,18 +52,6 @@
       "Bash(git push -f *)",
       "Bash(git reset --hard *)",
       "Bash(git clean -fd *)"
-    ],
-    "deny": [
-      "Bash(sops *)",
-      "Bash(op *)",
-      "Bash(ssh *)",
-      "Bash(scp *)",
-      "Read(**/.env)",
-      "Read(**/.env.*)",
-      "Read(**/master.key)",
-      "Read(**/*.pem)",
-      "Read(**/*.key)",
-      "Read(**/credentials)"
     ],
     "defaultMode": "bypassPermissions"
   },
@@ -111,5 +111,6 @@
   "alwaysThinkingEnabled": true,
   "effortLevel": "max",
   "skipAutoPermissionPrompt": true,
-  "skipDangerousModePermissionPrompt": true
+  "skipDangerousModePermissionPrompt": true,
+  "remoteControlAtStartup": true
 }
