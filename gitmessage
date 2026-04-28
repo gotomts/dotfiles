@@ -1,0 +1,23 @@
+# <type>(<scope>): <subject>  ← 50字以内、命令形、末尾ピリオドなし
+#
+# <body>  ← 72字で折返し。「なぜ」を書く(「何を」は diff から読める)
+#
+# <footer>  ← Refs #123, BREAKING CHANGE: ... 等
+#
+# ─── Conventional Commits Type ───────────────────────────
+#   feat:     新機能
+#   fix:      バグ修正
+#   refactor: リファクタ(機能変更なし)
+#   docs:     ドキュメントのみ
+#   test:     テスト追加・修正
+#   chore:    雑事(依存更新、設定、CI 等)
+#   perf:     パフォーマンス改善
+#   style:    フォーマット(意味変更なし)
+#   build:    ビルドシステム・外部依存
+#   ci:       CI 設定
+#   revert:   過去コミットの取り消し
+#
+# ─── Breaking Change ─────────────────────────────────────
+#   破壊的変更は type の後に "!" を付ける: feat!: ...
+#   または footer に "BREAKING CHANGE: <description>"
+# ─────────────────────────────────────────────────────────
