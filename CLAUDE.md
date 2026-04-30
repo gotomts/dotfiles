@@ -6,6 +6,7 @@
 - `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
 - `Brewfile` — Homebrew パッケージ定義
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
+- `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
 - `config/` — アプリケーション設定（starship, yazi, cmux）（`~/.config/` にシンボリックリンク）
 - `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
 - `functions/` — zsh カスタム関数（`~/.functions/` にシンボリックリンク）
@@ -46,6 +47,8 @@
 - `claude/CLAUDE.md` はグローバル CLAUDE.md である。プロジェクト固有のルールはここに書かない
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
 - `claude/skills/` にはカスタムスキルを配置する
+- `claude/skills/handover/` は引き継ぎメモ管理スキル。`/handover` 実行で `~/.claude/handover/{project-hash}/{branch}/{fingerprint}/` 配下に `state.json` と `handover.md` を生成する
+- `claude/hooks/` 配下のフックスクリプトは PreCompact で未 handover 時のコンパクトをブロックし、SessionStart / UserPromptSubmit で未消費メモを Claude に通知する
 
 # CLAUDE.md の自己更新
 
