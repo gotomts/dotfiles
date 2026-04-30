@@ -19,6 +19,7 @@ brew 'pkg-config'
 brew 're2c'
 brew 'zlib'
 brew 'pwgen'
+brew 'qpdf'
 
 # Shell & Terminal
 brew 'fzf'
