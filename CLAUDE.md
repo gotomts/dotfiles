@@ -7,6 +7,7 @@
 - `Brewfile` — Homebrew パッケージ定義
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
+- `claude/agents/` — マルチエージェント開発用サブエージェント定義（developer × 10 / reviewer × 3 / pr-publisher × 1 = 14 体。`~/.claude/agents/` にシンボリックリンク）
 - `config/` — アプリケーション設定（starship, yazi, cmux）（`~/.config/` にシンボリックリンク）
 - `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
 - `functions/` — zsh カスタム関数（`~/.functions/` にシンボリックリンク）
@@ -48,6 +49,8 @@
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
 - `claude/skills/` にはカスタムスキルを配置する
 - `claude/skills/handover/` は引き継ぎメモ管理スキル。`/handover` 実行で `~/.claude/handover/{project-hash}/{branch}/{fingerprint}/` 配下に `state.json` と `handover.md` を生成する
+- `claude/skills/feature-team/` はマルチエージェント・フィーチャー開発オーケストレーションスキル。Phase 1〜6 の進行（brainstorming → writing-plans → create-issue → 並列実装 → 観点別レビュー → pr-publisher 並列起動）を制御する。`SKILL.md` / `README.md`（保守者向け俯瞰）/ `roles/_common.md`（子注入用プロトコル）/ `roles/parent.md`（親判断ガイド）で構成
+- `claude/skills/create-issue/` は spec/plan を入力に Linear / GitHub の親 Issue + sub-issue を自律登録するスキル。引数 `<tracker> <spec-path> <plan-path>` で tracker を切替。`feature-team` Phase 2 から呼ばれる前提で、対話起点の `linear-plan` / `github-plan` とは棲み分け
 - `claude/hooks/` 配下のフックスクリプトは PreCompact で未 handover 時のコンパクトをブロックし、SessionStart / UserPromptSubmit で未消費メモを Claude に通知する
 
 # CLAUDE.md の自己更新
