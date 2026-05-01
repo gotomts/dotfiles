@@ -24,12 +24,10 @@
     #       npm i -g npm-fzf
     #
     # nix では同一 PATH に複数 Node.js バージョンを同居させることが困難。
-    # グローバルは安定 LTS である Node.js 22 を採用する。
-    # Node.js 22 は 2025 年 10 月まで Active LTS (LTS コードネーム: Jod)。
+    # Node.js: nixpkgs-unstable の `nodejs` デフォルトは 2025 年現在 24 LTS に更新済み。
+    # 22 LTS は 2025-10-28 まで Active LTS のため意図的に 22 を固定。
+    # プロジェクト互換性確認後に nodejs_24 への移行を検討すること。
     # 旧バージョンが必要なプロジェクトでは `nix shell nixpkgs#nodejs_18` 等で対応。
-    #
-    # NOTE: nodejs_24 (Current リリース) に切り替える場合はこの行を nodejs_24 に変更。
-    #       nixpkgs-unstable では nodejs_22 / nodejs_24 の両方が収録されている。
     nodejs_22
 
     # npm-fzf: npmjs.com 上の npm パッケージだが nixpkgs 未収録。
