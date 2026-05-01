@@ -1,0 +1,30 @@
+# .claude/project.yml — このプロジェクトに関する Claude スキル / ワークフロー設定
+#
+# tracker: create-issue が参照（Issue tracker 設定）
+# review:  feature-team Phase 5 が参照
+# volume_thresholds: feature-team Phase 3 が参照（roles/parent.md のしきい値上書き）
+
+tracker:
+  type: linear
+  linear:
+    team: KISSA
+    project_id: bbe50233861e
+  # github を使う場合は上記 linear セクションを削除し、以下をアンコメント:
+  # github:
+  #   project_number: 1
+
+review:
+  default_reviewers:
+    - quality
+    # security / performance は roles/parent.md の起動条件で動的判断
+  round_limit: 3
+
+volume_thresholds:
+  small:
+    max_sub_issues: 1
+    max_files: 5
+    max_lines: 200
+  large:
+    min_sub_issues: 2
+    min_files: 6
+    min_lines: 201
