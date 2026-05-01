@@ -1,6 +1,12 @@
 { inputs, pkgs, ... }:
 
 {
+  # gitmessage を ~/.gitmessage として固定パスに配置する。
+  # inputs.self を commit.template に直接使うと darwin-rebuild のたびに
+  # store hash が変わり git config の表示が毎回変化するため、
+  # home.file 経由で固定パスに symlink してから参照する。
+  home.file.".gitmessage".source = ../../../gitmessage;
+
   programs.git = {
     enable = true;
 
@@ -42,9 +48,7 @@
       };
 
       commit = {
-        # inputs.self は flake のリポジトリルートを指す。
-        # Nix store パスを文字列として展開するために toString を使用する。
-        template = "${toString inputs.self}/gitmessage";
+        template = "~/.gitmessage";
       };
 
       alias = {
