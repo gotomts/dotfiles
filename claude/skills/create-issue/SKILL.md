@@ -1,7 +1,7 @@
 ---
 name: create-issue
-description: Spec / plan を入力に、Linear または GitHub の親 Issue + sub-issue 群を自律的に登録する。対話深掘りステップは持たず、`feature-team` Phase 2 から呼ばれることを想定した design-doc 駆動パイプライン。既存の `linear-plan` / `github-plan`（対話起点の単発用途）とは棲み分ける。
-argument-hint: <tracker> <spec-path> <plan-path>
+description: Spec / plan を入力に、Linear または GitHub の親 Issue + sub-issue 群を自律的に登録する。対話深掘りステップは持たず、`feature-team` Phase 2 から呼ばれることを想定した design-doc 駆動パイプライン。tracker は `.claude/project.yml` の `tracker.type` から自己解決する。
+argument-hint: <spec-path> <plan-path>
 allowed-tools:
   - Bash
   - Read
@@ -16,14 +16,15 @@ allowed-tools:
 ## 引数
 
 ```
-/create-issue <tracker> <spec-path> <plan-path>
+/create-issue <spec-path> <plan-path>
 ```
 
-- `<tracker>`: `linear` | `github`
 - `<spec-path>`: spec ファイルへの絶対 or 相対パス（例: `docs/superpowers/specs/2026-05-01-feature-x-design.md`）
 - `<plan-path>`: plan ファイルへの絶対 or 相対パス（例: `docs/superpowers/plans/2026-05-01-feature-x.md`）
 
-引数が不足している、もしくはパスが存在しない場合は即座にエラーで停止する。**この時点でユーザー対話には戻らない**（呼び元の `feature-team` 親が再投入する想定）。
+tracker は `.claude/project.yml` の `tracker.type` から自己解決する（引数では受け取らない）。
+
+引数が不足している、パスが存在しない、もしくは `.claude/project.yml` が存在しない / `tracker.type` 未定義の場合は即座にエラーで停止する。**この時点でユーザー対話には戻らない**（呼び元の `feature-team` 親が再投入する想定）。
 
 ## 前提
 
@@ -35,7 +36,7 @@ allowed-tools:
 
 ## このスキルが**しないこと**
 
-- 対話によるアイデア深掘り（`linear-plan` / `github-plan` の役割）
+- 対話によるアイデア深掘り（`superpowers:brainstorming` の役割）
 - spec / plan 自体の修正（呼び元で修正してから呼び直す）
 - 実装の着手（`feature-team` Phase 4 の責務）
 - ユーザー承認待ち（自律パイプラインなのでセルフレビュー後に登録まで進む）
@@ -76,12 +77,19 @@ digraph create_issue {
 ## 1. 引数検証
 
 ```bash
-# tracker
-[[ "$1" == "linear" || "$1" == "github" ]] || abort "tracker must be 'linear' or 'github'"
 # パス存在
-[[ -f "$2" ]] || abort "spec not found: $2"
-[[ -f "$3" ]] || abort "plan not found: $3"
+[[ -f "$1" ]] || abort "spec not found: $1"
+[[ -f "$2" ]] || abort "plan not found: $2"
+
+# 設定ファイル存在
+[[ -f .claude/project.yml ]] || abort ".claude/project.yml not found. Define tracker.type before running create-issue."
+
+# tracker.type 取得（yq があれば yq、なければ grep ベースの簡易抽出）
+TRACKER_TYPE=$(yq -r '.tracker.type' .claude/project.yml 2>/dev/null || grep -E '^[[:space:]]+type:' .claude/project.yml | head -1 | awk '{print $2}')
+[[ "$TRACKER_TYPE" == "linear" || "$TRACKER_TYPE" == "github" ]] || abort "tracker.type must be 'linear' or 'github' in .claude/project.yml"
 ```
+
+tracker は引数で受け取らず、`.claude/project.yml` の `tracker.type` を必ず参照する。
 
 `abort` は標準エラーにメッセージを出して停止する想定。失敗した場合、呼び元（`feature-team` 親）が再投入する。
 
@@ -99,7 +107,9 @@ digraph create_issue {
 linear team list
 ```
 
-複数チームがある場合、spec / plan のフロントマターか `.claude/feature-team.yml` にチームキー指定があれば優先する。なければエラー停止して呼び元に「チーム指定が必要」と報告する（自律スキルなので推測しない）。
+複数チームがある場合、`.claude/project.yml` の `tracker.linear.team` を必ず参照する。指定がなければエラー停止して呼び元に「`.claude/project.yml` に `tracker.linear.team` が必要」と報告する（自律スキルなので推測しない）。
+
+`tracker.linear.project_id` が指定されている場合、Issue 作成時に `--project` フラグ相当で関連付ける（linear-cli の対応状況に応じて運用）。
 
 ### 3-GitHub: リポジトリ情報と Project
 
@@ -116,7 +126,7 @@ gh project list --owner <OWNER> --format json
 
 - 0 個 → Project 関連処理をスキップ（Issue 作成は続行）
 - 1 個 → 自動選択
-- 2 個以上 → `.claude/feature-team.yml` の `issue_tracker.project_number` を参照。指定がなければエラー停止
+- 2 個以上 → `.claude/project.yml` の `tracker.github.project_number` を参照。指定がなければエラー停止
 
 ```bash
 gh project field-list <PROJECT_NUMBER> --owner <OWNER> --format json
@@ -281,7 +291,7 @@ for NUM in <親 + sub 全番号>; do
 done
 ```
 
-`item-list` の `--limit` は Project の既存アイテム数以上に設定する（既存の `github-plan` で確立されたパターン）。
+`item-list` の `--limit` は Project の既存アイテム数以上に設定する。
 
 ## 8. 完了報告
 
@@ -290,7 +300,7 @@ done
 ```markdown
 ## ✅ create-issue 完了
 
-**Tracker:** linear / github
+**Tracker:** linear / github（`.claude/project.yml` の `tracker.type` で解決）
 **親 Issue:** #<番号> または <Linear ID>  — <タイトル>
 **Sub-issue 数:** N
 
@@ -320,12 +330,11 @@ done
 - セルフレビュー重大問題 → ユーザーに報告して停止
 - API レート制限 / ネットワーク → 1 度だけ再試行、それでも失敗ならエラー停止
 
-## 既存スキルとの棲み分け
+## 呼び出し元
 
-| スキル | 起点 | 対話 | 入力 |
-|--------|------|------|------|
-| `linear-plan` | アイデア（口頭） | あり（Socratic） | アイデア文字列 |
-| `github-plan` | アイデア（口頭） | あり（深掘り） | アイデア文字列 |
-| **`create-issue`（このスキル）** | **spec/plan ファイル** | **なし** | **spec-path + plan-path** |
+このスキルは以下のパターンで呼ばれる:
 
-`linear-plan` / `github-plan` は無改修で温存する。単発で対話的に Issue を立てたい場合はそちらを使う。`feature-team` は **brainstorming + writing-plans の標準フロー** を経たうえでこのスキルを呼ぶ。
+- `feature-team` Phase 2 — brainstorming + writing-plans が生成した spec / plan を入力に自律登録
+- 単独実行 — spec / plan が手元にあるとき `/create-issue <spec> <plan>` で直接登録
+
+いずれの場合も tracker は `.claude/project.yml` から自己解決するため、呼び出し側は tracker を引数で渡さない。
