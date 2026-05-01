@@ -16,9 +16,8 @@ nix/
 ├── README.md               # このファイル
 ├── hosts/
 │   └── m5mbp/
-│       ├── default.nix     # ホスト固有の合成（薄い import 集約）
-│       ├── darwin.nix      # nix-darwin module 集約
-│       └── home.nix        # home-manager module 集約
+│       ├── darwin.nix      # nix-darwin module 集約（mkHost.nix から直接 import）
+│       └── home.nix        # home-manager module 集約（mkHost.nix から直接 import）
 ├── lib/
 │   └── mkHost.nix          # ホスト合成ヘルパー
 └── modules/                # S3-S11 で順次追加予定
@@ -97,7 +96,7 @@ darwin-rebuild switch --flake .#m5mbp
 ### 新しいホストを追加する手順
 
 1. `nix/hosts/<new-hostname>/` ディレクトリを作成する
-2. `darwin.nix`・`home.nix`・`default.nix` を `m5mbp/` からコピーして編集する
+2. `darwin.nix`・`home.nix` を `m5mbp/` からコピーして編集する
 3. `nix/flake.nix` の `outputs` に新しいホストを追加する:
    ```nix
    darwinConfigurations.<new-hostname> = mkHost {
@@ -108,7 +107,8 @@ darwin-rebuild switch --flake .#m5mbp
    ```
 4. 新しい PC で上記の初回セットアップ手順を実行する:
    ```sh
-   darwin-rebuild switch --flake ~/.dotfiles/nix#<new-hostname>
+   cd ~/.dotfiles/nix
+   darwin-rebuild switch --flake .#<new-hostname>
    ```
 
 ## ロールバック
@@ -172,7 +172,8 @@ sudo darwin-rebuild switch --rollback
 nix-darwin が未インストールの状態で初めて適用する場合:
 
 ```sh
-nix run nix-darwin -- switch --flake ~/.dotfiles/nix#m5mbp
+cd ~/.dotfiles/nix
+nix run nix-darwin -- switch --flake .#m5mbp
 ```
 
 ## 現在の状態（Phase A S2 完了時点）
