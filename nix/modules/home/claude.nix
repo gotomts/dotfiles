@@ -16,32 +16,36 @@
   # claude plugin の宣言的同期。
   # enabledPlugins キーを settings.json から読んで CLI で install/update を実行する。
   # writeBoundary 後に走らせることで symlink が確立された状態で実行される。
+  # 関数化により set +e / return 0 を局所化し、後続 activation への漏出を防ぐ。
   home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    set +e  # 個々のプラグイン失敗で activation 全体を止めない
+    _run_claude_plugin_sync() {
+      set +e  # 個々のプラグイン失敗で関数内処理を止めない
 
-    if ! command -v claude &>/dev/null; then
-      echo "[claude.nix] claude CLI 未インストール、plugin 同期をスキップ"
-      exit 0
-    fi
-
-    SETTINGS="''${HOME}/.claude/settings.json"
-    if [ ! -f "$SETTINGS" ]; then
-      echo "[claude.nix] settings.json 不在、plugin 同期をスキップ"
-      exit 0
-    fi
-
-    $DRY_RUN_CMD claude plugin marketplace update 2>/dev/null || true
-
-    PLUGINS=$(${pkgs.jq}/bin/jq -r '.enabledPlugins // {} | keys[]' "$SETTINGS" 2>/dev/null)
-    for plugin in $PLUGINS; do
-      if claude plugin list --json 2>/dev/null | ${pkgs.jq}/bin/jq -e --arg p "$plugin" '.[] | select(.id == $p)' &>/dev/null; then
-        $DRY_RUN_CMD claude plugin update "$plugin" 2>/dev/null || \
-          echo "[claude.nix] plugin $plugin: update failed"
-      else
-        $DRY_RUN_CMD claude plugin install "$plugin" 2>/dev/null && \
-          echo "[claude.nix] plugin $plugin: installed" || \
-          echo "[claude.nix] plugin $plugin: install failed"
+      if ! command -v claude &>/dev/null; then
+        echo "[claude.nix] claude CLI 未インストール、plugin 同期をスキップ"
+        return 0
       fi
-    done
+
+      local SETTINGS="''${HOME}/.claude/settings.json"
+      if [ ! -f "$SETTINGS" ]; then
+        echo "[claude.nix] settings.json 不在、plugin 同期をスキップ"
+        return 0
+      fi
+
+      $DRY_RUN_CMD claude plugin marketplace update 2>/dev/null || true
+
+      ${pkgs.jq}/bin/jq -r '.enabledPlugins // {} | keys[]' "$SETTINGS" 2>/dev/null | while IFS= read -r plugin; do
+        if claude plugin list --json 2>/dev/null | ${pkgs.jq}/bin/jq -e --arg p "$plugin" '.[] | select(.id == $p)' &>/dev/null; then
+          $DRY_RUN_CMD claude plugin update "$plugin" 2>/dev/null || \
+            echo "[claude.nix] plugin $plugin: update failed"
+        else
+          $DRY_RUN_CMD claude plugin install "$plugin" 2>/dev/null && \
+            echo "[claude.nix] plugin $plugin: installed" || \
+            echo "[claude.nix] plugin $plugin: install failed"
+        fi
+      done
+    }
+
+    _run_claude_plugin_sync
   '';
 }
