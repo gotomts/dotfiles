@@ -116,17 +116,18 @@ darwin-rebuild switch --flake .#m5mbp
 前の世代に戻す:
 
 ```sh
-darwin-rebuild --rollback
+cd ~/.dotfiles/nix
+sudo darwin-rebuild switch --rollback
 ```
 
-特定の世代を指定して戻す:
+世代一覧の確認と特定世代への切替:
 
 ```sh
 # 利用可能な世代を確認
 darwin-rebuild --list-generations
 
-# 特定世代に切替
-darwin-rebuild switch --flake .#m5mbp --switch-generation <generation-number>
+# 特定世代に切替（flake 指定なし。世代番号で直接切替）
+sudo darwin-rebuild switch -G <generation-number>
 ```
 
 home-manager のロールバック:
@@ -163,7 +164,7 @@ darwin-rebuild build --flake .#m5mbp 2>&1 | less
 nix-darwin のロールバック:
 
 ```sh
-darwin-rebuild --rollback
+sudo darwin-rebuild switch --rollback
 ```
 
 ### nix-darwin の初回ブートストラップ
