@@ -14,7 +14,12 @@
       };
 
       ghq = {
-        root = "~/ghq";
+        # toGitINI がリスト値を同一キーの複数行として展開するため、
+        # gitconfig の "[ghq] root = ~/.dotfiles / root = ~/ghq" が再現される。
+        root = [
+          "~/.dotfiles"
+          "~/ghq"
+        ];
       };
 
       "filter \"lfs\"" = {
