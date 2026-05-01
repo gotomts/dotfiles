@@ -35,7 +35,7 @@ final: prev: {
     src     = inputs.rtk-src;
 
     cargoLock = {
-      lockFile = "${inputs.rtk-src}/Cargo.lock";
+      lockFile = inputs.rtk-src + /Cargo.lock;
     };
 
     # libc は nixpkgs が stdenv 経由で自動提供されるため明示不要。
