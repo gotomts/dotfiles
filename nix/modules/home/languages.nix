@@ -7,11 +7,11 @@
 # プロジェクトローカルの mise 設定 (.mise.toml) は引き続き利用可能だが、
 # グローバルランタイムの管理はこのモジュールで完結させる。
 #
-# flake inputs の参照: 本ファイルは flake.nix で宣言済みの nixpkgs-unstable を使用。
+# pkgs は flake.nix で宣言済みの nixpkgs-unstable を参照 (mkHost.nix 経由で注入)。
 # fenix overlay (nightly/beta Rust toolchain) は flake input 追加が必要なため、
 # 本 sub-issue のスコープ外 (flake.nix 変更禁止制約)。
 # Phase B または別 sub-issue で fenix overlay 移行を検討すること。
-{ inputs, pkgs, lib, ... }:
+{ pkgs, ... }:
 
 {
   home.packages = with pkgs; [
