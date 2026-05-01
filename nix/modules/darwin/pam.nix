@@ -9,10 +9,16 @@
 { ... }:
 
 {
-  # Touch ID (および Apple Watch) による sudo 認証を有効化。
-  # 型: boolean, デフォルト: false
-  #
-  # 注: tmux / screen 等のマルチプレクサ内で Touch ID を使う場合は
-  #     security.pam.services.sudo_local.reattach = true も併せて設定が必要になる場合がある。
+  # Touch ID for sudo 有効化 (macOS 14+ の sudo_local PAM)。
+  # 旧 enableSudoTouchIdAuth から改名されたオプション。
   security.pam.services.sudo_local.touchIdAuth = true;
+
+  # reattach: tmux/cmux 経由で sudo を実行する場合、Touch ID プロンプトを TTY 経由で
+  # 受け取るために pam-reattach パッケージが必要になる。本リポジトリは tmux/cmux 運用を
+  # 含むが、Phase A では reattach = false (デフォルト) として、tmux 内 sudo は
+  # パスワードフォールバックを許容する判断。
+  #
+  # tmux 内 Touch ID を求める場合は以下を有効化 (pam-reattach への依存追加):
+  #   security.pam.services.sudo_local.reattach = true;
+  # security.pam.services.sudo_local.reattach = true;  # 採用時のみコメント解除
 }
