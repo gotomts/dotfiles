@@ -2,6 +2,9 @@
   description = "gotomts macOS dotfiles via nix-darwin + home-manager";
 
   inputs = {
+    # Phase A は unstable を使用 (home-manager との整合性優先)。
+    # stable に切り替える場合は nixpkgs-YY.MM 形式に変更し、
+    # home.stateVersion も対応バージョンに更新すること。
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     nix-darwin.url = "github:LnL7/nix-darwin";
