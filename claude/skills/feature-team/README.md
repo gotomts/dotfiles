@@ -20,7 +20,7 @@
 - **親はメイン Claude セッション自身**（サブエージェント化しない）
 - **子エージェントは `~/.claude/agents/` 配下の 14 体**（developer 10 + reviewer 3 + pr-publisher 1）
 - **レビュー往復は最大 3 ラウンド**で打ち切り、超過時は親介入 → ユーザー escalate
-- **設定は `.claude/feature-team.yml`**（リポジトリ単位）
+- **設定は `.claude/project.yml`**（リポジトリ単位）
 
 ---
 
@@ -30,7 +30,7 @@
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                  USER (人間)                                              │
 │  - Phase 1 brainstorming で要件出す                                       │
-│  - Phase 2 で Linear/GitHub どちらか口頭指定（または .claude/feature-team.yml）│
+│  - Phase 2 で Linear/GitHub どちらか口頭指定（または .claude/project.yml）   │
 │  - escalate 時に判断                                                      │
 └──────────────┬───────────────────────────────────────────────────────────┘
                │ 対話 (AskUserQuestion / 通常応答)
@@ -111,9 +111,9 @@
                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ Phase 2: イシュー化                                                      │
-│  PARENT → Read(.claude/feature-team.yml) で tracker 取得                 │
-│         → Skill(create-issue,                                            │
-│             args="<tracker> <spec-path> <plan-path>")                   │
+│  PARENT → Skill(create-issue,                                            │
+│             args="<spec-path> <plan-path>")                              │
+│         （create-issue が .claude/project.yml の tracker を自己解決）    │
 │  成果物: 親 issue + sub-issues (n 個)                                    │
 └──────────────┬──────────────────────────────────────────────────────────┘
                │
@@ -253,16 +253,15 @@ tN   ▼ feat/api が Round 3 でも収束しない
 | B | スペシャリストの配置 | `~/.claude/agents/` 配下の 14 体 |
 | C | プロトコルの注入方法 | 親が `roles/_common.md` の内容を Agent プロンプトに埋め込む |
 | D | レビュアー起動 | ストリーミング（developer 完了通知ごとに `run_in_background: true`）|
-| E | レビュー往復上限 | 3 ラウンド（`.claude/feature-team.yml` で上書き可）|
+| E | レビュー往復上限 | 3 ラウンド（`.claude/project.yml` の `review.round_limit` で上書き可）|
 | F | PR 単位 | 大規模 = n 個独立 PR / 小規模 = 1 個統合 PR |
 | G | reviewer の種類 | security / performance / quality の 3 観点固定 |
 | H | developer の種類 | 10 種特化 + generic フォールバック。中間層なし |
 | I | Phase 1 の流れ | brainstorming → writing-plans → Issue 用サマリー の 3 段階 |
-| J | Phase 2 の tracker 選択 | `.claude/feature-team.yml` の `issue_tracker.type` を参照。不在時は雛形書出 + ユーザー判断でコミット |
+| J | Phase 2 の tracker 選択 | `create-issue` が `.claude/project.yml` の `tracker.type` を直接参照。`feature-team` は読まない。不在時は親が雛形書出 + ユーザー判断でコミット |
 | K | worktree 管理 | worktrunk (`wt`) を使用 |
 | L | PR 単位の確定タイミング | Phase 3（ボリューム判断時） |
-| M | Phase 2 のイシュー化スキル | `create-issue`（引数 `<tracker> <spec-path> <plan-path>`） |
-| N | 既存 `linear-plan` / `github-plan` | 対話起点の単発用途として温存・無改修 |
+| M | Phase 2 のイシュー化スキル | `create-issue`（引数 `<spec-path> <plan-path>`、tracker は config 自己解決） |
 | O | Phase 6 の PR 作成 | `pr-publisher` エージェントを branch ごとに `run_in_background=true` で並列起動 |
 
 ---
@@ -294,10 +293,10 @@ tN   ▼ feat/api が Round 3 でも収束しない
 - Round 3 でも収束しない場合は **設計レベルの問題**である可能性が高く、子に修正を続けさせるよりユーザー判断を仰ぐ方が早い
 - 上限を伸ばすと無限ループに陥りやすい
 
-### なぜ create-issue は引数で linear/github を切替えるのか
+### なぜ create-issue は config から tracker を自己解決するのか
 
-- 共通フェーズ（重複チェック・構造化・セルフレビュー）を一元化できる
-- 既存 `linear-plan` / `github-plan` を改修せず温存しているので、対話起点の単発用途と棲み分け可能
+- 共通フェーズ（重複チェック・構造化・セルフレビュー）を一元化しつつ、tracker 設定はリポジトリ単位で固定するのが自然
+- `feature-team` 親が tracker 設定を読む必要がなくなり、責務分離が明確になる
 - 内部で tracker 別に分岐するため、フェーズ単位の差異（GitHub Project / Linear Sub-issue）は明示的に扱える
 
 ### なぜ Phase 1 で brainstorming → writing-plans の 2 段階を踏むのか
@@ -332,7 +331,7 @@ tN   ▼ feat/api が Round 3 でも収束しない
 
 ### しきい値を変更したいとき
 
-`.claude/feature-team.yml` の `volume_thresholds` で**リポジトリ単位で上書き**するのが第一選択。`parent.md` の既定値は最後の砦として残しておく。
+`.claude/project.yml` の `volume_thresholds` で**リポジトリ単位で上書き**するのが第一選択。`parent.md` の既定値は最後の砦として残しておく。
 
 ### 新しい developer / reviewer を追加するとき
 

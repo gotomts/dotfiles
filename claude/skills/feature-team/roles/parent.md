@@ -17,7 +17,7 @@
 | 推定変更行数 | ≤ 200 | ≥ 201 |
 | 言語/FW の異種混合 | なし（単一スタック） | あり（複数スタック） |
 
-これらは `.claude/feature-team.yml` の `volume_thresholds` で上書きされている場合があるので、設定ファイル値を優先する。
+これらは `.claude/project.yml` の `volume_thresholds` で上書きされている場合があるので、設定ファイル値を優先する。
 
 ### 判定アルゴリズム
 
@@ -84,7 +84,7 @@
 
 ### 起動判定
 
-`.claude/feature-team.yml` の `default_reviewers` を起点に、各 sub-issue / branch ごとに以下を加味して観点を決める:
+`.claude/project.yml` の `review.default_reviewers` を起点に、各 sub-issue / branch ごとに以下を加味して観点を決める:
 
 #### `reviewer-security` を**追加で起動する**条件
 
@@ -208,6 +208,6 @@
 - 子エージェントの出力をそのまま次の子に転送する（必ず親が理解・統合してから指示を書く）
 - ユーザーへの確認が必要な判断を子に委ねる（子は AskUserQuestion を使えない）
 - レビュー指摘を全部 developer に丸投げする（critical / major のみ抽出する）
-- 設定ファイル `.claude/feature-team.yml` を勝手に commit する（書き出しまで、コミットはユーザー判断）
+- 設定ファイル `.claude/project.yml` を勝手に commit する（書き出しまで、コミットはユーザー判断）
 - worktree を勝手に `wt remove` する（PR マージ後の cleanup は別途 `wt-cleanup` スキル）
-- ラウンド上限を勝手に伸ばす（ユーザー承認なしで `review_round_limit` を上書きしない）
+- ラウンド上限を勝手に伸ばす（ユーザー承認なしで `review.round_limit` を上書きしない）

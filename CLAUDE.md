@@ -50,7 +50,7 @@
 - `claude/skills/` にはカスタムスキルを配置する
 - `claude/skills/handover/` は引き継ぎメモ管理スキル。`/handover` 実行で `~/.claude/handover/{project-hash}/{branch}/{fingerprint}/` 配下に `state.json` と `handover.md` を生成する
 - `claude/skills/feature-team/` はマルチエージェント・フィーチャー開発オーケストレーションスキル。Phase 1〜6 の進行（brainstorming → writing-plans → create-issue → 並列実装 → 観点別レビュー → pr-publisher 並列起動）を制御する。`SKILL.md` / `README.md`（保守者向け俯瞰）/ `roles/_common.md`（子注入用プロトコル）/ `roles/parent.md`（親判断ガイド）で構成
-- `claude/skills/create-issue/` は spec/plan を入力に Linear / GitHub の親 Issue + sub-issue を自律登録するスキル。引数 `<tracker> <spec-path> <plan-path>` で tracker を切替。`feature-team` Phase 2 から呼ばれる前提で、対話起点の `linear-plan` / `github-plan` とは棲み分け
+- `claude/skills/create-issue/` は spec/plan を入力に Linear / GitHub の親 Issue + sub-issue を自律登録するスキル。引数 `<spec-path> <plan-path>` で受け取り、tracker は `.claude/project.yml` の `tracker.type` から自己解決する。`feature-team` Phase 2 から呼ばれる前提
 - `claude/hooks/` 配下のフックスクリプトは PreCompact で未 handover 時のコンパクトをブロックし、SessionStart / UserPromptSubmit で未消費メモを Claude に通知する
 
 # CLAUDE.md の自己更新
