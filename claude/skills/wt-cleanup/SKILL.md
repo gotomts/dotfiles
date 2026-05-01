@@ -84,7 +84,7 @@ typeset -a NO_PR_BRANCHES
 各ブランチのループ処理:
 
 ```bash
-wt list --format=json | jq -r '.[] | select(.is_main == false) | [.branch, .path] | @tsv' | while IFS=$'\t' read -r BRANCH WT_PATH; do
+while IFS=$'\t' read -r BRANCH WT_PATH; do
 
   # ---- 保護判定 (uncommitted) ----
   PORCELAIN=$(git -C "$WT_PATH" status --porcelain 2>/dev/null)
@@ -106,7 +106,12 @@ wt list --format=json | jq -r '.[] | select(.is_main == false) | [.branch, .path
   # ---- 保護判定 (未 push commits) ----
   # @{u} 未設定の場合は 0 扱い（削除対象は PR 経由なので upstream 設定済みが前提）
   UNPUSHED=$(git -C "$WT_PATH" rev-list @{u}..HEAD --count 2>/dev/null)
-  if [ -z "$UNPUSHED" ]; then
+  REVLIST_RC=$?
+  if [ "$REVLIST_RC" -ne 0 ]; then
+    # rev-list 失敗時: git 異常は STATUS_RC で既に捕捉済みのため、
+    # ここに到達した場合は upstream 未設定と判定し 0 扱い（spec §9）
+    UNPUSHED=0
+  elif [ -z "$UNPUSHED" ]; then
     UNPUSHED=0
   fi
 
@@ -148,7 +153,7 @@ wt list --format=json | jq -r '.[] | select(.is_main == false) | [.branch, .path
   else
     NO_PR_BRANCHES+=("$BRANCH")
   fi
-done
+done < <(wt list --format=json | jq -r '.[] | select(.is_main == false) | [.branch, .path] | @tsv')
 ```
 
 > **エラーハンドリング**（spec §9）:
@@ -188,11 +193,13 @@ echo "### 🛡️ 保護（uncommitted or 未 push）"
 if [ ${#PROTECTED_REASON[@]} -eq 0 ]; then
   echo "（なし）"
 else
-  echo "| ブランチ | 保護理由 |"
-  echo "|---------|---------|"
+  echo "| ブランチ | PR | マージ日 | 保護理由 |"
+  echo "|----------|----|----------|----------|"
   for branch in "${(k)PROTECTED_REASON[@]}"; do
+    pr_display="${PR_NUMBER[$branch]:--}"
+    date_display="${MERGED_DATE[$branch]:--}"
     reason="${PROTECTED_REASON[$branch]}"
-    echo "| $branch | ⚠️ $reason |"
+    echo "| $branch | $pr_display | $date_display | ⚠️ $reason |"
   done
 fi
 
@@ -256,7 +263,7 @@ fi
 
 ```bash
 # force=true なら保護対象を削除候補に統合
-if [ "$FORCE" = "true" ] && [ "${#PROTECTED_REASON}" -gt 0 ]; then
+if [ "$FORCE" = "true" ] && [ "${#PROTECTED_REASON[@]}" -gt 0 ]; then
   echo ""
   echo "## ⚠️ force モード: 保護対象を削除候補に統合"
   echo "| ブランチ | 保護理由 |"
@@ -266,10 +273,11 @@ if [ "$FORCE" = "true" ] && [ "${#PROTECTED_REASON}" -gt 0 ]; then
     TARGET_BRANCHES+=("$branch")
   done
 
-  # 追加確認（AskUserQuestion ツール使用）
-  # 「🛡️ 保護対象 ${#PROTECTED_REASON} 件を削除します。ローカル変更が失われます。続行しますか?」
-  # を表示し、ユーザーが Y を選択した場合のみ次へ進む
-  # ユーザーが N を選択した場合は即時終了
+  # Claude へ: AskUserQuestion ツールで以下を表示する:
+  #   質問文: 「🛡️ 保護対象 ${#PROTECTED_REASON[@]} 件を削除します。ローカル変更が失われます。続行しますか?」
+  #   選択肢: ["はい (削除実行)", "いいえ (中断)"]
+  # ユーザーが「はい」を選択した場合のみ削除ループへ進む。
+  # 「いいえ」または不明な選択の場合: `echo "削除を中断しました"` を出力して `exit 0`。
 fi
 
 # 削除対象がゼロなら終了
@@ -278,8 +286,11 @@ if [ ${#TARGET_BRANCHES[@]} -eq 0 ]; then
   exit 0
 fi
 
-# ユーザー確認（AskUserQuestion ツール使用）
-# 「削除対象 ${#TARGET_BRANCHES[@]} 件を削除しますか? (Y/n)」を表示
+# Claude へ: AskUserQuestion ツールで以下を表示する:
+#   質問文: 「削除対象 ${#TARGET_BRANCHES[@]} 件を削除します。続行しますか?」
+#   選択肢: ["はい (削除実行)", "いいえ (中断)"]
+# ユーザーが「はい」を選択した場合のみ削除ループへ進む。
+# 「いいえ」または不明な選択の場合: `echo "削除を中断しました"` を出力して `exit 0`。
 
 # 削除実行（ユーザーが Y を選択した場合）
 REMOVED=()
