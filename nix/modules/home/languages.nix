@@ -30,9 +30,7 @@
     # 旧バージョンが必要なプロジェクトでは `nix shell nixpkgs#nodejs_18` 等で対応。
     nodejs_22
 
-    # npm-fzf: npmjs.com 上の npm パッケージだが nixpkgs 未収録。
-    # Brewfile (S9 homebrew.nix) または `npm i -g npm-fzf` で別途対応すること。
-    # nixpkgs 未収録のため Brewfile (S9 homebrew.nix) 残置 or 別途 npm install で対応
+    # npm-fzf: nixpkgs 未収録のため Brewfile (S9 homebrew.nix) 残置 or `npm i -g npm-fzf` で対応
 
     # ===========================================================================
     # Go
@@ -100,12 +98,10 @@
     # pipx install poetry==1.2.0 の代替 (nixpkgs の poetry は最新安定版)
     poetry
 
-    # pipx install grip (GitHub Readme Instant Preview) の代替:
-    # nixpkgs の `grip` (バージョン 4.2.4) は GTK ベースの CD プレイヤーであり、
-    # joeyespo/grip (Python 製 GitHub Markdown プレビューツール) とは別物。
-    # python3Packages.grip としての収録も未確認。
-    # nixpkgs 未収録のため Brewfile (S9 homebrew.nix) 残置 or `pipx install grip` で対応
-    # grip  # <- コメントアウト: 名前衝突あり、要確認
+    # pipx install grip (GitHub Readme Instant Preview) の代替。
+    # nixpkgs では python3Packages.grip として収録 (joeyespo/grip v4.6.1)。
+    # pkgs.grip トップレベルは GTK CD プレイヤーで別物のため注意。
+    python3Packages.grip
 
     # ===========================================================================
     # Dart
