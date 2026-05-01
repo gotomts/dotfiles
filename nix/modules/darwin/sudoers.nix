@@ -20,4 +20,10 @@
   security.sudo.extraConfig = ''
     ${username} ALL=(ALL) NOPASSWD: /usr/bin/pmset
   '';
+
+  # 検証ポイント (実機 darwin-rebuild switch 後):
+  # - /etc/sudoers.d/10-nix-darwin-extra-config の所有者が root:wheel か
+  # - パーミッションが 0440 か
+  # - sudo がエラーなく動作するか (sudo: ... is owned by uid X エラーが出ないこと)
+  # 問題が出た場合は environment.etc."sudoers.d/...".{mode,user,group} を明示指定する。
 }
