@@ -17,6 +17,10 @@
   # 削除すること。並存期間中は二重エントリ (/etc/sudoers.d/pmset と
   # /etc/sudoers.d/10-nix-darwin-extra-config の両方) になるが、sudo 動作上は無害。
   # 削除を忘れると Phase B 後も古いエントリが残り、sudoers 監査時の誤解を招く。
+  #
+  # 注意: security.sudo.extraConfig は types.lines (複数モジュール連結)。
+  # 他モジュールから extraConfig を追加する場合は事前に visudo -c で構文検証すること。
+  # 適用前検証: echo "..." | visudo -c -f -
   security.sudo.extraConfig = ''
     ${username} ALL=(ALL) NOPASSWD: /usr/bin/pmset
   '';
