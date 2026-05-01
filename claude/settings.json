@@ -135,7 +135,8 @@
     "explanatory-output-style@claude-plugins-official": true,
     "learning-output-style@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
-    "linear-cli@linear-cli": true
+    "linear-cli@linear-cli": true,
+    "rust-analyzer-lsp@claude-plugins-official": true
   },
   "language": "japanese",
   "alwaysThinkingEnabled": true,
