@@ -50,6 +50,9 @@ brew 'tailscale'
 # Task Management
 brew 'schpet/tap/linear'
 
+# AI Tooling
+brew 'rtk'
+
 # Other
 brew 'mas'
 
