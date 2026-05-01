@@ -3,9 +3,8 @@
 # CLI ツール群を home.packages として宣言する home-manager モジュール。
 # home.nix の imports に追加することで有効化される（S3 integration commit で配線）。
 #
-# extraSpecialArgs 由来: inputs / hostname / username (mkHost.nix から注入)
 # 自動注入: pkgs / lib / config (... で受け取る)
-{ inputs, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   home.packages = with pkgs; [
@@ -46,8 +45,8 @@
     # -------------------------------------------------------------------------
     # Languages & Runtimes
     # -------------------------------------------------------------------------
-    # bun: oven-sh/bun はカスタム tap 版。nixpkgs に bun は存在するが
-    #   バージョン追跡方針を S7 で決定するため S3 では含めない（Brewfile 残置）
+    # bun: nixpkgs にも bun は存在する。oven-sh/bun tap 版とのバージョン追跡方針差を
+    #   S7 で確認するまで Brewfile 残置（保守的判断）。
     # fvm (leoafarias/fvm): nixpkgs 未収録のため darwin/homebrew.nix (S9) 残置
     # pipx: S7 / homebrew 残置検討のため S3 では含めない（Brewfile 残置）
 
