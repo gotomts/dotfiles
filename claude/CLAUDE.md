@@ -95,3 +95,5 @@
 
 - `~/.claude/CLAUDE.local.md` が存在する場合、セッション開始時に Read で読み込み、その内容も指示として従うこと
 - `CLAUDE.local.md` は PC 固有の設定・制約を記述するためのファイルであり、このファイル（CLAUDE.md）の内容を上書きする
+
+@RTK.md

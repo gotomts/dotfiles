@@ -64,6 +64,10 @@
           {
             "type": "command",
             "command": "if printf '%s\\n' \"$CLAUDE_TOOL_INPUT\" | jq -r '.command' 2>/dev/null | grep -qE '(rm\\s+-rf\\s+(/|~|\\$HOME|/usr|/etc|/var|/opt|/System)|>\\s*/dev/sd|mkfs|dd\\s+if=|git\\s+push\\s+.*--force|git\\s+push\\s+.*-f\\b|git\\s+reset\\s+--hard|git\\s+clean\\s+-fd)'; then echo 'BLOCK: Destructive command detected' >&2; exit 2; fi"
+          },
+          {
+            "type": "command",
+            "command": "rtk hook claude"
           }
         ]
       }
