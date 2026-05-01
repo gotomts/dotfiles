@@ -60,12 +60,6 @@
       gcps   = "gcloud config set project $(gcloud projects list | fzf | awk \"{print \\$1}\")";
       gcgc   = "bash ~/.aliase/get-gke-credentials.sh";
 
-      # kubectl — グローバルエイリアス KP/KD/KS/KI/KJ/KA は initExtra に `alias -g` で定義。
-      # ここでは `-g` 非対応エイリアスのみ定義する。
-      kubectle = "kubectl exec -it KP $@";
-      kubectll = "kubectl stern $(kubectl get deploy | fzf | awk \"{print \\$1}\")";
-      kubectlo = "kubectl get KA -o yaml";
-
       # vscode
       codeo = "code $(repo)";
 
@@ -129,6 +123,10 @@
       alias -g KI='$(kubectl get ing | fzf | awk "{print \$1}")'
       alias -g KJ='$(kubectl get job | fzf | awk "{print \$1}")'
       alias -g KA='$(kubectl get all | awk "! /NAME/" | fzf | awk "{print \$1}")'
+      # kubectle 系は KP/KA グローバルエイリアスを参照するため、展開順を保証するため直後に定義
+      alias kubectle='kubectl exec -it KP $@'
+      alias kubectll='kubectl stern $(kubectl get deploy | fzf | awk "{print \$1}")'
+      alias kubectlo='kubectl get KA -o yaml'
     '';
 
     # -----------------------------------------------------------------------
