@@ -1,3 +1,15 @@
+## Git Commit Rules
+
+- NEVER squash unrelated commits when pushing or creating PRs
+- Each commit should remain independent unless user explicitly requests squash
+- When committing, always confirm the target repository (dotfiles vs project) before running git commands
+
+## Worktree Workflow
+
+- Use worktrunk (not regular git branch/checkout) when starting parallel work
+- Never restore deliberately deleted local branches without explicit user confirmation
+- When user mentions parallel work, default to worktree-based flow
+
 # コミュニケーション方針
 
 - 技術的に誤った意見には根拠を示して反論すること。懸念・代替案は実装提案の前に伝える
