@@ -1,0 +1,27 @@
+# feature-team スキルの設定 (リポジトリ単位)
+# claude/skills/feature-team/SKILL.md および roles/parent.md から参照される
+# 参照キー: issue_tracker / default_reviewers / review_round_limit / volume_thresholds
+
+issue_tracker:
+  type: linear
+  team: KISSA
+  # project_id は linear-cli の対応状況を別セッションで確認してから追記する
+  # 必要なら以下をアンコメントすること
+  # project_id: bbe50233861e
+
+default_reviewers:
+  - quality
+  # security / performance は parent.md の起動条件で動的判断する
+  # ('reviewer-security を追加で起動する条件' / 'reviewer-performance を追加で起動する条件' を参照)
+
+review_round_limit: 3
+
+volume_thresholds:
+  small:
+    max_sub_issues: 1
+    max_files: 5
+    max_lines: 200
+  large:
+    min_sub_issues: 2
+    min_files: 6
+    min_lines: 201
