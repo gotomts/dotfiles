@@ -31,7 +31,10 @@
 final: prev: {
   rtk = prev.rustPlatform.buildRustPackage {
     pname   = "rtk";
-    version = inputs.rtk-src.shortRev or "0.38.0";
+    # version: 通常は flake.lock で固定された commit の shortRev (8 桁) が入る。
+    # "unknown" フォールバックは flake.lock 未生成または評価失敗時のみ使用される。
+    # rtk のメジャーバージョンを示したい場合は inputs.rtk-src.rev からの動的取得を検討。
+    version = inputs.rtk-src.shortRev or "unknown";
     src     = inputs.rtk-src;
 
     cargoLock = {
