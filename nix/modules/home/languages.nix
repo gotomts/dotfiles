@@ -109,14 +109,11 @@
     # 現状: 09_dart.zsh: dart pub global activate flutterfire_cli
     #       Brewfile: leoafarias/fvm/fvm (tap 経由), cask 'flutter'
     #
-    # nixpkgs の dart は Linux 向けバイナリのみ提供されており、
-    # aarch64-darwin (Apple Silicon Mac) では利用不可の可能性がある。
-    # Flutter SDK は cask 'flutter' (Brewfile) または S9 homebrew.nix で管理を継続。
-    # fvm (Flutter Version Manager) は leoafarias/fvm tap 経由のみで nixpkgs 未収録。
-    #
-    # nixpkgs 未収録 / darwin 非対応のため Brewfile (S9 homebrew.nix) 残置
-    # dart  # <- コメントアウト: aarch64-darwin 非対応の可能性、要確認
-    # fvm   # <- コメントアウト: nixpkgs 未収録のため Brewfile (S9 homebrew.nix) 残置
+    # nixpkgs-unstable v3.11.4 時点で aarch64-darwin 対応済み (meta.platforms に明記)。
+    # Flutter SDK は引き続き Brewfile (cask 'flutter') / S9 homebrew.nix で管理。
+    # fvm (Flutter Version Manager) は nixpkgs 未収録のため Brewfile (S9 homebrew.nix) 残置。
+    dart
+    # fvm: nixpkgs 未収録のため Brewfile (S9 homebrew.nix) 残置
 
   ];
 }
