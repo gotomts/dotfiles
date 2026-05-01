@@ -3,10 +3,11 @@
 #
 # extraSpecialArgs 由来: inputs / hostname / username (mkHost.nix から注入)
 # 自動注入: pkgs / lib / config (... で受け取る)
+# 本モジュールでは上記引数を使用しないため { ... } で受け取る
 #
 # darwin.nix への配線:
 #   imports = [ ../../modules/darwin/homebrew.nix ];
-{ inputs, lib, ... }:
+{ ... }:
 
 {
   homebrew = {
