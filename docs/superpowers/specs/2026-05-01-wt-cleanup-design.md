@@ -172,13 +172,17 @@ BRANCH=<同 branch>
 # uncommitted 検出（status --porcelain が非空）
 UNCOMMITTED=$(git -C "$WT_PATH" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 
-# 未 push commits 検出（@{u} = upstream 設定済みの場合）
-UNPUSHED=$(git -C "$WT_PATH" rev-list @{u}..HEAD --count 2>/dev/null)
-if [ -z "$UNPUSHED" ]; then
+# 未 push commits 検出（先に upstream の有無を判定）
+if git -C "$WT_PATH" rev-parse --abbrev-ref --symbolic-full-name @{u} >/dev/null 2>&1; then
+  UPSTREAM_SET=true
+  UNPUSHED=$(git -C "$WT_PATH" rev-list @{u}..HEAD --count 2>/dev/null)
+  [ -z "$UNPUSHED" ] && UNPUSHED=0
+else
+  UPSTREAM_SET=false
   UNPUSHED=0
 fi
 
-if [ "$UNCOMMITTED" -gt 0 ] || [ "$UNPUSHED" -gt 0 ]; then
+if [ "$UNCOMMITTED" -gt 0 ] || [ "$UNPUSHED" -gt 0 ] || [ "$UPSTREAM_SET" = "false" ]; then
   PROTECTED=true
 fi
 ```
@@ -188,7 +192,7 @@ fi
 | ケース | 挙動 | 根拠 |
 |-------|------|------|
 | `git status` がエラー | 保護扱い (PROTECTED=true) | fail-safe（破壊リスクを避ける） |
-| `@{u}` 未設定 | UNPUSHED=0 扱い | 削除対象は PR 経由なので upstream 設定済みが前提 |
+| `@{u}` 未設定 | 保護扱い (PROTECTED=true)、理由「upstream 未設定 (未 push)」 | remote にコミットが存在しないため、削除すると差分を失う可能性がある |
 | detached HEAD | uncommitted のみ判定 | 想定外、保護扱いで安全側 |
 | ネットワーク非接続 (`gh pr list` 失敗) | 既存挙動踏襲 | スコープ外 |
 
