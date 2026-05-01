@@ -15,10 +15,14 @@
     onActivation = {
       # 手動制御。CI 化する場合は true 検討
       autoUpdate = false;
-      # 宣言外のものを削除（Brewfile 管理外が残らないようにする）
-      cleanup = "zap";
       # 既存パッケージは upgrade する
       upgrade = true;
+      # "zap": 宣言外パッケージを Cellar ごと削除する ("uninstall" より破壊的)。
+      # Phase A 移行期は darwin-rebuild switch のたびに実行されるため、
+      # homebrew.nix に載っていない手動インストール済みパッケージは即削除される。
+      # 本ファイルが Brewfile の全量を網羅している前提なので実害は最小だが、
+      # Phase A → Phase B (Brewfile 廃止) まで "uninstall" に下げる選択肢も検討する。
+      cleanup = "zap";
     };
 
     taps = [
