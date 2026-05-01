@@ -1,4 +1,4 @@
-{ inputs, pkgs, lib, ... }:
+{ pkgs, lib, ... }:
 
 {
   # ~/.claude/{agents,skills,hooks,settings.json,CLAUDE.md,RTK.md} を
