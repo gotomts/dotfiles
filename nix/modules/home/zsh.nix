@@ -110,12 +110,13 @@
       export PATH="/opt/homebrew/opt/bison/bin:$PATH"
 
       # pipx local bin
-      export PATH="$PATH:/Users/goto/.local/bin"
+      export PATH="$PATH:$HOME/.local/bin"
 
       # dart-cli completion
-      [[ -f /Users/goto/.dart-cli-completion/zsh-config.zsh ]] && . /Users/goto/.dart-cli-completion/zsh-config.zsh || true
+      [[ -f "$HOME/.dart-cli-completion/zsh-config.zsh" ]] && . "$HOME/.dart-cli-completion/zsh-config.zsh" || true
 
-      # starship prompt (S5 で programs.starship モジュールを追加するまでの暫定)
+      # TODO(S5): programs.starship モジュール追加後にこの行を削除すること。
+      # starship を有効化したまま残すと二重初期化が発生する。
       eval "$(starship init zsh)"
 
       # firebase / pub-cache
