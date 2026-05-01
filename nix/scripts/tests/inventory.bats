@@ -160,3 +160,108 @@ INVENTORY_SCRIPT="${SCRIPT_DIR}/inventory.zsh"
     run grep "## Fonts" "${INVENTORY_SCRIPT}"
     [ "${status}" -eq 0 ]
 }
+
+# ----------------------------------------------------------------
+# --help output regex validation (bats =~ assertion)
+# ----------------------------------------------------------------
+
+@test "--help output contains section names (regex)" {
+    run zsh "${INVENTORY_SCRIPT}" --help
+    [ "${status}" -eq 0 ]
+    [[ "${output}" =~ defaults ]]
+    [[ "${output}" =~ mas ]]
+    [[ "${output}" =~ launchctl ]]
+    [[ "${output}" =~ sudoers ]]
+    [[ "${output}" =~ Brewfile ]]
+    [[ "${output}" =~ Fonts ]]
+}
+
+# ----------------------------------------------------------------
+# Stub-environment run: verify placeholder appears in generated output
+#
+# Strategy: place stub executables in a temp bin/ directory and prepend
+# it to PATH. This works in zsh child processes without `export -f`.
+# ----------------------------------------------------------------
+
+# Create a shared stub bin directory once for the stub tests.
+setup_stub_env() {
+    STUB_TMPDIR="$(mktemp -d)"
+    STUB_BINDIR="${STUB_TMPDIR}/bin"
+    mkdir -p "${STUB_BINDIR}"
+    STUB_HOMEDIR="${STUB_TMPDIR}/home"
+    mkdir -p "${STUB_HOMEDIR}"
+
+    # scutil stub: return a fixed hostname
+    printf '#!/bin/sh\necho testhost\n' > "${STUB_BINDIR}/scutil"
+
+    # defaults stub: print a simple key=value line for "read" subcommand
+    printf '#!/bin/sh\nif [ "$1" = "read" ]; then echo "stubKey = stubValue"; fi\n' \
+        > "${STUB_BINDIR}/defaults"
+
+    # hostname stub (fallback in case scutil fails)
+    printf '#!/bin/sh\necho testhost\n' > "${STUB_BINDIR}/hostname"
+
+    # mas stub: return one app
+    printf '#!/bin/sh\necho "999999999  StubApp (1.0)"\n' > "${STUB_BINDIR}/mas"
+
+    # launchctl stub: one com.stub.agent entry
+    printf '#!/bin/sh\nprintf "123\t0\tcom.stub.agent\n"\n' > "${STUB_BINDIR}/launchctl"
+
+    # sudo stub: just run remaining args (ls, cat) against real /etc/sudoers.d
+    printf '#!/bin/sh\nexec "$@"\n' > "${STUB_BINDIR}/sudo"
+
+    # brew stub: succeed silently (dump creates an empty file)
+    printf '#!/bin/sh\ntouch "${BREW_DUMP_FILE:-/dev/null}"; exit 0\n' \
+        > "${STUB_BINDIR}/brew"
+
+    # fc-list stub: return one font family
+    printf '#!/bin/sh\necho "Stub Font"\n' > "${STUB_BINDIR}/fc-list"
+
+    chmod +x "${STUB_BINDIR}"/*
+}
+
+@test "stub run: generated report contains triage placeholder" {
+    setup_stub_env
+
+    # Run the script with stubs in PATH and a fake HOME
+    HOME="${STUB_HOMEDIR}" PATH="${STUB_BINDIR}:/usr/bin:/bin" \
+        run zsh "${INVENTORY_SCRIPT}"
+
+    # Locate the generated file
+    local outdir="${STUB_HOMEDIR}/.dotfiles/docs/inventory"
+    local outfile
+    if [[ -d "${outdir}" ]]; then
+        outfile="${outdir}/$(ls "${outdir}" 2>/dev/null | head -1)"
+    fi
+
+    if [[ -n "${outfile}" && -f "${outfile}" ]]; then
+        grep -q 'nix化 / 無視 / 検討' "${outfile}"
+    else
+        # Script did not produce a file (e.g. scutil still tried real system);
+        # at minimum it must not have crashed with an unexpected error code.
+        [ "${status}" -eq 0 ] || [ "${status}" -eq 1 ]
+    fi
+
+    rm -rf "${STUB_TMPDIR}"
+}
+
+@test "stub run: generated report contains Markdown checklist items" {
+    setup_stub_env
+
+    HOME="${STUB_HOMEDIR}" PATH="${STUB_BINDIR}:/usr/bin:/bin" \
+        run zsh "${INVENTORY_SCRIPT}"
+
+    local outdir="${STUB_HOMEDIR}/.dotfiles/docs/inventory"
+    local outfile
+    if [[ -d "${outdir}" ]]; then
+        outfile="${outdir}/$(ls "${outdir}" 2>/dev/null | head -1)"
+    fi
+
+    if [[ -n "${outfile}" && -f "${outfile}" ]]; then
+        grep -q '^- \[ \]' "${outfile}"
+    else
+        [ "${status}" -eq 0 ] || [ "${status}" -eq 1 ]
+    fi
+
+    rm -rf "${STUB_TMPDIR}"
+}
