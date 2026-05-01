@@ -1,0 +1,47 @@
+{ inputs, pkgs, lib, ... }:
+
+{
+  # ~/.claude/{agents,skills,hooks,settings.json,CLAUDE.md,RTK.md} を
+  # dotfiles から symlink する。
+  # 従来の setup/install/10_claude.zsh の symlink ループを home-manager で置換。
+  home.file = {
+    ".claude/agents".source        = ../../../claude/agents;
+    ".claude/skills".source        = ../../../claude/skills;
+    ".claude/hooks".source         = ../../../claude/hooks;
+    ".claude/settings.json".source = ../../../claude/settings.json;
+    ".claude/CLAUDE.md".source     = ../../../claude/CLAUDE.md;
+    ".claude/RTK.md".source        = ../../../claude/RTK.md;
+  };
+
+  # claude plugin の宣言的同期。
+  # enabledPlugins キーを settings.json から読んで CLI で install/update を実行する。
+  # writeBoundary 後に走らせることで symlink が確立された状態で実行される。
+  home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    set +e  # 個々のプラグイン失敗で activation 全体を止めない
+
+    if ! command -v claude &>/dev/null; then
+      echo "[claude.nix] claude CLI 未インストール、plugin 同期をスキップ"
+      exit 0
+    fi
+
+    SETTINGS="''${HOME}/.claude/settings.json"
+    if [ ! -f "$SETTINGS" ]; then
+      echo "[claude.nix] settings.json 不在、plugin 同期をスキップ"
+      exit 0
+    fi
+
+    $DRY_RUN_CMD claude plugin marketplace update 2>/dev/null || true
+
+    PLUGINS=$(${pkgs.jq}/bin/jq -r '.enabledPlugins // {} | keys[]' "$SETTINGS" 2>/dev/null)
+    for plugin in $PLUGINS; do
+      if claude plugin list --json 2>/dev/null | ${pkgs.jq}/bin/jq -e --arg p "$plugin" '.[] | select(.id == $p)' &>/dev/null; then
+        $DRY_RUN_CMD claude plugin update "$plugin" 2>/dev/null || \
+          echo "[claude.nix] plugin $plugin: update failed"
+      else
+        $DRY_RUN_CMD claude plugin install "$plugin" 2>/dev/null && \
+          echo "[claude.nix] plugin $plugin: installed" || \
+          echo "[claude.nix] plugin $plugin: install failed"
+      fi
+    done
+  '';
+}
