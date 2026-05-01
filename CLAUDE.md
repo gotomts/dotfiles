@@ -8,6 +8,7 @@
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
 - `claude/agents/` — マルチエージェント開発用サブエージェント定義（developer × 10 / reviewer × 3 / pr-publisher × 1 = 14 体。`~/.claude/agents/` にシンボリックリンク）
+- `claude/RTK.md` — rtk (Rust Token Killer) 用ガイドライン。`claude/CLAUDE.md` から `@RTK.md` で取り込まれる
 - `config/` — アプリケーション設定（starship, yazi, cmux）（`~/.config/` にシンボリックリンク）
 - `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
 - `functions/` — zsh カスタム関数（`~/.functions/` にシンボリックリンク）
@@ -33,6 +34,7 @@
 - 既存のパッケージのみを対象とする。ユーザーが明示的に依頼していないパッケージを追加しない
 - セクションコメント（`# Utilities`, `# Shell & Terminal` 等）に従って適切な位置に追記する
 - `tap`, `brew`, `cask`, `mas` の区分を守る
+- `# AI Tooling` セクション: AI/LLM ワークフロー用の CLI ツール（rtk 等）を配置する
 
 # zsh スクリプト規約
 
@@ -52,6 +54,7 @@
 - `claude/skills/feature-team/` はマルチエージェント・フィーチャー開発オーケストレーションスキル。Phase 1〜6 の進行（brainstorming → writing-plans → create-issue → 並列実装 → 観点別レビュー → pr-publisher 並列起動）を制御する。`SKILL.md` / `README.md`（保守者向け俯瞰）/ `roles/_common.md`（子注入用プロトコル）/ `roles/parent.md`（親判断ガイド）で構成
 - `claude/skills/create-issue/` は spec/plan を入力に Linear / GitHub の親 Issue + sub-issue を自律登録するスキル。引数 `<spec-path> <plan-path>` で受け取り、tracker は `.claude/project.yml` の `tracker.type` から自己解決する。`feature-team` Phase 2 から呼ばれる前提
 - `claude/hooks/` 配下のフックスクリプトは PreCompact で未 handover 時のコンパクトをブロックし、SessionStart / UserPromptSubmit で未消費メモを Claude に通知する
+- `claude/RTK.md` は rtk (Rust Token Killer) のガイドライン。`claude/CLAUDE.md` 末尾の `@RTK.md` で取り込まれ、`claude/settings.json` の `PreToolUse: Bash` matcher に追加した `rtk hook claude` と連動して Bash 出力を圧縮する。各 PC への展開は `brew bundle` + `setup.zsh` で完結し、PC ローカルな `~/Library/Application Support/rtk/filters.toml` は初回フック実行時に自動生成される。フック順序は「破壊的コマンドブロック → rtk hook」で、`rm -rf` / `git push --force` 等が rtk のリライトを通過する前に exit 2 で止まる
 
 # CLAUDE.md の自己更新
 
