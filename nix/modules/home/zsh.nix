@@ -3,9 +3,8 @@
 # home-manager programs.zsh モジュール。
 # 現環境 (zshrc / zshenv / aliases) を宣言的に再現する。
 #
-# extraSpecialArgs 由来: inputs / hostname / username (mkHost.nix から注入)
-# 自動注入: pkgs / lib / config (... で受け取る)
-{ inputs, pkgs, lib, ... }:
+# 自動注入: pkgs / lib / config 等は ... で受け取る（本モジュールでは現在未使用）
+{ ... }:
 
 {
   programs.zsh = {
@@ -58,7 +57,7 @@
       gcadl  = "gcloud auth application-default login";
       gcpa   = "gcloud config configurations activate $(gcloud config configurations list | fzf | awk \"{print \\$1}\")";
       gcps   = "gcloud config set project $(gcloud projects list | fzf | awk \"{print \\$1}\")";
-      gcgc   = "bash ~/.aliase/get-gke-credentials.sh";
+      gcgc   = "bash $HOME/.aliase/get-gke-credentials.sh";
 
       # vscode
       codeo = "code $(repo)";
