@@ -156,7 +156,42 @@
 3. この sub-issue を中断（他 sub-issue は継続）
 ```
 
-## 5. ハンドオフ判断
+## 5. Phase 6 — pr-publisher 起動
+
+### 起動単位
+
+- 1 branch につき 1 体の `pr-publisher` を起動する
+- 複数 branch がある場合は **`run_in_background=true` で並列起動** する（PR 作成は branch 間で独立）
+- 親は起動後すぐに次の処理に進まず、TaskList でバックグラウンド完了通知を受け取る
+
+### プロンプトに必ず含める項目
+
+`pr-publisher` のプロンプトには以下 8 項目を含めること（不足すると CodeRabbit 対応や Issue リンクで詰まる）:
+
+1. `roles/_common.md` の本文（または `Read("/Users/.../roles/_common.md")` の指示）
+2. リポジトリ情報（owner/repo）
+3. worktree 絶対パス
+4. branch 名
+5. 紐付ける Issue 番号
+6. spec / plan ファイルへの絶対パス（PR 本文への引用元）
+7. Phase 5 の review summary（critical/major のみ）
+8. 期待アクション: コミット整理 → push → `gh pr create` → `Skill(coderabbit-review)` 起動
+
+### 失敗パターンと対応
+
+| 兆候 | 対応 |
+|------|------|
+| `gh pr create` が既存 PR と衝突 | 既存 PR があれば再利用方針を pr-publisher へ追加指示 |
+| CodeRabbit 指摘の対応で大量修正が必要 | Phase 5 に差し戻し（reviewer-quality を再起動） |
+| push で hook 失敗（lint/test） | pr-publisher 内で fix → 再 push（破壊的操作はしない） |
+
+### 親が直接 PR を作らない理由
+
+- `pr-publisher` を経由することで `_common.md` のセルフレビュー・報告フォーマットが強制される
+- 並列実行（run_in_background）でメイン context を圧迫しない
+- branch 横断のトレーサビリティ（どの PR がどの sub-issue 由来か）を完了通知で集約できる
+
+## 6. ハンドオフ判断
 
 以下のタイミングで `Skill(handover)` を実行することを推奨する:
 
@@ -168,7 +203,7 @@
 
 特に Phase 4 の並列開発中はコンテキスト圧縮警告が出やすいので、複数 sub-issue を並列起動した直後にハンドオフを取る。
 
-## 6. 親が**やってはいけない**こと
+## 7. 親が**やってはいけない**こと
 
 - 子エージェントの出力をそのまま次の子に転送する（必ず親が理解・統合してから指示を書く）
 - ユーザーへの確認が必要な判断を子に委ねる（子は AskUserQuestion を使えない）

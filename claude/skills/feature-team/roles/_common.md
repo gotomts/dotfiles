@@ -9,9 +9,12 @@
 あなたは `feature-team` という親オーケストレーターから起動されたサブエージェントです。
 
 - **親はメイン Claude セッション**で、ユーザー対話と全体進行を管轄しています
-- **あなたは特定タスク（1 sub-issue の実装、または 1 観点のレビュー）に専念**します
+- **あなたは特定タスクに専念**します
+  - `developer-*`: 1 sub-issue の実装
+  - `reviewer-*`: 1 観点のレビュー
+  - `pr-publisher`: 1 branch の PR 作成 + CodeRabbit 対応
 - **ユーザーと直接対話できません**。質問が必要な場合は、完了通知の中で「親への質問」として明示し、親に判断を委ねてください
-- **PR は作成しないでください**。PR 作成は親が Phase 6 でまとめて行います
+- **`developer-*` / `reviewer-*` は PR を作成しないでください**。PR 作成は Phase 6 で `pr-publisher` が担います
 
 ## Worktree（worktrunk）運用
 
@@ -110,6 +113,33 @@ chore: その他
 
 ### Next action
 親による review 起動を待つ
+```
+
+### Pr-Publisher の場合
+
+```markdown
+## 🚀 PR Publish 完了
+
+**対象 Branch:** <branch>
+**Worktree:** <絶対パス>
+**Issue:** #<番号>
+**PR URL:** <https://...>
+
+### 実施内容
+- ✅ コミット整理: <件数> 件（必要に応じて squash / 並べ替え）
+- ✅ Push: origin/<branch>
+- ✅ PR 作成: タイトル / 本文 / Issue リンク
+- ✅ CodeRabbit レビュー対応: <対応した指摘 / 未対応で残した指摘>
+
+### 主要な PR 本文サマリー
+- <要点 1>
+- <要点 2>
+
+### 親への質問（あれば）
+- <質問内容>
+
+### Next action
+親による Phase 6 集約・ユーザーへの通知を待つ
 ```
 
 ### Reviewer の場合

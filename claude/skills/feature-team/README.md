@@ -8,17 +8,17 @@
 
 ```
 ユーザーが「機能 X を作りたい」と言う
-  → Phase 1: brainstorming で要件を明文化
+  → Phase 1: brainstorming で spec → writing-plans で plan → issue 用サマリー作成
   → Phase 2: Linear or GitHub に親 issue + n 個の sub-issue を作成
   → Phase 3: 大規模か小規模かを判定
   → Phase 4: 大規模なら sub-issue を並列実装、小規模なら親直実装
   → Phase 5: 観点別レビュー（security/performance/quality）をストリーミング起動
-  → Phase 6: PR 作成（n 個 or 1 個）
+  → Phase 6: pr-publisher を branch ごとに並列起動して PR 作成
 ```
 
 ポイント:
 - **親はメイン Claude セッション自身**（サブエージェント化しない）
-- **子エージェントは `~/.claude/agents/` 配下の 13 体**（developer 10 + reviewer 3）
+- **子エージェントは `~/.claude/agents/` 配下の 14 体**（developer 10 + reviewer 3 + pr-publisher 1）
 - **レビュー往復は最大 3 ラウンド**で打ち切り、超過時は親介入 → ユーザー escalate
 - **設定は `.claude/feature-team.yml`**（リポジトリ単位）
 
@@ -56,24 +56,28 @@
    │ (プロセス・ナレッジ系)                 (実装・レビュー系)
    ▼                                       ▼
 ┌─────────────────────────────┐   ┌─────────────────────────────────────┐
-│ SKILLS (~/.claude/skills/)  │   │ SUBAGENTS (~/.claude/agents/) 13 体  │
+│ SKILLS (~/.claude/skills/)  │   │ SUBAGENTS (~/.claude/agents/) 14 体  │
 │ ─────────────────────────   │   │ ──────────────────────────────────  │
 │ Phase 1:                    │   │ DEVELOPERS (10):                    │
 │  • superpowers:brainstorming│   │  • developer-react                  │
-│                             │   │  • developer-nextjs                 │
-│ Phase 2:                    │   │  • developer-flutter                │
-│  • create-issue             │   │  • developer-go                     │
-│    (引数で linear/github)    │   │  • developer-nodejs                 │
-│                             │   │  • developer-hono                   │
-│ Phase 6:                    │   │  • developer-nestjs                 │
-│  • commit-commands:         │   │  • developer-rust                   │
-│      commit-push-pr         │   │  • developer-ruby                   │
-│  • coderabbit-review        │   │  • developer-generic    ← フォールバック │
+│  • superpowers:writing-plans│   │  • developer-nextjs                 │
+│                             │   │  • developer-flutter                │
+│ Phase 2:                    │   │  • developer-go                     │
+│  • create-issue             │   │  • developer-nodejs                 │
+│    (引数で linear/github)    │   │  • developer-hono                   │
+│                             │   │  • developer-nestjs                 │
+│ Phase 6:                    │   │  • developer-rust                   │
+│  • coderabbit-review        │   │  • developer-ruby                   │
+│    (pr-publisher 内で呼ぶ)  │   │  • developer-generic    ← フォールバック │
 │                             │   │                                     │
 │ 補助:                        │   │ REVIEWERS (3):                      │
 │  • handover                 │   │  • reviewer-security                │
 │                             │   │  • reviewer-performance             │
 │                             │   │  • reviewer-quality                 │
+│                             │   │                                     │
+│                             │   │ PUBLISHER (1):                      │
+│                             │   │  • pr-publisher                     │
+│                             │   │    Phase 6 で branch ごとに並列起動 │
 │                             │   │                                     │
 │                             │   │ 起動時に親が _common.md の規約を     │
 │                             │   │ prompt として注入する (二層分離)      │
@@ -96,16 +100,20 @@
   │ "feature 作りたい"
   ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ Phase 1: 要件確定 (brainstorming)                                        │
-│  PARENT → Skill(superpowers:brainstorming)                              │
-│  成果物: design doc (.claude/tmp/feature-team-design-*.md)               │
+│ Phase 1: 要件確定 (3 段階)                                               │
+│  1.1 PARENT → Skill(superpowers:brainstorming)                          │
+│       成果物: spec (docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md)│
+│  1.2 PARENT → Skill(superpowers:writing-plans)                          │
+│       成果物: plan (docs/superpowers/plans/YYYY-MM-DD-<topic>.md)       │
+│  1.3 PARENT が spec/plan をもとに Issue 用サマリーを下書き                │
 └──────────────┬──────────────────────────────────────────────────────────┘
-               │ ゲート: design doc にユーザー承認?
+               │ ゲート: spec/plan にユーザー承認?
                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ Phase 2: イシュー化                                                      │
 │  PARENT → Read(.claude/feature-team.yml) で tracker 取得                 │
-│         → Skill(create-issue, args="<tracker> <design-doc-path>")       │
+│         → Skill(create-issue,                                            │
+│             args="<tracker> <spec-path> <plan-path>")                   │
 │  成果物: 親 issue + sub-issues (n 個)                                    │
 └──────────────┬──────────────────────────────────────────────────────────┘
                │
@@ -152,9 +160,10 @@
                   ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ Phase 6: PR                                                             │
-│  Phase 4-A → n 個の独立 PR                                                │
-│  Phase 4-B → 1 個の統合 PR                                                │
-│  Skill(commit-commands:commit-push-pr) → Skill(coderabbit-review)       │
+│  Phase 4-A → n 個の独立 PR / Phase 4-B → 1 個の統合 PR                    │
+│  PARENT → Agent(pr-publisher) を branch ごとに並列起動                    │
+│   pr-publisher 内: コミット整理 → push → gh pr create                    │
+│                  → Skill(coderabbit-review) で指摘対応                   │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -219,12 +228,13 @@ tN   ▼ feat/api が Round 3 でも収束しない
                           │ 親が prompt 注入
                           ▼ (Agent ツール呼び出し時、_common.md を埋め込む)
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ レイヤー B: エージェント (~/.claude/agents/) 13 体                        │
+│ レイヤー B: エージェント (~/.claude/agents/) 14 体                        │
 │   役割: 専門領域の知識・イディオム・典型エラー・テスト戦略                  │
 │   性質: 全プロジェクト横断資産。feature-team 以外からも呼べる              │
 │   内容:                                                                  │
 │    • developer-XXX: 言語/FW 固有の規約・テスト・依存管理                   │
 │    • reviewer-YYY: 観点固有のチェックリスト・既知パターン                  │
+│    • pr-publisher: PR 本文生成・CodeRabbit 対応・push/PR 作成             │
 └─────────────────────────────────────────────────────────────────────────┘
 
 理由:
@@ -240,19 +250,20 @@ tN   ▼ feat/api が Round 3 でも収束しない
 | # | 項目 | 設計値 |
 |---|------|--------|
 | A | 親 = メイン Claude セッション | サブエージェント化しない（ユーザー対話と escalate のため） |
-| B | スペシャリストの配置 | `~/.claude/agents/` 配下の 13 体 |
+| B | スペシャリストの配置 | `~/.claude/agents/` 配下の 14 体 |
 | C | プロトコルの注入方法 | 親が `roles/_common.md` の内容を Agent プロンプトに埋め込む |
 | D | レビュアー起動 | ストリーミング（developer 完了通知ごとに `run_in_background: true`）|
 | E | レビュー往復上限 | 3 ラウンド（`.claude/feature-team.yml` で上書き可）|
 | F | PR 単位 | 大規模 = n 個独立 PR / 小規模 = 1 個統合 PR |
 | G | reviewer の種類 | security / performance / quality の 3 観点固定 |
 | H | developer の種類 | 10 種特化 + generic フォールバック。中間層なし |
-| I | Phase 1 の brainstorming | `Skill(superpowers:brainstorming)` を呼ぶ |
+| I | Phase 1 の流れ | brainstorming → writing-plans → Issue 用サマリー の 3 段階 |
 | J | Phase 2 の tracker 選択 | `.claude/feature-team.yml` の `issue_tracker.type` を参照。不在時は雛形書出 + ユーザー判断でコミット |
 | K | worktree 管理 | worktrunk (`wt`) を使用 |
 | L | PR 単位の確定タイミング | Phase 3（ボリューム判断時） |
-| M | Phase 2 のイシュー化スキル | `create-issue`（tracker 引数で linear/github 分岐） |
+| M | Phase 2 のイシュー化スキル | `create-issue`（引数 `<tracker> <spec-path> <plan-path>`） |
 | N | 既存 `linear-plan` / `github-plan` | 対話起点の単発用途として温存・無改修 |
+| O | Phase 6 の PR 作成 | `pr-publisher` エージェントを branch ごとに `run_in_background=true` で並列起動 |
 
 ---
 
@@ -289,13 +300,27 @@ tN   ▼ feat/api が Round 3 でも収束しない
 - 既存 `linear-plan` / `github-plan` を改修せず温存しているので、対話起点の単発用途と棲み分け可能
 - 内部で tracker 別に分岐するため、フェーズ単位の差異（GitHub Project / Linear Sub-issue）は明示的に扱える
 
+### なぜ Phase 1 で brainstorming → writing-plans の 2 段階を踏むのか
+
+- `superpowers:brainstorming` は「何を作るか（spec）」、`superpowers:writing-plans` は「どう作るか（plan）」を担う相補スキル
+- brainstorming → writing-plans は superpowers 標準の正式トランジション（HARD-GATE で要請されている）
+- spec のみで Issue 化すると実装フェーズで再設計が頻発する。plan を先に固めることで sub-issue 分割の精度が上がる
+- 出力先は `docs/superpowers/specs/` と `docs/superpowers/plans/` の標準パスを利用（独自の `.claude/tmp/` を作らない）
+
+### なぜ Phase 6 で pr-publisher エージェントを使うのか
+
+- branch ごとの PR 作成は独立タスクなので **`run_in_background=true` で並列化**できる。親が直接 Skill を呼ぶと直列処理になる
+- `_common.md` のセルフレビュー・報告フォーマットを強制でき、PR 本文の品質が安定する
+- CodeRabbit 指摘対応が大量修正に発展した場合の切り分け（Phase 5 へ差し戻すべきか pr-publisher 内で完結するか）が、エージェント単位の完了通知で明確になる
+- 親は集約・通知に専念でき、メイン context の圧迫を抑えられる
+
 ---
 
 ## 改修するときの注意点
 
 ### `_common.md` を変更する前に
 
-子エージェントに注入される定型プロトコルなので、**全 13 体の挙動に影響**する。変更前に:
+子エージェントに注入される定型プロトコルなので、**全 14 体の挙動に影響**する。変更前に:
 
 1. 各 developer / reviewer のエージェント定義（`~/.claude/agents/<agent>.md`）と矛盾しないか確認
 2. SKILL.md の Phase 4 / Phase 5 の Agent プロンプトテンプレートと整合しているか確認

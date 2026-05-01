@@ -1,7 +1,6 @@
 ---
 name: feature-team
 description: Use when developing a feature that benefits from multi-agent team orchestration (parallel implementation across multiple sub-issues, multi-perspective code review). Use when a feature is too large for a single developer thread, when sub-issues are independent enough to parallelize, or when explicit security/performance/quality review separation is wanted.
-argument-hint: <feature-idea>
 allowed-tools:
   - Skill
   - Agent
@@ -67,7 +66,10 @@ Phase 2 開始時にこのファイルが存在しない場合:
 ## フェーズ全体図
 
 ```
-Phase 1: 要件確定 (Skill: superpowers:brainstorming)
+Phase 1: 要件確定 + 計画立案
+  1.1 spec  (Skill: superpowers:brainstorming → docs/superpowers/specs/)
+  1.2 plan  (Skill: superpowers:writing-plans → docs/superpowers/plans/)
+  1.3 サマリー作成
    │
    ▼
 Phase 2: イシュー化 (Read: .claude/feature-team.yml → Skill: create-issue)
@@ -81,7 +83,7 @@ Phase 3: ボリューム判断 (parent.md のしきい値)
    │           Phase 5: 観点別レビュー（developer 完了ごとにストリーミング起動）
    │              │
    │              ▼
-   │           Phase 6: n 個の独立 PR
+   │           Phase 6: pr-publisher を n 個並列起動 → n 個の独立 PR
    │
    └─ 小規模 → Phase 4-B: 親が直接実装（worktree 1 つ）
                   │
@@ -89,35 +91,44 @@ Phase 3: ボリューム判断 (parent.md のしきい値)
                Phase 5: 観点別レビュー（最低 quality 観点）
                   │
                   ▼
-               Phase 6: 1 個の PR
+               Phase 6: pr-publisher を 1 個起動 → 1 個の PR
 ```
 
-## Phase 1: 要件確定（Brainstorming）
+## Phase 1: 要件確定 + 計画立案
 
-### 1.1 Skill 起動
+`superpowers:brainstorming` の標準フロー（spec → plan）に乗り、最後に Issue 用のサマリーを作る。3 段階構成。
+
+### 1.1 Spec 作成（brainstorming）
 
 ```
 Skill(superpowers:brainstorming)
 ```
 
-ユーザーのアイデアを Socratic 対話で深掘りし、design doc を生成する。
+ユーザーのアイデアを Socratic 対話で深掘りし、design doc（spec）を `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` に書き出してコミットする（brainstorming スキルの標準動作）。
 
-### 1.2 Design doc の永続化
+brainstorming 終了時点で、スキル側から後続 `superpowers:writing-plans` への遷移が要求される（HARD-GATE）。これに従って 1.2 へ進む。
 
-brainstorming スキルが生成した design doc を Phase 2 で `create-issue` に渡せるよう、一時ファイルに書き出す:
+### 1.2 Plan 作成（writing-plans）
 
-```bash
-# 例
-mkdir -p .claude/tmp
-DESIGN_DOC=".claude/tmp/feature-team-design-$(date +%Y%m%d-%H%M%S).md"
-# brainstorming の出力を $DESIGN_DOC に Write
+```
+Skill(superpowers:writing-plans)
 ```
 
-`.claude/tmp/` は `.gitignore` 側で除外する想定（プロジェクトの `.gitignore` を確認し、なければ追加を提案）。
+1.1 の spec を入力に、`docs/superpowers/plans/YYYY-MM-DD-<topic>.md` に implementation plan を書き出してコミットする（writing-plans スキルの標準動作）。
 
-### 1.3 ユーザー承認
+plan は実装ステップを順序付きで記述したもの。Phase 2 の `create-issue` が「ステップ → sub-issue」変換の入力として使う。
 
-design doc の内容を提示し、Phase 2 に進んでよいかユーザーに確認する。修正が必要な場合は brainstorming に戻る。
+### 1.3 Issue 用サマリー作成
+
+spec と plan を読み、`create-issue` に渡す Issue サマリーを整える:
+
+- 親 Issue 本文（簡潔。spec の要点を 5〜10 行）
+- sub-issue タイトル一覧（plan のステップから抽出）
+- 受入条件チェックリスト（spec の受入条件をそのまま）
+
+spec / plan の全文ではなく**要点抽出**にする（Issue 本文に長文を入れない）。詳細は spec / plan へのリンクで参照させる。
+
+サマリーをユーザーに提示し、Phase 2 に進んでよいか確認する。修正が必要な場合は spec / plan を直してから 1.3 をやり直す。
 
 ## Phase 2: イシュー化
 
@@ -134,13 +145,14 @@ Read(.claude/feature-team.yml)
 ### 2.2 create-issue 起動
 
 ```
-Skill(create-issue, args="<tracker> <design-doc-path>")
+Skill(create-issue, args="<tracker> <spec-path> <plan-path>")
 ```
 
 - `<tracker>`: `.claude/feature-team.yml` の `issue_tracker.type`
-- `<design-doc-path>`: Phase 1.2 で書き出した design doc の絶対パス
+- `<spec-path>`: Phase 1.1 の brainstorming が書き出した spec の絶対パス（`docs/superpowers/specs/...md`）
+- `<plan-path>`: Phase 1.2 の writing-plans が書き出した plan の絶対パス（`docs/superpowers/plans/...md`）
 
-`create-issue` は重複チェック → 構造化 → セルフレビュー → 登録までを自律実行する（既存 `linear-plan` / `github-plan` のような対話深掘りステップは持たない）。
+`create-issue` は spec / plan を読み、重複チェック → 構造化（plan のステップを sub-issue に変換）→ セルフレビュー → 登録までを自律実行する（既存 `linear-plan` / `github-plan` のような対話深掘りステップは持たない）。
 
 ### 2.3 出力の取り込み
 
@@ -288,32 +300,46 @@ Agent(
 - Phase 4-A 経由 → **n 個の独立 PR**（各 sub-issue worktree から 1 PR）
 - Phase 4-B 経由 → **1 個の PR**
 
-### 6.2 PR 作成
+### 6.2 pr-publisher を並列起動
 
-各 worktree で以下を実行する:
-
-```
-Skill(commit-commands:commit-push-pr)
-```
-
-PR 本文には以下を含める:
-- `Resolves #<sub-issue 番号>`（Phase 4-A）または `Resolves #<親 issue 番号>`（Phase 4-B）
-- レビュー結果サマリー（観点別、何ラウンドで収束したか）
-
-### 6.3 CodeRabbit 対応
+各 worktree について `pr-publisher` を `run_in_background: true` で起動する。Phase 5 がレビュー OK で完了している sub-issue / branch のみが対象（critical 指摘が残っているものは起動しない）。
 
 ```
-Skill(coderabbit-review)
+Agent(
+  subagent_type="pr-publisher",
+  description="<sub-issue タイトル>: PR publish",
+  prompt="<下記テンプレート>",
+  run_in_background=true,
+)
 ```
 
-CodeRabbit のインラインコメントへの対応を行う。
+#### Agent プロンプトに必ず含める項目
 
-### 6.4 完了報告
+1. `roles/_common.md` の内容を完全注入
+2. リポジトリ情報（OWNER, REPO, DEFAULT_BRANCH）
+3. **Worktree の絶対パス**（このディレクトリ内で作業すること、と明示）
+4. ブランチ名
+5. Issue 番号（Phase 4-A は sub-issue 番号、Phase 4-B は親 issue 番号）
+6. 対応する spec / plan のパス（PR 本文の参照リンクに使う）
+7. レビュー結果サマリー（観点別、何ラウンドで収束したか）
+8. 期待される処理:
+   - コミット整理（必要に応じて）
+   - `git push`
+   - `gh pr create` で PR 作成（本文に `Resolves #<番号>` を含める）
+   - `Skill(coderabbit-review)` で CodeRabbit インラインコメント対応
+   - 結果を親に通知
+
+### 6.3 完了報告
+
+全 `pr-publisher` の完了を待ち、結果を集約して報告:
 
 ```
 ## ✅ Feature Team 完了
 
 **親 Issue:** #<番号>
+**Spec:** <spec-path>
+**Plan:** <plan-path>
+
 **PR:**
 - #<PR 番号> (sub-issue #<番号>): <タイトル>  | レビュー: ✅ security ✅ quality (R2)
 - #<PR 番号> (sub-issue #<番号>): <タイトル>  | レビュー: ✅ quality (R1)
@@ -322,6 +348,10 @@ CodeRabbit のインラインコメントへの対応を行う。
 **Phase 5 サマリー:**
 - 全 N サブタスク中、X が R1 で収束、Y が R2 で収束、Z が親介入
 - escalate 件数: 0 件
+
+**Phase 6 サマリー:**
+- 全 N PR 作成 / CI: ✅ all passed / ⚠️ N failed
+- CodeRabbit: ✅ no issues / 🔧 fixed N items / ⚠️ N items remaining
 ```
 
 ## エスカレーション
