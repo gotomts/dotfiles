@@ -5,8 +5,21 @@
 { inputs, hostname, username, ... }:
 
 {
-  # S3-S7 で home-manager モジュールを追加する際はここに imports を列挙する。
-  # 例: imports = [ ../../modules/home/packages.nix ];
+  imports = [
+    # CLI ツール群 (S3 / KISSA-23)
+    ../../modules/home/packages.nix
+    # zsh + oh-my-zsh + initExtra/envExtra (S4 / KISSA-24)
+    ../../modules/home/zsh.nix
+    # 設定ファイル系 (S5 / KISSA-25)
+    ../../modules/home/git.nix
+    ../../modules/home/starship.nix
+    ../../modules/home/yazi.nix
+    ../../modules/home/ssh.nix
+    # claude plugin sync activation (S6 / KISSA-26)
+    ../../modules/home/claude.nix
+    # 言語ツールチェーン: mise 完全置換 (S7 / KISSA-27)
+    ../../modules/home/languages.nix
+  ];
 
   home.username = username;
   home.homeDirectory = "/Users/${username}";
