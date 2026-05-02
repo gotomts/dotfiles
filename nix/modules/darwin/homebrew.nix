@@ -35,68 +35,29 @@
 
     brews = [
       # ============================================================
-      # nixpkgs 未収録または nix で扱うのが煩雑なため Homebrew 経由を継続
+      # nixpkgs 未収録または macOS 特殊事情で Homebrew 経由が継続必要なもの
       #
-      # 除外方針:
-      #   - S3 (packages.nix) で nix 化済みの brew は integration 時に削除
-      #   - S7 (languages.nix) で nix 化済みの言語ツールも integration 時に削除
-      #   - mise: S7 完全削除方針のため除外
-      #   - rtk: S8 で flake input 化済みのため除外
-      #   - mas (CLI): nixpkgs 収録済みのため S3 側で管理
-      #
-      # 不明なパッケージは保守的に残す。
-      # S3/S7 結果を踏まえて親が integration 時に最終調整すること。
+      # 除外済 (親 integration commit で削除):
+      #   - jq / bats-core / pwgen / qpdf / fzf / gh / ghq / lazygit /
+      #     lazydocker / kubectl / kubectx / stern / sops / grpcurl
+      #     → S3 (packages.nix) で nixpkgs から提供
+      #   - autoconf / automake / bison / freetype / gd / gettext /
+      #     gmp / libyaml / openssl@3 / pkg-config / re2c / zlib
+      #     → ビルド系。必要時は `nix shell nixpkgs#<pkg>` で一時利用 (S3 ポリシー)
+      #   - mise: S7 完全削除方針
+      #   - rtk: S8 flake input 化済み
+      #   - mas (CLI): nixpkgs 収録済みだが現状 nix 側にも S3 不在。必要なら後付け
       # ============================================================
 
-      # Utilities — nixpkgs 未収録または build 時依存のため残置
-      "autoconf"
-      "automake"
-      "bison"
-      "freetype"
-      "gd"
-      "gettext"
-      "gmp"
-      "jq"
-      "bats-core"
-      "libyaml"
-      "openssl@3"
-      "pkg-config"
-      "re2c"
-      "zlib"
-      "pwgen"
-      "qpdf"
-
-      # Shell & Terminal
-      "fzf"
-      # mise: S7 完全削除方針のため除外
-
-      # Git & Version Control
-      "gh"
-      "ghq"
-      "lazygit"
-      "lazydocker"
+      # nixpkgs 未収録 (homebrew 専用 tap or macOS でのみ実用)
       "worktrunk"
-
-      # Cloud & DevOps
-      "kubectl"
-      "kubectx"
-      "stern"
-      "sops"
-
-      # Languages & Runtimes
-      "oven-sh/bun/bun" # tap: oven-sh/bun
+      "oven-sh/bun/bun" # tap: oven-sh/bun。S3 で「S7 で確認」とした保守的残置
       "leoafarias/fvm/fvm" # tap: leoafarias/fvm
-      "pipx"
-
-      # Network & API
-      "grpcurl"
-      "tailscale"
-
-      # Task Management
+      "pipx" # nixpkgs にもあるが、Python venv 周りの ergonomics で homebrew 版を選好
       "schpet/tap/linear" # tap: schpet/tap
 
-      # AI Tooling
-      # rtk: S8 で flake input 化済みのため除外
+      # macOS 特殊事情 (システム拡張・cask 連携)
+      "tailscale" # nixpkgs にもあるが macOS は cask + system extension が公式推奨
     ];
 
     casks = [
