@@ -13,10 +13,13 @@
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
-    # rtk-src は S8 で本格採用するため、雛形では未追加。
-    # S8 で以下を追加予定:
-    #   rtk-src.url = "github:gotomts/rtk";
-    #   rtk-src.flake = false;
+    # rtk-src: rtk (Rust Token Killer) のソース。
+    # nix/modules/overlays/rtk.nix が rustPlatform.buildRustPackage でビルドする。
+    # flake = false で nix flake input としてはソースのみ取得（rtk 自身は flake ではない）。
+    rtk-src = {
+      url = "github:rtk-ai/rtk";
+      flake = false;
+    };
   };
 
   outputs =

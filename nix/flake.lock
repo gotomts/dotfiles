@@ -60,7 +60,24 @@
       "inputs": {
         "home-manager": "home-manager",
         "nix-darwin": "nix-darwin",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "rtk-src": "rtk-src"
+      }
+    },
+    "rtk-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1777488499,
+        "narHash": "sha256-eINYlatbjpsqe46LNZIXvIrZEBf+QC3+2EjY7Ei7VZI=",
+        "owner": "rtk-ai",
+        "repo": "rtk",
+        "rev": "4338f029ec43b69eb959748ec02cd7885200c264",
+        "type": "github"
+      },
+      "original": {
+        "owner": "rtk-ai",
+        "repo": "rtk",
+        "type": "github"
       }
     }
   },
