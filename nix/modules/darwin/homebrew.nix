@@ -86,6 +86,7 @@
       "slack"
       "tableplus"
       "visual-studio-code"
+      "zed"
       "zoom"
     ];
 
