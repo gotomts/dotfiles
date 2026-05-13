@@ -4,7 +4,7 @@
 
 - `aliases` — シェルエイリアス定義（`~/.aliases` にシンボリックリンク）
 - `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
-- `Brewfile` — Homebrew パッケージ定義
+- `Brewfile` — Homebrew パッケージ定義（Phase A 期間中は読み取り専用バックアップ、Phase B で削除予定）
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
 - `claude/agents/` — マルチエージェント開発用サブエージェント定義（developer × 10 / reviewer × 3 / pr-publisher × 1 = 14 体。`~/.claude/agents/` にシンボリックリンク）
@@ -15,7 +15,8 @@
 - `gitconfig` — Git 設定（`~/.gitconfig` にシンボリックリンク）
 - `gitignore_global` — グローバル gitignore（`~/.gitignore_global` にシンボリックリンク）
 - `grip/` — grip 設定（`~/.grip/` にシンボリックリンク）
-- `setup/` — セットアップスクリプト群（シンボリックリンク対象外）
+- `nix/` — nix-darwin + home-manager + flakes による環境構築定義（Phase A の主管理対象。`darwin-rebuild` から参照される。詳細は `nix/README.md`）
+- `setup/` — セットアップスクリプト群（シンボリックリンク対象外。Phase B で home-manager へ完全移行後に削除予定）
 - `ssh/` — SSH 設定（`~/.ssh/` にシンボリックリンク）
 - `zsh/` — zsh 補完ファイル（`~/.zsh/` にシンボリックリンク）
 - `zshrc` — zsh 設定（`~/.zshrc` にシンボリックリンク）
@@ -23,13 +24,15 @@
 
 # シンボリックリンク管理
 
+- **Phase A 期間中の方針**: 新規 dotfiles は `nix/modules/home/` 以下で home-manager 管理に倒す。`setup/setup.zsh` の symlink ループはレガシー扱い (Phase B で削除予定)
 - `setup/setup.zsh` がリポジトリルートのファイル/ディレクトリを `~/.${name}` にシンボリックリンクする
-- 以下はシンボリックリンク対象外として除外されている: `setup`, `README.md`, `ssh`, `claude`, `CLAUDE.md`, `docs`
+- 以下はシンボリックリンク対象外として除外されている: `setup`, `README.md`, `ssh`, `claude`, `CLAUDE.md`, `docs`, `nix`
 - `ssh/` と `claude/` は専用ループで個別にシンボリックリンクされる
 - ルートにファイルやディレクトリを追加する場合、シンボリックリンクが不要なものは `setup.zsh` の除外条件に追加すること
 
 # Brewfile
 
+- **Phase A 注記**: `Brewfile` は読み取り専用バックアップとして残し、cask / mas / 例外 brew は `nix/modules/darwin/homebrew.nix` で管理する。**Brewfile を変更したら同 PR で `homebrew.nix` も更新すること**（CI の `nix-check` で drift 検知される）。Phase B で `Brewfile` 自体を削除予定
 - パッケージの追加・削除は Brewfile のみで管理する。手動の `brew install` は禁止
 - 既存のパッケージのみを対象とする。ユーザーが明示的に依頼していないパッケージを追加しない
 - セクションコメント（`# Utilities`, `# Shell & Terminal` 等）に従って適切な位置に追記する
@@ -55,6 +58,64 @@
 - `claude/skills/create-issue/` は spec/plan を入力に Linear / GitHub の親 Issue + sub-issue を自律登録するスキル。引数 `<spec-path> <plan-path>` で受け取り、tracker は `.claude/project.yml` の `tracker.type` から自己解決する。`feature-team` Phase 2 から呼ばれる前提
 - `claude/hooks/` 配下のフックスクリプトは PreCompact で未 handover 時のコンパクトをブロックし、SessionStart / UserPromptSubmit で未消費メモを Claude に通知する
 - `claude/RTK.md` は rtk (Rust Token Killer) のガイドライン。`claude/CLAUDE.md` 末尾の `@RTK.md` で取り込まれ、`claude/settings.json` の `PreToolUse: Bash` matcher に追加した `rtk hook claude` と連動して Bash 出力を圧縮する。各 PC への展開は `brew bundle` + `setup.zsh` で完結し、PC ローカルな `~/Library/Application Support/rtk/filters.toml` は初回フック実行時に自動生成される。フック順序は「破壊的コマンドブロック → rtk hook」で、`rm -rf` / `git push --force` 等が rtk のリライトを通過する前に exit 2 で止まる
+
+# Nix 環境 (Phase A)
+
+`~/.dotfiles/nix/` 配下で nix-darwin + home-manager + flakes による宣言的環境構築を行う。詳細手順は `nix/README.md` を参照。
+
+## 主要コマンド
+
+```sh
+cd ~/.dotfiles/nix
+
+# 副作用なしビルド確認 (CI と同じ検証を手元で)
+nix build .#darwinConfigurations.m5mbp.system --no-link
+
+# 適用 (sudo 必須)
+sudo darwin-rebuild switch --flake .#m5mbp
+
+# 直前世代に戻す
+sudo darwin-rebuild switch --rollback
+
+# 世代一覧
+darwin-rebuild --list-generations
+```
+
+## 重要な設計判断
+
+- **`nix.enable = false`**: ローカル PC に Determinate Nix がインストールされている前提。nix-darwin の native Nix 管理は Determinate daemon と競合するため、`hosts/<host>/darwin.nix` で明示的に無効化している。実験的機能 (nix-command / flakes) は Determinate がデフォルト有効化しているため別途宣言不要
+- **`homebrew.onActivation.cleanup = "zap"`**: 宣言外パッケージは Cellar ごと削除する強い管理。Brewfile 由来の旧パッケージが残らないよう破壊的に同期する。Phase A 移行期はリスクを認識した上で運用する (`nix/modules/darwin/homebrew.nix` のコメント参照)
+- **`rtk` overlay**: `flake.nix` の `rtk-src` input から `rustPlatform.buildRustPackage` でビルド。`nix/modules/overlays/rtk.nix` で `pkgs.rtk` として供給され、`home/packages.nix` から参照される
+
+## 棚卸 → triage → 翻訳ワークフロー (S10)
+
+macOS の `defaults` 値を `defaults.nix` に翻訳するための人間 in-the-loop プロセス:
+
+1. `zsh nix/scripts/inventory.zsh` を実行 → `docs/inventory/<hostname>-<date>.md` 生成 (READ-ONLY)
+2. 生成された Markdown を開き、各項目に `nix化 / 無視 / 検討` をマーク
+3. triage 結果を `nix/modules/darwin/defaults.nix` に翻訳 (`hosts/<host>/darwin.nix` から import)
+4. `nix build` で検証 → `darwin-rebuild switch` で適用
+
+triage で「無視」マークした項目はマルチホスト展開時に OS デフォルト値が露出するため、ホスト別に再評価する必要がある。
+
+## CI 検証 (`nix-check` workflow)
+
+`.github/workflows/nix-check.yml` で PR ごとに以下を検証する:
+
+- `nix flake check` (構文・型・依存解決)
+- `nix build .#darwinConfigurations.m5mbp.system --no-link` (closure ビルド)
+
+`darwin-rebuild switch` の activation 自体は CI 範囲外 (環境差で消耗するため)。実機での `darwin-rebuild build` → `switch` で検証する方針。
+
+## Phase A → Phase B
+
+Phase A は **並存期間** (Brewfile / setup.zsh / nix の三重管理)。Phase B で:
+
+- `Brewfile` 削除
+- `setup/` 削除 (一部は `nix/scripts/` に残す)
+- `aliases` / `functions` / `zshrc` 等の symlink を home-manager 経由に統一
+
+Phase B の作業は別 plan で扱う。Phase A 完了 + 運用安定確認後に着手する。
 
 # CLAUDE.md の自己更新
 
