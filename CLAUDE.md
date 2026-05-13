@@ -69,10 +69,10 @@
 cd ~/.dotfiles/nix
 
 # 副作用なしビルド確認 (CI と同じ検証を手元で)
-nix build .#darwinConfigurations.m5mbp.system --no-link
+USER=ciuser nix build .#darwinConfigurations.default.system --no-link --impure
 
-# 適用 (sudo 必須)
-sudo darwin-rebuild switch --flake .#m5mbp
+# 適用 (sudo 必須、--impure は username を $USER から動的解決するため必須)
+sudo darwin-rebuild switch --flake .#default --impure
 
 # 直前世代に戻す
 sudo darwin-rebuild switch --rollback
@@ -83,7 +83,8 @@ darwin-rebuild --list-generations
 
 ## 重要な設計判断
 
-- **`nix.enable = false`**: ローカル PC に Determinate Nix がインストールされている前提。nix-darwin の native Nix 管理は Determinate daemon と競合するため、`hosts/<host>/darwin.nix` で明示的に無効化している。実験的機能 (nix-command / flakes) は Determinate がデフォルト有効化しているため別途宣言不要
+- **`nix.enable = false`**: ローカル PC に Determinate Nix がインストールされている前提。nix-darwin の native Nix 管理は Determinate daemon と競合するため、`nix/darwin.nix` で明示的に無効化している。実験的機能 (nix-command / flakes) は Determinate がデフォルト有効化しているため別途宣言不要
+- **PC 名・ユーザー名のリポジトリ非格納**: `darwinConfigurations.default` で output 名を hostname フリーに固定し、`username = builtins.getEnv "USER"` で macOS ローカルアカウント名を実行時解決する。公開リポジトリに PC 名や個人アカウント名を晒さないための設計。`--impure` フラグが必須になる代償と引き換え (S15)
 - **`homebrew.onActivation.cleanup = "zap"`**: 宣言外パッケージは Cellar ごと削除する強い管理。Brewfile 由来の旧パッケージが残らないよう破壊的に同期する。Phase A 移行期はリスクを認識した上で運用する (`nix/modules/darwin/homebrew.nix` のコメント参照)
 - **`rtk` overlay**: `flake.nix` の `rtk-src` input から `rustPlatform.buildRustPackage` でビルド。`nix/modules/overlays/rtk.nix` で `pkgs.rtk` として供給され、`home/packages.nix` から参照される
 
@@ -93,17 +94,17 @@ macOS の `defaults` 値を `defaults.nix` に翻訳するための人間 in-the
 
 1. `zsh nix/scripts/inventory.zsh` を実行 → `docs/inventory/<hostname>-<date>.md` 生成 (READ-ONLY)
 2. 生成された Markdown を開き、各項目に `nix化 / 無視 / 検討` をマーク
-3. triage 結果を `nix/modules/darwin/defaults.nix` に翻訳 (`hosts/<host>/darwin.nix` から import)
+3. triage 結果を `nix/modules/darwin/defaults.nix` に翻訳 (`nix/darwin.nix` から import)
 4. `nix build` で検証 → `darwin-rebuild switch` で適用
 
-triage で「無視」マークした項目はマルチホスト展開時に OS デフォルト値が露出するため、ホスト別に再評価する必要がある。
+triage で「無視」マークした項目は OS デフォルト値が PC 間で異なる可能性があるため、複数 PC で運用する場合は PC 別に再評価する必要がある。
 
 ## CI 検証 (`nix-check` workflow)
 
 `.github/workflows/nix-check.yml` で PR ごとに以下を検証する:
 
 - `nix flake check` (構文・型・依存解決)
-- `nix build .#darwinConfigurations.m5mbp.system --no-link` (closure ビルド)
+- `USER=ciuser nix build .#darwinConfigurations.default.system --no-link --impure` (closure ビルド)
 
 `darwin-rebuild switch` の activation 自体は CI 範囲外 (環境差で消耗するため)。実機での `darwin-rebuild build` → `switch` で検証する方針。
 

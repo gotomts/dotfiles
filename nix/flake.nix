@@ -31,13 +31,34 @@
       ...
     }@inputs:
     let
-      mkHost = import ./lib/mkHost.nix { inherit inputs; };
+      # username は実行環境の $USER から動的に解決する。
+      # darwin-rebuild は --impure を必要とする (alias で吸収しないので明示的に付ける)。
+      # 未設定時は throw で明示エラーにして、silent な誤動作を防ぐ。
+      username =
+        let
+          u = builtins.getEnv "USER";
+        in
+        if u != "" then
+          u
+        else
+          throw "USER env var is empty. Run darwin-rebuild with --impure, or set USER explicitly.";
     in
     {
-      darwinConfigurations.m5mbp = mkHost {
-        hostname = "m5mbp";
+      # output 名は固定値 default。PC の hostname には影響しない (flake 内部のアドレス名)。
+      # darwin-rebuild 自動選択 ($HOSTNAME ベース) は活かさず、--flake .#default --impure を明示する運用。
+      darwinConfigurations.default = nix-darwin.lib.darwinSystem {
         system = "aarch64-darwin";
-        username = "goto";
+        specialArgs = { inherit inputs username; };
+        modules = [
+          ./darwin.nix
+          home-manager.darwinModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.${username} = import ./home.nix;
+            home-manager.extraSpecialArgs = { inherit inputs username; };
+          }
+        ];
       };
     };
 }

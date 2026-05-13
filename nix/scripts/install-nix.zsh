@@ -22,7 +22,7 @@
 # 関連:
 #   - Linear: KISSA-32 (S12)
 #   - 公式: https://github.com/DeterminateSystems/nix-installer
-#   - nix-darwin との競合解消: hosts/m5mbp/darwin.nix `nix.enable = false`
+#   - nix-darwin との競合解消: nix/darwin.nix `nix.enable = false`
 
 set -eu
 
@@ -69,7 +69,7 @@ util::info "Full Disk Access is granted."
 # ---- 3. Determinate Nix インストーラ --------------------------------------
 
 # Determinate Nix は nix-darwin の native Nix 管理 (nix.enable) と競合するため、
-# nix-darwin 側で `nix.enable = false` を宣言している (hosts/m5mbp/darwin.nix)。
+# nix-darwin 側で `nix.enable = false` を宣言している (nix/darwin.nix)。
 # experimental-features (nix-command / flakes) は Determinate がデフォルト有効化済み。
 util::info "Installing Determinate Nix..."
 
@@ -85,5 +85,5 @@ util::info ""
 util::info "NEXT STEPS:"
 util::info "  1. Restart your terminal (or run: source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh)"
 util::info "  2. cd ${HOME}/.dotfiles/nix"
-util::info "  3. darwin-rebuild build --flake .#m5mbp"
-util::info "  4. sudo darwin-rebuild switch --flake .#m5mbp"
+util::info "  3. darwin-rebuild build --flake .#default --impure"
+util::info "  4. sudo darwin-rebuild switch --flake .#default --impure"

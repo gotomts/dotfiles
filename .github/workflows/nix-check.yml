@@ -1,18 +1,21 @@
 # Nix flake / nix-darwin 構成の CI 検証
 #
 # 目的:
-#   PR で nix/ が変更されるたびに `nix flake check` と m5mbp の system closure
+#   PR で nix/ が変更されるたびに `nix flake check` と system closure
 #   ビルドを走らせ、構文・型・依存解決の壊れを検知する。これにより main 更新
 #   による drift (Brewfile ↔ homebrew.nix 等) を継続検知できる。
 #
 # 設計判断:
 # - `darwin-rebuild switch` 自体は CI で実行しない:
-#   ci 用に専用 host (username=runner 等) を作って switch する案を試したが、
-#   本番 (m5mbp) と CI 環境 (runner / TCC / GUI / hardware) の差分を埋める
+#   ci 用に専用 host を作って switch する案を試したが、
+#   実機と CI 環境 (runner / TCC / GUI / hardware) の差分を埋める
 #   作業が膨らみ、本番投入の安全性向上に対して費用対効果が悪かった。
 #   activation の検証は実機での `darwin-rebuild build` → `switch` で行う方針。
 # - runs-on: macos-latest を採用 (最新 macOS runner に自動追従)
 # - DeterminateSystems/nix-installer-action: ローカル開発と同じ Determinate Nix
+# - `USER=ciuser` を env で渡す: flake は username を $USER から動的解決する
+#   (`builtins.getEnv "USER"`)。CI runner の $USER は環境依存なため、
+#   リポジトリに個人情報を残さない generic 値を明示する。
 #
 # セキュリティ:
 # - run: で github.event.* の自由文 (PR title / body / commit message 等) を
@@ -56,10 +59,14 @@ jobs:
 
       - name: nix flake check
         working-directory: nix
-        run: nix flake check --print-build-logs
+        env:
+          USER: ciuser
+        run: nix flake check --impure --print-build-logs
 
-      - name: Build m5mbp system closure
+      - name: Build system closure
         working-directory: nix
+        env:
+          USER: ciuser
         run: |
-          nix build .#darwinConfigurations.m5mbp.system \
-            --no-link --print-build-logs
+          nix build .#darwinConfigurations.default.system \
+            --no-link --impure --print-build-logs

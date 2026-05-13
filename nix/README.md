@@ -1,93 +1,11 @@
 # nix/
 
-このディレクトリは `~/.dotfiles` の環境構築を **Nix（nix-darwin + home-manager + flakes）** で一元管理する。宣言的・再現可能・マルチホスト対応な環境を `darwin-rebuild switch` 一発で復元する。
-
-新規セットアップ手順は [ルート README](../README.md) を参照。本ドキュメントは詳細・運用・トラブルシュートを扱う。
+`darwin-rebuild` 適用後の事故対応・運用ポリシー集。クイックスタートはルート [`README.md`](../README.md) を参照。
 
 関連ドキュメント:
 
 - spec: `docs/superpowers/specs/2026-05-02-nix-migration-design.md`
 - plan: `docs/superpowers/plans/2026-05-02-nix-migration.md`
-
-## ディレクトリ構造
-
-```
-nix/
-├── flake.nix               # inputs / outputs ルート
-├── flake.lock              # 全 input のロック（コミット対象）
-├── README.md               # このファイル
-├── hosts/
-│   └── m5mbp/
-│       ├── darwin.nix      # nix-darwin module 集約（mkHost.nix から直接 import）
-│       └── home.nix        # home-manager module 集約（mkHost.nix から直接 import）
-├── lib/
-│   └── mkHost.nix          # ホスト合成ヘルパー
-├── modules/
-│   ├── darwin/             # nix-darwin module (homebrew / sudoers / fonts / pam)
-│   ├── home/               # home-manager module (packages / zsh / git / starship / yazi / ssh / claude / languages)
-│   └── overlays/
-│       └── rtk.nix         # rtk (Rust Token Killer) を pkgs.rtk として供給する overlay
-└── scripts/
-    ├── install-nix.zsh     # Determinate Nix インストーラ薄ラッパー
-    ├── inventory.zsh       # macOS defaults / brew 棚卸スクリプト (S1)
-    └── tests/
-        └── inventory.bats  # inventory.zsh の bats テスト
-```
-
-## 前提条件
-
-- **macOS** (Apple Silicon: `aarch64-darwin` / Intel: `x86_64-darwin`)
-- **Xcode Command Line Tools** がインストール済み
-- **Full Disk Access (FDA)** が実行元ターミナルに付与済み（`/etc` 書き込みに必須）
-- **Determinate Nix** がインストール済み（`nix/scripts/install-nix.zsh` 経由でインストール）
-
-nix-darwin / home-manager は flake から自動適用されるため、事前インストール不要。
-
-## 通常運用
-
-```sh
-cd ~/.dotfiles/nix
-
-# inputs を最新化
-nix flake update
-
-# ビルド確認 (副作用なし)
-darwin-rebuild build --flake .#m5mbp
-
-# 適用
-sudo darwin-rebuild switch --flake .#m5mbp
-
-# CI と同じ closure ビルドだけを確認
-nix build .#darwinConfigurations.m5mbp.system --no-link --print-out-paths
-```
-
-## 別 PC への展開
-
-### 既存ホスト (m5mbp) と同等のセットアップを別 PC で再現する
-
-新しい PC でも `hostname = "m5mbp"` のままなら、[ルート README のセットアップ手順](../README.md#セットアップ)を上から実行するだけで完了する。`install-nix.zsh` が冪等なので、既に Nix がある環境でも安全に再実行できる。
-
-### 新しいホストを追加する
-
-別の hostname（例: `m6mbp`）で運用したい場合:
-
-1. `nix/hosts/m6mbp/` ディレクトリを作成する
-2. `darwin.nix` / `home.nix` を `m5mbp/` からコピーして編集する
-3. `nix/flake.nix` の `outputs` に新しいホストを追加する:
-   ```nix
-   darwinConfigurations.m6mbp = mkHost {
-     hostname = "m6mbp";
-     system = "aarch64-darwin";  # Intel Mac の場合は "x86_64-darwin"
-     username = "goto";
-   };
-   ```
-4. 新しい PC で初回セットアップ:
-   ```sh
-   # ルート README の手順 1-4 を実行 (FDA / CLT / clone / install-nix.zsh)
-   cd ~/.dotfiles/nix
-   darwin-rebuild build --flake .#m6mbp
-   sudo darwin-rebuild switch --flake .#m6mbp
-   ```
 
 ## ロールバック
 
@@ -100,10 +18,7 @@ sudo darwin-rebuild switch --rollback
 世代一覧の確認と特定世代への切替:
 
 ```sh
-# 利用可能な世代を確認
 darwin-rebuild --list-generations
-
-# 特定世代に切替（flake 指定なし。世代番号で直接切替）
 sudo darwin-rebuild switch -G <generation-number>
 ```
 
@@ -118,9 +33,49 @@ home-manager switch --switch-generation <id>
 
 - `nix flake update` で全 input を最新に更新できる
 - 特定 input だけ更新する場合: `nix flake lock --update-input nixpkgs`
-- 更新後は必ず `darwin-rebuild build` でビルドを確認してからコミットすること
-- `flake.lock` は必ずコミットすること（再現性確保のため）
-- 更新頻度の方針: **必要時のみ**（依存ライブラリの脆弱性 / nixpkgs に必要なパッケージが入ったタイミング等）。定期更新は CI に依存しない手動運用
+- 更新後は必ず `darwin-rebuild build --flake .#default --impure` で検証してからコミット
+- `flake.lock` は必ずコミットする（再現性確保のため）
+- 更新頻度の方針: **必要時のみ**（依存ライブラリの脆弱性 / nixpkgs に必要なパッケージが入ったタイミング等）
+
+## アプリ・パッケージの追加
+
+`brew install` を直接打つことは事実上禁止 (`homebrew.onActivation.cleanup = "zap"` により次回 `darwin-rebuild switch` で削除される)。**宣言してから入れる** 順序を強制する設計。
+
+### 種別ごとの配置先
+
+| 種別 | 配置先 | 例 |
+|---|---|---|
+| CLI (nixpkgs 収録あり) | `nix/modules/home/packages.nix` の `home.packages` | `ripgrep`, `fzf`, `jq` |
+| 言語ランタイム | `nix/modules/home/languages.nix` | `nodejs_22`, `python3` |
+| CLI (nixpkgs 未収録 / 最新版が必要) | `nix/modules/darwin/homebrew.nix` の `brews` (例外扱い) | `mas` |
+| GUI アプリ (.app) | `nix/modules/darwin/homebrew.nix` の `casks` | `visual-studio-code`, `slack` |
+| Mac App Store アプリ | `nix/modules/darwin/homebrew.nix` の `masApps` | `{ "Xcode" = 497799835; }` |
+| 独自ビルド (nixpkgs 外のソース) | `nix/modules/overlays/` に overlay 定義 + `home.packages` から参照 | `rtk` |
+
+### 追加 → 適用の流れ
+
+```sh
+# 1. 該当の .nix に 1 行追加 (例: packages.nix の home.packages に pkgs.ripgrep)
+# 2. ビルド確認 (副作用なし)
+darwin-rebuild build --flake ~/.dotfiles/nix#default --impure
+# 3. 適用
+sudo darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+```
+
+削除も同じ流れ (`.nix` から行を消して switch すると `zap` で消える)。
+
+### 「お試し」のための逃げ道
+
+`brew install` 即試用の代替手段:
+
+| やりたいこと | コマンド |
+|---|---|
+| nixpkgs にある CLI を一時的に試す | `nix shell nixpkgs#ripgrep`（その shell セッション限定 / `exit` で消える） |
+| nixpkgs 最新で試す | `nix run nixpkgs/master#foo` |
+| 1 回だけ実行 | `nix run nixpkgs#foo -- --args` |
+| nixpkgs に無い GUI を試す | 現実的には手動 `brew install` → 気に入ったら `casks` に追加 → switch / 気に入らなければ `brew uninstall` |
+
+`nix shell` / `nix run` は永続インストールしないので、`zap` の影響を受けない。お試しは基本これに倒すこと。
 
 ## トラブルシューティング
 
@@ -149,7 +104,15 @@ Determinate uses its own daemon to manage the Nix installation that
 conflicts with nix-darwin's native Nix management.
 ```
 
-`nix/hosts/<host>/darwin.nix` で `nix.enable = false;` が宣言されているか確認する。S14 (KISSA-46) で対処済みの本番ブロッカー。詳細は `hosts/m5mbp/darwin.nix` のコメントを参照。
+`nix/darwin.nix` で `nix.enable = false;` が宣言されているか確認する。S14 (KISSA-46) で対処済みの本番ブロッカー。詳細は `nix/darwin.nix` のコメントを参照。
+
+### `USER env var is empty` で `darwin-rebuild` が落ちる
+
+`--impure` フラグなしで実行している。`nix/flake.nix` は `builtins.getEnv "USER"` で実行ユーザー名を動的解決するため、`--impure` が必須:
+
+```sh
+sudo darwin-rebuild switch --flake .#default --impure
+```
 
 ### flake.lock が壊れた / hash 不整合
 
@@ -163,7 +126,7 @@ nix flake update
 ビルドエラーのログを確認:
 
 ```sh
-darwin-rebuild build --flake .#m5mbp 2>&1 | less
+darwin-rebuild build --flake .#default --impure 2>&1 | less
 ```
 
 nix-darwin のロールバック:
@@ -178,28 +141,9 @@ nix-darwin が未インストールの状態で初めて適用する場合:
 
 ```sh
 cd ~/.dotfiles/nix
-nix run nix-darwin -- switch --flake .#m5mbp
+nix run nix-darwin -- switch --flake .#default --impure
 ```
 
 ### Homebrew パッケージが消えた
 
 `homebrew.onActivation.cleanup = "zap"` 設定により、`nix/modules/darwin/homebrew.nix` に宣言されていない Homebrew パッケージは初回 switch で削除される。残したいパッケージは `nix/modules/darwin/homebrew.nix` に追加してから switch すること。
-
-## Phase A の進捗
-
-- [x] S1: 棚卸スクリプト + bats テスト (KISSA-21)
-- [x] S2: flake 雛形 + mkHost ヘルパー (KISSA-22)
-- [x] S3: home-manager packages.nix (KISSA-23)
-- [x] S4: home-manager zsh.nix (KISSA-24)
-- [x] S5: home-manager git / starship / yazi / ssh (KISSA-25)
-- [x] S6: home-manager claude.nix - plugin sync activation (KISSA-26)
-- [x] S7: home-manager languages.nix - mise 完全置換 (KISSA-27)
-- [x] S8: rtk overlay (KISSA-28)
-- [x] S9: nix-darwin homebrew.nix - cask + mas + 例外 brew (KISSA-29)
-- [ ] S10: nix-darwin defaults.nix - 棚卸 triage 翻訳 (KISSA-30, 別途着手予定)
-- [x] S11: nix-darwin sudoers / fonts / pam (KISSA-31)
-- [x] S12: 検証 + README + 別 PC 手順 + install-nix.zsh (KISSA-32)
-- [x] S13: CLAUDE.md に Nix 環境セクション追記 (KISSA-33)
-- [x] S14: GitHub Actions nix flake check + closure build (KISSA-46)
-
-Phase B（`setup/setup.zsh` / `Brewfile` の削除等）は別エピックで実施予定。

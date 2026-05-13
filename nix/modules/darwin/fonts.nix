@@ -1,5 +1,5 @@
 # nix-darwin フォント設定モジュール
-# extraSpecialArgs 由来: inputs / hostname / username (mkHost.nix から注入)
+# specialArgs 由来: inputs / username (flake.nix から注入)
 # 自動注入: pkgs / lib / config (... で受け取る)
 #
 # fonts.packages は nixpkgs のフォントパッケージを /Library/Fonts/Nix Fonts/ に配置する。
