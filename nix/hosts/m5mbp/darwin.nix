@@ -27,10 +27,17 @@
   # ユーザースコープオプションは system.primaryUser で対象を明示する必要がある。
   system.primaryUser = username;
 
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
+  # Determinate Nix (公式インストーラの最新版) と nix-darwin の native Nix 管理は
+  # 同時稼働できないため、nix-darwin 側の管理を無効化する。
+  # Determinate Nix は nix-command / flakes をデフォルトで有効化済みなので、
+  # 旧来の `nix.settings.experimental-features` 宣言は不要。
+  #
+  # 本修正は CI 検証 (S14) で `darwin-rebuild switch` が以下のエラーで失敗した
+  # ことから発見した本番ブロッカー:
+  #   error: Determinate detected, aborting activation
+  #   Determinate uses its own daemon to manage the Nix installation that
+  #   conflicts with nix-darwin's native Nix management.
+  nix.enable = false;
 
   # ユーザー宣言（home-manager から参照される）
   users.users.${username} = {
