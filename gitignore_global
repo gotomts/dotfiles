@@ -1,1 +1,4 @@
 .DS_Store
+
+# Claude Code per-project local approvals (per-machine, do not share)
+.claude/settings.local.json
