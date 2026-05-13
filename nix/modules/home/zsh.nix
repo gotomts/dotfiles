@@ -73,6 +73,14 @@
     # oh-my-zsh の source・shellAliases・envExtra は home-manager が自動挿入するため除外。
     # programs.zsh に対応属性がないものをここに移植。
     initExtra = ''
+      # Homebrew (Apple Silicon) を PATH と env に注入
+      # nix-darwin の /etc/zprofile は path_helper を呼ばないため、
+      # /etc/paths.d/homebrew が読み込まれず /opt/homebrew/bin が PATH に入らない。
+      # brew shellenv で明示的に注入する (副作用なし、brew 未インストール環境では skip)。
+      if [ -x /opt/homebrew/bin/brew ]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+      fi
+
       # mise (interactive hook) — shims は envExtra で有効化済み
       if type mise &>/dev/null; then
         eval "$(mise activate zsh)"
