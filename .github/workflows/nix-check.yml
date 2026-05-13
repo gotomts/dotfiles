@@ -1,0 +1,63 @@
+# Nix flake / nix-darwin 構成の CI 検証
+#
+# 目的:
+#   PR で nix/ が変更されるたびに `nix flake check` と m5mbp の system closure
+#   ビルドを走らせ、構文・型・依存解決の壊れを検知する。これにより main 更新
+#   による drift (Brewfile ↔ homebrew.nix 等) を継続検知できる。
+#
+# 設計判断:
+# - `darwin-rebuild switch` 自体は CI で実行しない:
+#   ci 用に専用 host (username=runner 等) を作って switch する案を試したが、
+#   本番 (m5mbp) と CI 環境 (runner / TCC / GUI / hardware) の差分を埋める
+#   作業が膨らみ、本番投入の安全性向上に対して費用対効果が悪かった。
+#   activation の検証は実機での `darwin-rebuild build` → `switch` で行う方針。
+# - runs-on: macos-latest を採用 (最新 macOS runner に自動追従)
+# - DeterminateSystems/nix-installer-action: ローカル開発と同じ Determinate Nix
+#
+# セキュリティ:
+# - run: で github.event.* の自由文 (PR title / body / commit message 等) を
+#   一切評価しない (injection 対策)
+name: nix-check
+
+on:
+  pull_request:
+    paths:
+      - 'nix/**'
+      - '.github/workflows/nix-check.yml'
+  push:
+    branches:
+      - main
+      - 'feature/nix-migration-**'
+    paths:
+      - 'nix/**'
+      - '.github/workflows/nix-check.yml'
+
+# 同一ブランチで複数 push があった場合、進行中のジョブをキャンセルして最新だけ走らせる
+concurrency:
+  group: nix-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flake-check:
+    name: nix flake check + build closure
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix (Determinate Systems)
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          # diagnostic 送信を無効化 (Determinate 公式推奨の opt-out)
+          diagnostic-endpoint: ''
+
+      - name: nix flake check
+        working-directory: nix
+        run: nix flake check --print-build-logs
+
+      - name: Build m5mbp system closure
+        working-directory: nix
+        run: |
+          nix build .#darwinConfigurations.m5mbp.system \
+            --no-link --print-build-logs
