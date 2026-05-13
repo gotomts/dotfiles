@@ -47,6 +47,12 @@ final: prev: {
     # nativeBuildInputs = with prev; [ pkg-config ];
     # buildInputs       = with prev; [ openssl ];
 
+    # rtk の cargo test は HOME 書き込みや外部 binary (git 等) に依存するテストを
+    # 含む。nix sandbox は HOME が read-only (/homeless-shelter) で外部 binary も
+    # 制限されるため、これらのテストが失敗する。CI バイナリ品質は上流 rtk
+    # リポジトリの CI に委ね、本ビルドではテストフェーズを skip する。
+    doCheck = false;
+
     meta = with prev.lib; {
       description = "CLI proxy to minimize LLM token consumption";
       homepage    = "https://github.com/rtk-ai/rtk";
