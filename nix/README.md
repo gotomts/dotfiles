@@ -58,8 +58,8 @@ home-manager switch --switch-generation <id>
 # 1. 該当の .nix に 1 行追加 (例: packages.nix の home.packages に pkgs.ripgrep)
 # 2. ビルド確認 (副作用なし)
 darwin-rebuild build --flake ~/.dotfiles/nix#default --impure
-# 3. 適用
-sudo darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+# 3. 適用 (sudo の env_reset で USER=root になるのを USER=$USER で回避)
+sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ```
 
 削除も同じ流れ (`.nix` から行を消して switch すると `zap` で消える)。
@@ -108,10 +108,10 @@ conflicts with nix-darwin's native Nix management.
 
 ### `USER env var is empty` で `darwin-rebuild` が落ちる
 
-`--impure` フラグなしで実行している。`nix/flake.nix` は `builtins.getEnv "USER"` で実行ユーザー名を動的解決するため、`--impure` が必須:
+`--impure` フラグなしで実行している、または `sudo` 経由で `USER` が `root` に置き換わっている。`nix/flake.nix` は `builtins.getEnv "USER"` で実行ユーザー名を動的解決するため、`--impure` と `USER=$USER` の両方が必須:
 
 ```sh
-sudo darwin-rebuild switch --flake .#default --impure
+sudo USER=$USER darwin-rebuild switch --flake .#default --impure
 ```
 
 ### flake.lock が壊れた / hash 不整合
