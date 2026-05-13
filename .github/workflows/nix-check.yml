@@ -25,9 +25,11 @@ on:
       - 'nix/**'
       - '.github/workflows/nix-check.yml'
   push:
+    # feature branch への push は pull_request イベントだけで検証する
+    # (push と pull_request の重複起動を避ける)。main の直接 push (hotfix 等)
+    # のみここで拾う。
     branches:
       - main
-      - 'feature/nix-migration-**'
     paths:
       - 'nix/**'
       - '.github/workflows/nix-check.yml'
