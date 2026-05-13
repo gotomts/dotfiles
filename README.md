@@ -2,17 +2,19 @@
 
 ## Initialize Setup
 
-1. Install XCode
+1. Grant Full Disk Access to your terminal app
+   (System Settings → Privacy & Security → Full Disk Access)
+
+2. Install Xcode CLT
 ```terminal
 xcode-select --install
 ```
 
-2. Install Homebrew
+3. Install Nix and dotfiles
 ```terminal
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+git clone https://github.com/gotomts/dotfiles.git ~/.dotfiles
+zsh ~/.dotfiles/nix/scripts/install-nix.zsh
+cd ~/.dotfiles/nix && sudo USER=$USER nix run nix-darwin -- switch --flake .#default --impure
 ```
 
-3. Install my dot files:
-```terminal
-zsh -c "$(curl -s https://raw.githubusercontent.com/gotomts/dotfiles/master/setup/setup.zsh)"
-```
+See [`nix/README.md`](nix/README.md) for details.
