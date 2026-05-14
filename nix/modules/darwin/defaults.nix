@@ -14,12 +14,12 @@
 # 棚卸 triage マルチホスト注意:
 #   このマシン (m5mbp) を source of truth として triage した値。別 PC では再 triage が必要。
 #   特に AppleLocale / KB_*QuoteOption は日本語入力環境前提。
-{ ... }:
+{ username, ... }:
 
 {
   system.defaults = {
     # =================================================================
-    # Dock (5 件 / 全 native)
+    # Dock (基本設定 5 件 + persistent-apps 19 + persistent-others 1 / 全 native)
     # =================================================================
     dock = {
       autohide = true;                            # Dock 自動非表示
@@ -29,6 +29,46 @@
       wvous-br-corner = 14;                       # ホットコーナー右下 = Quick Note
                                                   # (2=Mission Control / 4=Desktop / 5=Screensaver
                                                   #  / 11=Launchpad / 13=Lock / 14=Quick Note)
+
+      # ---- Dock 左側 (アプリ) 19 件 ----
+      # nix-darwin の coercedTo により文字列リストは自動的に { app = "..."; } タグ付きに変換される。
+      # アプリが当該 PC に存在しないと Dock アイコンが "?" になる。
+      # 別 PC で展開するアプリは Brewfile (homebrew.nix の casks) で導入されることが前提。
+      # KingCoding は m5mbp 固有（手動 install）のためここから除外。
+      persistent-apps = [
+        "/System/Applications/Apps.app"                                              # アプリ (Launchpad 後継)
+        "/Applications/Slack.app"
+        "/Applications/Linear.app"
+        "/Applications/Notion.app"
+        "/Applications/Google Chrome.app"
+        "/Applications/cmux.app"
+        "/Applications/Claude.app"
+        "/Applications/Zed.app"
+        "/Applications/Cursor.app"
+        "/Applications/Figma.app"
+        "/Applications/TablePlus.app"
+        "/Applications/1Password.app"
+        "/Applications/Postman.app"
+        "/Applications/Android Studio.app"
+        "/Applications/Xcode.app"
+        "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app"
+        "/Applications/OrbStack.app"
+        "/Applications/Transporter.app"
+        "/System/Applications/System Settings.app"
+      ];
+
+      # ---- Dock 右側 (フォルダ / ファイル) 1 件 ----
+      # ユーザーホームをハードコードしないため username パラメータを使う。
+      persistent-others = [
+        {
+          folder = {
+            path = "/Users/${username}/Downloads";
+            arrangement = "date-added";   # 追加日順 (新しい順)
+            displayas = "stack";          # スタック表示
+            showas = "fan";               # クリック時はファン展開
+          };
+        }
+      ];
     };
 
     # =================================================================
