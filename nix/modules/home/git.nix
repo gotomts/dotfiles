@@ -10,10 +10,12 @@
   programs.git = {
     enable = true;
 
-    userName = "gotomts";
-    userEmail = "mh.goto.web@gmail.com";
+    settings = {
+      user = {
+        name = "gotomts";
+        email = "mh.goto.web@gmail.com";
+      };
 
-    extraConfig = {
       core = {
         # excludesFile は programs.git.ignores で管理するため不要
         ignorecase = false;
