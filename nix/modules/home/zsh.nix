@@ -68,11 +68,11 @@
     };
 
     # -----------------------------------------------------------------------
-    # initExtra — zshrc の独自設定
+    # initContent — zshrc の独自設定
     # -----------------------------------------------------------------------
     # oh-my-zsh の source・shellAliases・envExtra は home-manager が自動挿入するため除外。
     # programs.zsh に対応属性がないものをここに移植。
-    initExtra = ''
+    initContent = ''
       # Homebrew (Apple Silicon) を PATH と env に注入
       # nix-darwin の /etc/zprofile は path_helper を呼ばないため、
       # /etc/paths.d/homebrew が読み込まれず /opt/homebrew/bin が PATH に入らない。

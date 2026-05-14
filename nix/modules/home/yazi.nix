@@ -3,6 +3,9 @@
 {
   programs.yazi = {
     enable = true;
+    # home-manager 26.05 で shellWrapperName のデフォルトが "yy" → "y" に変わる予定。
+    # warning を消すために明示値を指定する (上流デフォルト追従)。
+    shellWrapperName = "y";
     # 既存の yazi.toml / keymap.toml を builtins.fromTOML で読み込む。
     # keymap の prepend_keymap エントリは TOML 配列としてそのまま注入される。
     # TODO(Phase B): config/yazi/keymap.toml の grip-preview 呼び出しに含まれる
