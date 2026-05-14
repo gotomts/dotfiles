@@ -65,6 +65,10 @@
       # docker
       dcu = "docker compose up -d $@";
       dcn = "docker compose down $@";
+
+      # nix-darwin / home-manager
+      # home-manager のみ build + activate (brew bundle / system activation スキップ)
+      hm-switch = "zsh $HOME/.dotfiles/nix/scripts/hm-switch.zsh";
     };
 
     # -----------------------------------------------------------------------
