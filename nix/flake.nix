@@ -33,15 +33,25 @@
     let
       # username は実行環境の $USER から動的に解決する。
       # darwin-rebuild は --impure を必要とする (alias で吸収しないので明示的に付ける)。
-      # 未設定時は throw で明示エラーにして、silent な誤動作を防ぐ。
+      # 未設定時 / root のときは throw で明示エラーにして、silent な誤動作を防ぐ。
+      #
+      # "root" の検出が必要な理由: `sudo darwin-rebuild ...` を素で実行すると
+      # sudo の env_reset により USER=root に書き換わり、`users.users.root.home`
+      # が `/Users/root` に解決されて nix-darwin の assertion で失敗する。
+      # エラーメッセージが原因を全く示唆しないため、ここで早期に明確に止める。
       username =
         let
           u = builtins.getEnv "USER";
         in
-        if u != "" then
-          u
+        if u == "" then
+          throw "USER env var is empty. Run darwin-rebuild with --impure, or set USER explicitly."
+        else if u == "root" then
+          throw ''
+            USER env var is "root". This usually means `sudo darwin-rebuild ...` was run without preserving USER.
+            Use: sudo USER=$USER darwin-rebuild <build|switch> --flake .#default --impure
+          ''
         else
-          throw "USER env var is empty. Run darwin-rebuild with --impure, or set USER explicitly.";
+          u;
     in
     {
       # output 名は固定値 default。PC の hostname には影響しない (flake 内部のアドレス名)。

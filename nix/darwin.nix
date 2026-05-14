@@ -14,8 +14,8 @@
     ./modules/darwin/fonts.nix
     # Touch ID for sudo (S11)
     ./modules/darwin/pam.nix
-    # S10 (defaults.nix) は棚卸 triage 完了後に追加
-    # ./modules/darwin/defaults.nix
+    # macOS defaults / Dock / Finder / Trackpad / Menubar etc. (S10 / KISSA-30)
+    ./modules/darwin/defaults.nix
   ];
 
   # nix-darwin が要求する最低限の宣言:

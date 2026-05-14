@@ -66,6 +66,7 @@
       "1password"
       "amazon-photos"
       "android-studio"
+      "claude" # Anthropic Desktop app (claude-code CLI とは別)
       "claude-code"
       "cmux" # tap: manaflow-ai/cmux
       "contexts"
@@ -96,6 +97,10 @@
       "TestFlight" = 899247664;
       "Apple Developer" = 640199958;
       "Transporter" = 1450874784;
+      # Xcode は 15GB+ のため初回 darwin-rebuild switch に時間がかかる。
+      # Apple ID で App Store にサインイン済みである必要がある。
+      # Simulator.app は Xcode に bundled なので別途宣言不要。
+      "Xcode" = 497799835;
     };
   };
 }
