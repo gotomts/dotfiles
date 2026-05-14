@@ -36,7 +36,12 @@
       # 別 PC で展開するアプリは Brewfile (homebrew.nix の casks) で導入されることが前提。
       # KingCoding は m5mbp 固有（手動 install）のためここから除外。
       persistent-apps = [
-        "/System/Applications/Apps.app"                                              # アプリ (Launchpad 後継)
+        # Apps.app は macOS 26+ の Launchpad 後継。macOS 15.x には存在しないため
+        # Launchpad.app にフォールバックする。builtins.pathExists は --impure 評価時に判定。
+        # OS アップデート後に Apps.app が出現したら次回 darwin-rebuild switch で自動切替。
+        (if builtins.pathExists /System/Applications/Apps.app
+         then "/System/Applications/Apps.app"
+         else "/System/Applications/Launchpad.app")
         "/Applications/Slack.app"
         "/Applications/Linear.app"
         "/Applications/Notion.app"
