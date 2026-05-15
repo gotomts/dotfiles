@@ -60,6 +60,17 @@
 
     ignores = [
       ".DS_Store"
+      # Claude Code per-project local approvals (per-machine, do not share)
+      # 旧 gitignore_global から移植。home.file でも ~/.gitignore_global を配置するが、
+      # programs.git.ignores が正規の管理場所であるためここに宣言する。
+      ".claude/settings.local.json"
     ];
   };
+
+  # ~/.gitignore_global を home.file として配置する。
+  # programs.git.ignores が ~/.config/git/ignore に書き出すため、
+  # ~/.gitignore_global は git が参照しないが、旧環境との互換性のため残置する。
+  # 旧 setup.zsh が dotfiles への dir-symlink を作っていたため、migration 後も
+  # file-level symlink として nix store 経由で管理する。
+  home.file.".gitignore_global".source = ../../../gitignore_global;
 }

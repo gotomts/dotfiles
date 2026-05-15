@@ -19,6 +19,8 @@
     ./modules/home/claude.nix
     # 言語ツールチェーン: mise 完全置換 (S7 / KISSA-27)
     ./modules/home/languages.nix
+    # grip / cmux 等の home.file 配置 (DOT-27 dir-symlink 再発防止)
+    ./modules/home/misc.nix
   ];
 
   home.username = username;
