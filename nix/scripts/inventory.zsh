@@ -75,14 +75,19 @@ if [[ -z "${HOSTNAME}" ]]; then
 fi
 
 readonly TODAY="$(date +%Y-%m-%d)"
-readonly OUTPUT_DIR="${HOME}/.dotfiles/docs/inventory"
+
+# スクリプトの位置から相対解決するため SCRIPT_DIR を OUTPUT_DIR より先に定義する
+# (`${0:A}` で symlink 解決後の絶対パス。`:h` で親ディレクトリ)
+readonly SCRIPT_DIR="${0:A:h}"
+readonly PLIST_EXTRACT="${SCRIPT_DIR}/lib/plist_extract.py"
+
+# OUTPUT_DIR: SCRIPT_DIR の親の親 (= dotfiles repo ルート) 配下 docs/inventory
+# worktree 内で実行した時に、その worktree の docs/inventory に出力されることを保証する
+# INVENTORY_OUTPUT_DIR env 変数で override 可能 (主に bats テスト用)
+readonly OUTPUT_DIR="${INVENTORY_OUTPUT_DIR:-${SCRIPT_DIR}/../../docs/inventory}"
 readonly OUTPUT_FILE="${OUTPUT_DIR}/${HOSTNAME}-${TODAY}.md"
 readonly BREWFILE_DUMP="/tmp/Brewfile.dump.$$"
 readonly DOTFILES_BREWFILE="${HOME}/.dotfiles/Brewfile"
-
-# plist_extract.py のパス (このスクリプトからの相対パスで解決)
-readonly SCRIPT_DIR="${0:A:h}"
-readonly PLIST_EXTRACT="${SCRIPT_DIR}/lib/plist_extract.py"
 
 # ----------------------------------------------------------------
 # 前処理

@@ -241,12 +241,15 @@ STUB_DEFAULTS
 @test "stub run: generated report contains triage placeholder" {
     setup_stub_env
 
-    # Run the script with stubs in PATH and a fake HOME
-    HOME="${STUB_HOMEDIR}" PATH="${STUB_BINDIR}:/usr/bin:/bin" \
+    # OUTPUT_DIR は SCRIPT_DIR-relative なので INVENTORY_OUTPUT_DIR で
+    # テスト用の一時 dir に向ける (実 repo の docs/inventory を汚染しないため)
+    HOME="${STUB_HOMEDIR}" \
+        INVENTORY_OUTPUT_DIR="${STUB_HOMEDIR}/inventory" \
+        PATH="${STUB_BINDIR}:/usr/bin:/bin" \
         run zsh "${INVENTORY_SCRIPT}"
 
     # Locate the generated file
-    local outdir="${STUB_HOMEDIR}/.dotfiles/docs/inventory"
+    local outdir="${STUB_HOMEDIR}/inventory"
     local outfile
     if [[ -d "${outdir}" ]]; then
         outfile="${outdir}/$(ls "${outdir}" 2>/dev/null | head -1)"
@@ -265,10 +268,12 @@ STUB_DEFAULTS
 @test "stub run: generated report contains Markdown checklist items" {
     setup_stub_env
 
-    HOME="${STUB_HOMEDIR}" PATH="${STUB_BINDIR}:/usr/bin:/bin" \
+    HOME="${STUB_HOMEDIR}" \
+        INVENTORY_OUTPUT_DIR="${STUB_HOMEDIR}/inventory" \
+        PATH="${STUB_BINDIR}:/usr/bin:/bin" \
         run zsh "${INVENTORY_SCRIPT}"
 
-    local outdir="${STUB_HOMEDIR}/.dotfiles/docs/inventory"
+    local outdir="${STUB_HOMEDIR}/inventory"
     local outfile
     if [[ -d "${outdir}" ]]; then
         outfile="${outdir}/$(ls "${outdir}" 2>/dev/null | head -1)"
