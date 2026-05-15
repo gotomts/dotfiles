@@ -194,9 +194,27 @@ setup_stub_env() {
     # scutil stub: return a fixed hostname
     printf '#!/bin/sh\necho testhost\n' > "${STUB_BINDIR}/scutil"
 
-    # defaults stub: print a simple key=value line for "read" subcommand
-    printf '#!/bin/sh\nif [ "$1" = "read" ]; then echo "stubKey = stubValue"; fi\n' \
-        > "${STUB_BINDIR}/defaults"
+    # defaults stub:
+    #   - "read" サブコマンド: 旧実装の互換用に key=value を返す
+    #   - "export <domain> -": 新実装が plistlib.loads() でパース可能な
+    #     最小 XML plist を返す。stubKey が triage checklist として出力される
+    cat > "${STUB_BINDIR}/defaults" <<'STUB_DEFAULTS'
+#!/bin/sh
+if [ "$1" = "read" ]; then
+    echo "stubKey = stubValue"
+elif [ "$1" = "export" ]; then
+    cat <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTD/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>stubKey</key>
+    <string>stubValue</string>
+</dict>
+</plist>
+PLIST
+fi
+STUB_DEFAULTS
 
     # hostname stub (fallback in case scutil fails)
     printf '#!/bin/sh\necho testhost\n' > "${STUB_BINDIR}/hostname"
@@ -234,13 +252,12 @@ setup_stub_env() {
         outfile="${outdir}/$(ls "${outdir}" 2>/dev/null | head -1)"
     fi
 
-    if [[ -n "${outfile}" && -f "${outfile}" ]]; then
-        grep -q 'nix化 / 無視 / 検討' "${outfile}"
-    else
-        # Script did not produce a file (e.g. scutil still tried real system);
-        # at minimum it must not have crashed with an unexpected error code.
-        [ "${status}" -eq 0 ] || [ "${status}" -eq 1 ]
-    fi
+    # 新実装は defaults export | plistlib で生成。stub が正しく XML plist を
+    # 返せばスクリプトは正常終了し outfile が存在する。outfile 不在は stub
+    # セットアップ失敗を意味するためテスト失敗とする (旧 fallback は撤廃)。
+    [ "${status}" -eq 0 ]
+    [ -n "${outfile}" ] && [ -f "${outfile}" ]
+    grep -q 'nix化 / 無視 / 検討' "${outfile}"
 
     rm -rf "${STUB_TMPDIR}"
 }
@@ -257,11 +274,9 @@ setup_stub_env() {
         outfile="${outdir}/$(ls "${outdir}" 2>/dev/null | head -1)"
     fi
 
-    if [[ -n "${outfile}" && -f "${outfile}" ]]; then
-        grep -q '^- \[ \]' "${outfile}"
-    else
-        [ "${status}" -eq 0 ] || [ "${status}" -eq 1 ]
-    fi
+    [ "${status}" -eq 0 ]
+    [ -n "${outfile}" ] && [ -f "${outfile}" ]
+    grep -q '^- \[ \]' "${outfile}"
 
     rm -rf "${STUB_TMPDIR}"
 }
