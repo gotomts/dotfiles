@@ -15,7 +15,6 @@
 - `gitignore_global` — グローバル gitignore（`~/.gitignore_global` にシンボリックリンク）
 - `grip/` — grip 設定（`~/.grip/` にシンボリックリンク）
 - `nix/` — nix-darwin + home-manager + flakes による環境構築定義（Phase A の主管理対象。`darwin-rebuild` から参照される。詳細は `nix/README.md`）
-- `setup/` — セットアップスクリプト群（シンボリックリンク対象外。Phase B で home-manager へ完全移行後に削除予定）
 - `ssh/` — SSH 設定（`~/.ssh/` にシンボリックリンク）
 - `zsh/` — zsh 補完ファイル（`~/.zsh/` にシンボリックリンク）
 - `zshrc` — zsh 設定（`~/.zshrc` にシンボリックリンク）
@@ -23,11 +22,7 @@
 
 # シンボリックリンク管理
 
-- **Phase A 期間中の方針**: 新規 dotfiles は `nix/modules/home/` 以下で home-manager 管理に倒す。`setup/setup.zsh` の symlink ループはレガシー扱い (Phase B で削除予定)
-- `setup/setup.zsh` がリポジトリルートのファイル/ディレクトリを `~/.${name}` にシンボリックリンクする
-- 以下はシンボリックリンク対象外として除外されている: `setup`, `README.md`, `ssh`, `claude`, `CLAUDE.md`, `docs`, `nix`
-- `ssh/` と `claude/` は専用ループで個別にシンボリックリンクされる
-- ルートにファイルやディレクトリを追加する場合、シンボリックリンクが不要なものは `setup.zsh` の除外条件に追加すること
+シンボリックリンクは home-manager (`nix/modules/home/`) で管理する。新規 dotfiles は `nix/modules/home/` 以下で宣言すること。
 
 # Homebrew パッケージ管理
 
@@ -40,14 +35,12 @@
 # zsh スクリプト規約
 
 - シバンは `#!/bin/zsh` を使用する
-- setup/ 配下のスクリプトは既存の `util.zsh`（`util::confirm`, `util::info` 等）を利用する
 - 環境変数の参照は `${VAR}` 形式で統一する（`$VAR` ではなく）
 - パスの参照には `${HOME}` を使用する（`~` ではなく）
-- install スクリプトのファイル名は `XX_name.zsh`（XX は連番）の命名規則に従う
 
 # Claude Code 設定
 
-- `claude/` 配下のファイルは `setup.zsh` により `~/.claude/` にシンボリックリンクされる
+- `claude/` 配下のファイルは home-manager (`nix/modules/home/claude.nix`) により `~/.claude/` にシンボリックリンクされる
 - `claude/CLAUDE.md` はグローバル CLAUDE.md である。プロジェクト固有のルールはここに書かない
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
 - `claude/skills/` にはカスタムスキルを配置する
