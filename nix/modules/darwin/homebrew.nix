@@ -1,5 +1,5 @@
 # nix-darwin homebrew モジュール
-# Brewfile の内容を nix-darwin の homebrew オプションに移植する。
+# Homebrew パッケージ (tap / brew / cask / mas) を宣言管理する。
 #
 # specialArgs 由来: inputs / username (flake.nix から注入)
 # 自動注入: pkgs / lib / config (... で受け取る)
@@ -21,10 +21,9 @@
       # flake.lock 哲学と整合する再現性ベースの運用に切り替える。
       upgrade = false;
       # "zap": 宣言外パッケージを Cellar ごと削除する ("uninstall" より破壊的)。
-      # Phase A 移行期は darwin-rebuild switch のたびに実行されるため、
+      # darwin-rebuild switch のたびに実行されるため、
       # homebrew.nix に載っていない手動インストール済みパッケージは即削除される。
-      # 本ファイルが Brewfile の全量を網羅している前提なので実害は最小だが、
-      # Phase A → Phase B (Brewfile 廃止) まで "uninstall" に下げる選択肢も検討する。
+      # Brewfile 廃止済み。"zap" で問題なければこのまま運用。必要に応じて "uninstall" に下げる。
       cleanup = "zap";
     };
 
