@@ -77,6 +77,11 @@ dir_symlinks=(
     "${HOME}/.aliase"    "${HOME}/.dotfiles/aliase"
     # ~/.functions -> dotfiles/functions: home-manager が .functions/fzf-history を管理
     "${HOME}/.functions" "${HOME}/.dotfiles/functions"
+    # ~/.grip -> dotfiles/grip: home-manager が .grip/settings.py を管理。
+    # dir-symlink のまま darwin-rebuild switch すると ~/.grip/settings.py が
+    # dir-symlink 越しに dotfiles repo 内のファイルとして見え、
+    # home-manager が before-nix バックアップを repo 内に生成してしまう。
+    "${HOME}/.grip"      "${HOME}/.dotfiles/grip"
 )
 
 # ---- file-symlink の対象リスト ------------------------------------------
@@ -174,7 +179,7 @@ migrate_file_symlink() {
     if [[ "${dry_run}" == false ]]; then
         unlink "${path}"
         util::info "削除完了: ${path}"
-        util::info "  darwin-rebuild switch 後に home-manager が nix store 経由で再配置します"
+        util::info "  darwin-rebuild switch で home-manager が必要に応じて再配置します"
     fi
 }
 
