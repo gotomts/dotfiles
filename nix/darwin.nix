@@ -16,6 +16,8 @@
     ./modules/darwin/pam.nix
     # macOS defaults / Dock / Finder / Trackpad / Menubar etc. (S10 / KISSA-30)
     ./modules/darwin/defaults.nix
+    # IME / 入力ソース (DOT-25)。HIToolbox は array of dict 構造のため defaults import 方式
+    ./modules/darwin/hitoolbox.nix
   ];
 
   # nix-darwin が要求する最低限の宣言:
