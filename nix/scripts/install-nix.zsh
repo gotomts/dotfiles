@@ -26,9 +26,10 @@
 
 set -eu
 
-# util.zsh の message 関数を共用する。Phase B で setup/ が削除された後は、
-# 同等のメッセージ関数をローカル定義に置き換えること。
-source "${HOME}/.dotfiles/setup/util.zsh"
+# メッセージユーティリティ (setup/util.zsh を参照せずローカルで定義)
+util::info()    { echo -e "\e[32m${1}\e[m" }
+util::warning() { echo -e "\e[33m${1}\e[m" }
+util::error()   { echo -e "\e[31m${1}\e[m" }
 
 # ---- 1. 既存 Nix の検出 ----------------------------------------------------
 
