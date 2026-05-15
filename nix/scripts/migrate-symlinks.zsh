@@ -137,7 +137,11 @@ migrate_dir_symlink() {
 
     util::action "DIR-SYMLINK 削除: ${path} -> ${actual_target}"
     if [[ "${dry_run}" == false ]]; then
-        unlink "${path}"
+        # `unlink` は /bin/unlink にあるが、非インタラクティブ環境 (Claude bash
+        # tool 等) では PATH に /bin が含まれず command not found になる可能性が
+        # あるため絶対パスで呼ぶ。`readlink` を /usr/bin/readlink にしているのと
+        # 同じ理由。
+        /bin/unlink "${path}"
         util::info "削除完了: ${path}"
         util::info "  darwin-rebuild switch 後に home-manager が proper directory として再生成します"
     fi
@@ -177,7 +181,8 @@ migrate_file_symlink() {
 
     util::action "FILE-SYMLINK 削除: ${path} -> ${actual_target}"
     if [[ "${dry_run}" == false ]]; then
-        unlink "${path}"
+        # `unlink` 絶対パスの理由は migrate_dir_symlink のコメント参照
+        /bin/unlink "${path}"
         util::info "削除完了: ${path}"
         util::info "  darwin-rebuild switch で home-manager が必要に応じて再配置します"
     fi
