@@ -2,8 +2,7 @@
 #
 # 目的:
 #   PR で nix/ が変更されるたびに `nix flake check` と system closure
-#   ビルドを走らせ、構文・型・依存解決の壊れを検知する。これにより main 更新
-#   による drift (Brewfile ↔ homebrew.nix 等) を継続検知できる。
+#   ビルドを走らせ、構文・型・依存解決の壊れを継続検知する。
 #
 # 設計判断:
 # - `darwin-rebuild switch` 自体は CI で実行しない:
