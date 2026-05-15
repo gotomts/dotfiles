@@ -1,15 +1,14 @@
 { pkgs, lib, ... }:
 
 # このモジュールは setup.zsh の claude/ symlink ループ + setup/install/10_claude.zsh の
-# symlink セクション（ステップ 2, 3）を home-manager で置換する。
+# symlink セクション（ステップ 2, 3）を home-manager で置換したもの (両スクリプト削除済み)。
 #
-# 注意: 既存 10_claude.zsh はスキルごとに個別 symlink を作るが、本モジュールは
+# 注意: 旧 10_claude.zsh はスキルごとに個別 symlink を作っていたが、本モジュールは
 # ~/.claude/skills ディレクトリ全体を Nix store 経由の単一 symlink にする。新スキル追加時は
 # `home-manager switch` または `darwin-rebuild switch` で反映する必要がある。
 {
   # ~/.claude/{agents,skills,hooks,settings.json,CLAUDE.md,RTK.md} を
   # dotfiles から symlink する。
-  # 従来の setup/install/10_claude.zsh の symlink ループを home-manager で置換。
   home.file = {
     ".claude/agents".source        = ../../../claude/agents;
     ".claude/skills".source        = ../../../claude/skills;

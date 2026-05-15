@@ -1,7 +1,7 @@
 # home-manager モジュール: 言語ランタイム + 開発ツールチェーン
 #
-# 移行対象: setup/install/{04_node,05_go,06_ruby,07_rust,08_python,09_dart}.zsh で
-# mise 経由でインストールしていたグローバルランタイムを nix に完全移管する。
+# 移行元: setup/install/{04_node,05_go,06_ruby,07_rust,08_python,09_dart}.zsh (削除済み) で
+# mise 経由でインストールしていたグローバルランタイムを nix に完全移管した。
 #
 # mise は Brewfile から外す方針 (本 sub-issue で削除)。
 # プロジェクトローカルの mise 設定 (.mise.toml) は引き続き利用可能だが、

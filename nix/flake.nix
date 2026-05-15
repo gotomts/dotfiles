@@ -65,8 +65,8 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            # setup.zsh が以前作った既存 symlink (~/.zshrc, ~/.claude/agents 等) を
-            # home-manager が clobber エラーで弾かないよう、退避拡張子を指定する。
+            # home-manager が以前作った既存 symlink (~/.zshrc, ~/.claude/agents 等) を
+            # 重複作成しようとして clobber エラーで弾かないよう、退避拡張子を指定する。
             # 初回 activation で既存ファイルは <file>.before-nix にリネームされる。
             home-manager.backupFileExtension = "before-nix";
             home-manager.users.${username} = import ./home.nix;
