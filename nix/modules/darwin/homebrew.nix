@@ -16,8 +16,10 @@
     onActivation = {
       # 手動制御。CI 化する場合は true 検討
       autoUpdate = false;
-      # 既存パッケージは upgrade する
-      upgrade = true;
+      # 再現性確保のため upgrade は手動で実行する (brew upgrade && brew cleanup)。
+      # darwin-rebuild switch のたびに全パッケージが更新される状態を避け、
+      # flake.lock 哲学と整合する再現性ベースの運用に切り替える。
+      upgrade = false;
       # "zap": 宣言外パッケージを Cellar ごと削除する ("uninstall" より破壊的)。
       # Phase A 移行期は darwin-rebuild switch のたびに実行されるため、
       # homebrew.nix に載っていない手動インストール済みパッケージは即削除される。

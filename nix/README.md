@@ -37,6 +37,19 @@ home-manager switch --switch-generation <id>
 - `flake.lock` は必ずコミットする（再現性確保のため）
 - 更新頻度の方針: **必要時のみ**（依存ライブラリの脆弱性 / nixpkgs に必要なパッケージが入ったタイミング等）
 
+## Homebrew パッケージの定期メンテナンス
+
+`homebrew.onActivation.upgrade = false` により、`darwin-rebuild switch` では新規インストールのみ実行され、既存パッケージは自動 upgrade されない。週次または月次で手動実行すること:
+
+```sh
+brew upgrade && brew cleanup
+```
+
+- `brew upgrade`: 全パッケージを最新版へ更新
+- `brew cleanup`: 旧バージョンの Cellar を削除してディスク節約
+
+この設計は `flake.lock` と同様に「明示的に更新する」哲学と整合する。
+
 ## アプリ・パッケージの追加
 
 `brew install` を直接打つことは事実上禁止 (`homebrew.onActivation.cleanup = "zap"` により次回 `darwin-rebuild switch` で削除される)。**宣言してから入れる** 順序を強制する設計。
