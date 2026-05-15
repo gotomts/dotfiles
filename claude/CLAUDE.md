@@ -6,7 +6,7 @@
 
 ## Worktree Workflow
 
-- Use worktrunk (not regular git branch/checkout) when starting parallel work
+- Use the worktree CLI (現状: `wt` shell function — `wt --help`) instead of plain git branch/checkout when starting parallel work
 - Never restore deliberately deleted local branches without explicit user confirmation
 - When user mentions parallel work, default to worktree-based flow
 
