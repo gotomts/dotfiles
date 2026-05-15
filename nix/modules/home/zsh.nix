@@ -85,11 +85,6 @@
         eval "$(/opt/homebrew/bin/brew shellenv)"
       fi
 
-      # mise (interactive hook) — shims は envExtra で有効化済み
-      if type mise &>/dev/null; then
-        eval "$(mise activate zsh)"
-      fi
-
       # gcloud path — gcloud-cli (新名) と google-cloud-sdk (旧名) 両対応
       for _gcloud_inc in \
           '/opt/homebrew/Caskroom/gcloud-cli/latest/google-cloud-sdk/path.zsh.inc' \
