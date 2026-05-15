@@ -2,6 +2,11 @@
 # nix/scripts/inventory.zsh
 # 現マシンの macOS 設定を自動ダンプし、人間 triage 用チェックリストを生成する。
 # 出力先: ~/.dotfiles/docs/inventory/<hostname>-<YYYY-MM-DD>.md
+#
+# 刷新: defaults export | python3 plistlib ベース (DOT-24)
+#   旧実装の "defaults read を行単位で flatten" を廃止。
+#   plistlib で構造化解析し、bookmark バイナリ・構造記号・機械的 metadata を除去。
+#   出力行数を 5,000+ 行 → 300 行以下に圧縮。
 
 setopt ERR_EXIT NOUNSET PIPE_FAIL
 
@@ -25,12 +30,16 @@ Usage: inventory.zsh [--help]
 ~/.dotfiles/docs/inventory/<hostname>-<YYYY-MM-DD>.md に生成します。
 
 収集項目:
-  - macOS defaults (既知ドメイン)
+  - macOS defaults (既知ドメイン) — defaults export | plistlib ベース
   - mas アプリ一覧
   - launchctl user-scope エージェント
   - /etc/sudoers.d/ エントリ
   - Brewfile diff (brew bundle dump との差分)
   - カスタムフォント / Fonts (fc-list :family)
+
+defaults セクションは plistlib で構造化抽出し、bookmark バイナリ・構造記号・
+機械的 metadata をノイズ除去することで triage 単位を人間判断可能な粒度に圧縮します。
+Dock persistent-apps は bundle-id / file-label のアプリ一覧サマリに変換されます。
 
 各項目は Markdown チェックリスト形式で出力され、
 <!-- nix化 / 無視 / 検討 --> プレースホルダが付与されます。
@@ -71,6 +80,10 @@ readonly OUTPUT_FILE="${OUTPUT_DIR}/${HOSTNAME}-${TODAY}.md"
 readonly BREWFILE_DUMP="/tmp/Brewfile.dump.$$"
 readonly DOTFILES_BREWFILE="${HOME}/.dotfiles/Brewfile"
 
+# plist_extract.py のパス (このスクリプトからの相対パスで解決)
+readonly SCRIPT_DIR="${0:A:h}"
+readonly PLIST_EXTRACT="${SCRIPT_DIR}/lib/plist_extract.py"
+
 # ----------------------------------------------------------------
 # 前処理
 # ----------------------------------------------------------------
@@ -83,6 +96,11 @@ fi
 if [[ -f "${OUTPUT_FILE}" ]]; then
     util::warning "出力ファイルが既に存在します: ${OUTPUT_FILE}"
     util::warning "上書きして続行します。"
+fi
+
+if [[ ! -f "${PLIST_EXTRACT}" ]]; then
+    util::error "plist_extract.py が見つかりません: ${PLIST_EXTRACT}"
+    exit 1
 fi
 
 util::info "棚卸スクリプトを開始します: ${HOSTNAME} / ${TODAY}"
@@ -100,22 +118,6 @@ _format_checklist_line() {
     echo "- [ ] ${line}  <!-- nix化 / 無視 / 検討 -->"
 }
 
-# defaults read の出力を key = value 行に変換して整形する
-_format_defaults_output() {
-    local domain="${1}"
-    local output
-    output="$(defaults read "${domain}" 2>/dev/null)" || return 1
-
-    while IFS= read -r line; do
-        # 空行とブレースのみの行はスキップ
-        [[ -z "${line}" ]] && continue
-        [[ "${line}" =~ ^[[:space:]]*[\{\}][[:space:]]*$ ]] && continue
-        # インデントを除去
-        local trimmed="${line#"${line%%[! ]*}"}"
-        [[ -n "${trimmed}" ]] && _format_checklist_line "${trimmed}"
-    done <<< "${output}"
-}
-
 # ----------------------------------------------------------------
 # セクション出力関数
 # ----------------------------------------------------------------
@@ -123,20 +125,10 @@ _format_defaults_output() {
 _dump_defaults() {
     echo "## defaults"
     echo ""
+    echo "> plistlib ベースで抽出。bookmark バイナリ・構造記号・機械的 metadata はノイズ除去済み。"
+    echo ""
 
-    local domain
-    for domain in "${DEFAULTS_DOMAINS[@]}"; do
-        echo "### ${domain}"
-        echo ""
-
-        if defaults read "${domain}" > /dev/null 2>&1; then
-            _format_defaults_output "${domain}"
-        else
-            util::warning "defaults: ドメインが存在しません: ${domain}" >&2
-            echo "<!-- ドメインが存在しないためスキップ: ${domain} -->"
-        fi
-        echo ""
-    done
+    /usr/bin/python3 "${PLIST_EXTRACT}" "${DEFAULTS_DOMAINS[@]}"
 }
 
 _dump_mas() {
@@ -169,11 +161,14 @@ _dump_mas() {
 }
 
 _dump_launchctl() {
-    echo "## launchctl (user)"
+    echo "## launchctl (user — non-Apple agents)"
+    echo ""
+    echo "> com.apple.* は OS 標準のため除外。ユーザーアプリ起動エージェントのみ表示。"
     echo ""
 
+    # com.apple.* を除いたユーザー追加エージェントのみ triage 対象
     local launchctl_output
-    launchctl_output="$(launchctl list 2>/dev/null | awk '$3 ~ /^(com\.|user\.)/')" || true
+    launchctl_output="$(launchctl list 2>/dev/null | awk '$3 ~ /^(com\.|user\.)/' | grep -v 'com\.apple\.')" || true
 
     if [[ -n "${launchctl_output}" ]]; then
         local line label
@@ -224,7 +219,8 @@ _dump_sudoers() {
 }
 
 _dump_brewfile_diff() {
-    echo "## Brewfile diff (vs \`brew bundle dump\`)"
+    echo "## Brewfile diff (現環境のみ / Brewfile 未記載)"
+    echo "> Brewfile 未記載パッケージのみ triage 対象。Brewfile のみは Nix 移行中のため件数のみ。"
     echo ""
 
     if ! command -v brew > /dev/null 2>&1; then
@@ -254,22 +250,25 @@ _dump_brewfile_diff() {
     if [[ -z "${diff_output}" ]]; then
         echo "<!-- Brewfile と現環境の差分はありません -->"
     else
-        echo "\`\`\`diff"
-        echo "# < ~/.dotfiles/Brewfile  > brew bundle dump (現環境)"
-        echo "${diff_output}"
-        echo "\`\`\`"
-        echo ""
-        echo "### 現環境にあるが Brewfile 未記載のパッケージ"
-        echo ""
-        local extra_lines pkg
+        # 現環境のみ (brew bundle dump にあり Brewfile 未記載) → triage 対象
+        local extra_lines missing_count pkg
         extra_lines="$(echo "${diff_output}" | grep '^>' | sed 's/^> //')" || true
-        if [[ -n "${extra_lines}" ]]; then
+        missing_count="$(echo "${diff_output}" | grep -c '^<')" || true
+
+        # Brewfile のみ (現環境にない) は件数のみサマリ
+        [[ "${missing_count}" -gt 0 ]] && \
+            echo "<!-- Brewfile のみ: ${missing_count} 件 (Nix 移行中 / triage 不要) -->"
+
+        # 現環境のみ → triage 対象 (tap/brew/cask/mas のみ。go/cargo/npm は Nix 管理外)
+        local brew_extra_lines
+        brew_extra_lines="$(echo "${extra_lines}" | grep -E '^(tap|brew|cask|mas) ')" || true
+        if [[ -n "${brew_extra_lines}" ]]; then
             while IFS= read -r pkg; do
                 [[ -z "${pkg}" ]] && continue
                 _format_checklist_line "${pkg}"
-            done <<< "${extra_lines}"
+            done <<< "${brew_extra_lines}"
         else
-            echo "<!-- 差分なし -->"
+            echo "<!-- 現環境に Brewfile 未記載のパッケージはありません -->"
         fi
     fi
     echo ""
@@ -277,6 +276,8 @@ _dump_brewfile_diff() {
 
 _dump_fonts() {
     echo "## Fonts (custom)"
+    echo ""
+    echo "> /Library/Fonts/ のみ対象（ユーザー追加フォント）。/System/ 配下はシステム標準のため除外。"
     echo ""
 
     if ! command -v fc-list > /dev/null 2>&1; then
@@ -286,8 +287,13 @@ _dump_fonts() {
         return 0
     fi
 
+    # /Library/Fonts/ のみ対象 (ユーザー追加フォント)
+    # /System/Library/ 配下はシステムフォントで宣言管理不要なため除外
     local font_output
-    font_output="$(fc-list :family 2>/dev/null | sort -u)" || true
+    font_output="$(fc-list --format="%{family}\t%{file}\n" 2>/dev/null \
+        | grep $'\t'/Library/Fonts/ \
+        | awk -F'\t' '{print $1}' \
+        | sort -u)" || true
 
     if [[ -n "${font_output}" ]]; then
         local font family
@@ -298,7 +304,7 @@ _dump_fonts() {
             [[ -n "${family}" ]] && _format_checklist_line "${family}"
         done <<< "${font_output}"
     else
-        echo "<!-- fc-list の出力が空です -->"
+        echo "<!-- /Library/Fonts/ にユーザー追加フォントはありません -->"
     fi
     echo ""
 }
