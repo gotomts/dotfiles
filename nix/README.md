@@ -90,6 +90,68 @@ sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 
 `nix shell` / `nix run` は永続インストールしないので、`zap` の影響を受けない。お試しは基本これに倒すこと。
 
+## 既存 PC 移行手順 (dir-symlink → proper directory)
+
+旧 `setup.zsh` を使って構築した PC では、`~/.aliase` や `~/.functions` が
+dotfiles ディレクトリへのシンボリックリンク (dir-symlink) として残っている場合がある。
+home-manager が `~/.aliase/get-gke-credentials.sh` 等を nix store 経由で配置しようとすると
+dir-symlink の先 = dotfiles リポジトリ内のファイルを上書きし、
+`aliase/get-gke-credentials.sh.before-nix` がリポジトリに生まれる問題がある。
+
+以下の手順で移行すること。
+
+### ステップ 1: 現状確認 (dry-run)
+
+```sh
+zsh ~/.dotfiles/nix/scripts/migrate-symlinks.zsh --dry-run
+```
+
+削除予定のシンボリックリンクが一覧表示される。内容を確認する。
+
+### ステップ 2: シンボリックリンクの削除
+
+問題なければ実際に削除する:
+
+```sh
+zsh ~/.dotfiles/nix/scripts/migrate-symlinks.zsh
+```
+
+スクリプトが削除するシンボリックリンク:
+
+| シンボリックリンク | 種類 | 理由 |
+|---|---|---|
+| `~/.aliase` | dir-symlink | home-manager が `.aliase/get-gke-credentials.sh` を管理 |
+| `~/.functions` | dir-symlink | home-manager が `.functions/fzf-history` を管理 |
+| `~/.aliases` | file-symlink | home-manager が nix store 経由で再配置 |
+| `~/.gitignore_global` | file-symlink | home-manager が nix store 経由で再配置 |
+| `~/.grip/settings.py` | file-symlink | home-manager が nix store 経由で再配置 |
+| `~/.config/cmux/config.ghostty` | file-symlink | home-manager が nix store 経由で再配置 |
+| `~/.config/starship/starship.toml` | file-symlink | home-manager は `~/.config/starship.toml` に配置 |
+
+### ステップ 3: darwin-rebuild switch
+
+```sh
+sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+```
+
+home-manager が proper directory と nix store 経由のシンボリックリンクを再生成する。
+
+### ステップ 4: 動作確認
+
+```sh
+# dir-symlink が解消され proper directory になっていることを確認
+file ~/.aliase ~/.functions
+# expected: directory (not symlink)
+
+# home-manager 管理の symlink が nix store を指していることを確認
+ls -la ~/.aliase/get-gke-credentials.sh ~/.functions/fzf-history
+# expected: -> /nix/store/...
+
+# .before-nix ファイルが dotfiles に生まれていないことを確認
+git -C ~/.dotfiles status
+# expected: clean (before-nix バックアップがない)
+```
+
 ## トラブルシューティング
 
 ### Full Disk Access (FDA) 未付与で `install-nix.zsh` が停止する
