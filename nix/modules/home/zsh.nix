@@ -181,5 +181,11 @@
     ".functions/fzf-history".source = ../../../functions/fzf-history;
     # GKE 認証情報取得スクリプト (shellAliases.gcgc が参照)
     ".aliase/get-gke-credentials.sh".source = ../../../aliase/get-gke-credentials.sh;
+    # ~/.aliases を file-level symlink として配置する。
+    # home-manager 管理の ~/.zshrc は shellAliases で alias を直接定義するため
+    # ~/.aliases の source は不要だが、旧 zshrc を使っている移行期の PC との
+    # 互換性のため dotfiles の aliases ファイルを home.file で管理する。
+    # 旧 setup.zsh が ~/.aliases -> dotfiles/aliases (file-symlink) を作っていた。
+    ".aliases".source = ../../../aliases;
   };
 }
