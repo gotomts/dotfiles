@@ -1,7 +1,7 @@
 ---
 name: pick-next
 description: 「次に何をやるか」を対話で決定する。既存 active issue（Linear / GitHub）の優先度推奨、新規テーマの候補出しと 3 軸スコア比較、判断結果に応じて Issue 作成・既存 Issue 選定・保留の 3 分岐に振り分ける。「次に何やる？」「Linear/GitHub 確認して」「優先度教えて」「次の開発内容を相談したい」と聞かれたら必ず使う。引数なし or 任意のヒント文字列で起動。
-argument-hint: '[hint] [--epic <issue-id>] [--all] [--axes <カスタム軸>]'
+argument-hint: "[hint] [--epic <issue-id>] [--all] [--axes <カスタム軸>] [--history] [--review]"
 allowed-tools:
   - Bash
   - Read
@@ -221,4 +221,3 @@ args: <SPEC> <PLAN>
 - **スコアは内部のみ vs 表示**: 既存 issue ランキング = 内部のみ（数値見せると無駄な議論）/ 3 軸スコア = 表示（ユーザーが選ぶための材料）
 - **モチベ低を機械的に選ばない**: 個人開発はモチベが落ちると進まない
 - **git commit は自動実行しない**: spec/plan 書き出し後、ユーザーに案内のみ。誤コミット防止
-- **`linear-next` 機能内包**: `pick-next` 安定後に `linear-next` は別 PR で削除予定
