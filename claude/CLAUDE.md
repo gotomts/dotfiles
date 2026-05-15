@@ -3,12 +3,19 @@
 - NEVER squash unrelated commits when pushing or creating PRs
 - Each commit should remain independent unless user explicitly requests squash
 - When committing, always confirm the target repository (dotfiles vs project) before running git commands
+- NEVER force-push without explicit user authorization. `--amend` の許可は push の許可ではない。push は別途承認を取ること
 
 ## Worktree Workflow
 
 - Use the worktree CLI (現状: `wt` shell function — `wt --help`) instead of plain git branch/checkout when starting parallel work
 - Never restore deliberately deleted local branches without explicit user confirmation
 - When user mentions parallel work, default to worktree-based flow
+
+## Configuration Scope
+
+- 設定変更を行う前に、対象スコープ（global / per-project / per-repo）を明示してユーザーに確認すること
+- 対象: git config, シェル alias / function, claude settings.json, エディタ設定など
+- 「グローバルに入れる」と「このリポジトリだけ」では影響範囲が大きく異なるため、判断を委ねずに先に確認する
 
 # コミュニケーション方針
 
