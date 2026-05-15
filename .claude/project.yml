@@ -7,8 +7,8 @@
 tracker:
   type: linear
   linear:
-    team: KISSA
-    project_id: bbe50233861e
+    team: DOT
+    project_id: f283f9f4cc6b
   # github を使う場合は上記 linear セクションを削除し、以下をアンコメント:
   # github:
   #   project_number: 1
