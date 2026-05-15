@@ -10,16 +10,10 @@
 
 setopt ERR_EXIT NOUNSET PIPE_FAIL
 
-# util.zsh が存在する場合のみ読み込む
-readonly UTIL_ZSH="${HOME}/.dotfiles/setup/util.zsh"
-if [[ -f "${UTIL_ZSH}" ]]; then
-    source "${UTIL_ZSH}"
-else
-    # util.zsh が無い場合はフォールバック定義
-    util::info()    { echo "[INFO] ${1}" }
-    util::warning() { echo "[WARN] ${1}" }
-    util::error()   { echo "[ERROR] ${1}" }
-fi
+# メッセージユーティリティ
+util::info()    { echo -e "\e[32m${1}\e[m" }
+util::warning() { echo -e "\e[33m${1}\e[m" }
+util::error()   { echo -e "\e[31m${1}\e[m" }
 
 # --help フラグの処理
 if [[ "${1:-}" == "--help" ]]; then

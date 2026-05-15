@@ -8,15 +8,10 @@
 { username, ... }:
 
 {
-  # 現 setup/install/10_claude.zsh が /etc/sudoers.d/pmset に追加していたエントリを宣言化:
+  # pmset を NOPASSWD で実行するためのエントリ。
   #   <username> ALL=(ALL) NOPASSWD: /usr/bin/pmset
   # sleep-guard スキル (claude/skills/sleep-guard) で pmset をパスワードなし実行するために必要。
   # nix-darwin はこの内容を /etc/sudoers.d/10-nix-darwin-extra-config として書き出す。
-  #
-  # TODO(Phase A 完了時): setup/install/10_claude.zsh の sudoers ブロック (行 7-15) を
-  # 削除すること。並存期間中は二重エントリ (/etc/sudoers.d/pmset と
-  # /etc/sudoers.d/10-nix-darwin-extra-config の両方) になるが、sudo 動作上は無害。
-  # 削除を忘れると Phase B 後も古いエントリが残り、sudoers 監査時の誤解を招く。
   #
   # 注意: security.sudo.extraConfig は types.lines (複数モジュール連結)。
   # 他モジュールから extraConfig を追加する場合は事前に visudo -c で構文検証すること。
