@@ -69,6 +69,9 @@
       # nix-darwin / home-manager
       # home-manager のみ build + activate (brew bundle / system activation スキップ)
       hm-switch = "zsh $HOME/.dotfiles/nix/scripts/hm-switch.zsh";
+      # nix-darwin 全体 build + activate (system + home-manager + brew bundle)
+      # CLAUDE.md「主要コマンド」と同等。USER=$USER は sudo の env_reset 回避、--impure は username 動的解決のため必須
+      darwin-switch = "sudo USER=$USER darwin-rebuild switch --flake $HOME/.dotfiles/nix#default --impure";
     };
 
     # -----------------------------------------------------------------------

@@ -38,6 +38,3 @@ alias codeo='code $(repo)'
 # docker
 alias dcu='docker compose up -d $@'
 alias dcn='docker compose down $@'
-
-# nix-darwin
-alias darwin-switch='sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure'
