@@ -28,7 +28,9 @@
       "Read(**/master.key)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
-      "Read(**/credentials)"
+      "Read(**/credentials)",
+      "Read(**/credentials*)",
+      "Read(**/secrets/**)"
     ],
     "ask": [
       "Bash(kubectl delete *)",
