@@ -67,6 +67,7 @@
       "1password"
       "amazon-photos"
       "android-studio"
+      "aqua-voice" # AI 整形付き音声入力 (Claude Code への dictation 用、個人 PC のみ)
       "claude" # Anthropic Desktop app (claude-code CLI とは別)
       "claude-code"
       "cmux" # tap: manaflow-ai/cmux
