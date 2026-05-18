@@ -73,6 +73,7 @@
       "contexts"
       "cursor"
       "docker-desktop"
+      "domzilla-caffeine" # Mac をスリープさせないためのメニューバー常駐アプリ (caffeine-app.net、新版でメンテ継続中)
       "dropbox"
       "figma"
       "flutter"
