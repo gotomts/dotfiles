@@ -27,5 +27,10 @@
   programs.direnv = {
     enable = true;
     nix-direnv.enable = true;
+    # 新規タブ起動時の `direnv: loading ...` / `direnv: export +AR +AS ...` の
+    # 長大なログを抑止する。silent = true は DIRENV_LOG_FORMAT を空に設定する
+    # 薄いラッパで、devbox 側の `✓ devshell:` 表示には影響しない (そちらは
+    # 各プロジェクト .envrc を `... >/dev/null` で包む方針)。
+    silent = true;
   };
 }
