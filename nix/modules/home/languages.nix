@@ -19,16 +19,15 @@
     # ===========================================================================
     # Node.js
     # ===========================================================================
-    # 現状: mise install node@16.14.2 / 18.12.1 / 24.2.0 / latest
-    #       mise use --global node@latest
-    #       npm i -g npm-fzf
+    # グローバル: Node.js 24 LTS (2025-10-28 以降の Active LTS)。
+    # 22 LTS は 2024-10-29 〜 2025-10-28 が Active LTS で、現在 (2026-05) は
+    # Maintenance LTS フェーズ。グローバルは Active LTS を追従する方針。
     #
-    # nix では同一 PATH に複数 Node.js バージョンを同居させることが困難。
-    # Node.js: nixpkgs-unstable の `nodejs` デフォルトは 2025 年現在 24 LTS に更新済み。
-    # 22 LTS は 2025-10-28 まで Active LTS のため意図的に 22 を固定。
-    # プロジェクト互換性確認後に nodejs_24 への移行を検討すること。
-    # 旧バージョンが必要なプロジェクトでは `nix shell nixpkgs#nodejs_18` 等で対応。
-    nodejs_22
+    # プロジェクトごとに別バージョンを使いたい場合は devbox を利用する
+    # (mise / asdf 相当のワンライナー UX を Nix 上で提供する wrapper)。
+    # 例: `devbox init && devbox add nodejs@18 && devbox generate direnv`
+    # 詳細は nix/README.md の「プロジェクトごとの言語バージョン管理 (devbox)」節を参照。
+    nodejs_24
 
     # npm-fzf: nixpkgs 未収録のため Brewfile (S9 homebrew.nix) 残置 or `npm i -g npm-fzf` で対応
 

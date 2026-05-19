@@ -50,6 +50,12 @@
     # fvm (leoafarias/fvm): nixpkgs 未収録のため darwin/homebrew.nix (S9) 残置
     # pipx: S7 / homebrew 残置検討のため S3 では含めない（Brewfile 残置）
 
+    # devbox: プロジェクトごとの言語バージョン管理 (Nix 上の wrapper)。
+    # `devbox add nodejs@18` 等のワンライナーで mise / asdf 相当の UX を提供する。
+    # 役割分担: グローバル言語ランタイムは languages.nix / プロジェクト固有は devbox。
+    # 使い方は nix/README.md の「プロジェクトごとの言語バージョン管理 (devbox)」節を参照。
+    devbox
+
     # -------------------------------------------------------------------------
     # Network & API
     # -------------------------------------------------------------------------
