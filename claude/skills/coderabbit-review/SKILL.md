@@ -51,13 +51,14 @@ PR 指定
   ├─ コメント待機 (actual review ポーリング)
   │     │
   │     ├─ タイムアウト
+  │     │     ├─ issues/<N>/comments に "No actionable comments..." → ✅ 完了 (指摘なし)
   │     │     ├─ 変更ファイルが path_filters で除外 → 除外通知して終了
   │     │     └─ それ以外 → 未設定 / 遅延の可能性をユーザー確認
   │     │
-  │     └─ レビュー検出 → インラインコメント取得
+  │     └─ レビュー検出 → コメント収集 (3 経路: inline root / inline reply / issues comments)
   │           │
-  │           ├─ 0 件 → 完了 (指摘なし)
-  │           └─ あり → 対応サイクル
+  │           ├─ unresolved 0 件 + issues comments も walkthrough のみ → 完了 (指摘なし)
+  │           └─ unresolved あり or issues comments に「その他」あり → 対応サイクル
   │                 │
   │                 ├─ 仕分け: 修正 / 反論 / 保留
   │                 ├─ 各コメントにインラインリプライ
@@ -107,15 +108,92 @@ gh pr diff "${PR}" --name-only
 
 単に「CodeRabbit 未設定」と片付けず、除外設定との突合を先に行う。
 
-## 2. インラインコメント取得
+### no-issues シグナルの先行検出
+
+`pulls/<N>/reviews` 側がタイムアウトしても、`issues/<N>/comments` に CodeRabbit から `No actionable comments were generated` が投稿されているケースがある (Step B が review でなく一般コメントで終端する経路)。タイムアウト前に以下も並行チェックする:
 
 ```bash
-gh api "repos/${OWNER}/${REPO}/pulls/${PR}/comments" \
-  --jq '[.[] | select(.user.login == "coderabbitai[bot]") | {id, path, line, body}]'
+gh api "repos/${OWNER}/${REPO}/issues/${PR}/comments" \
+  --jq 'any(.[]; .user.login == "coderabbitai[bot]" and (.body | test("No actionable comments were generated")))'
 ```
 
-- 0 件 → 指摘なしとして完了報告
-- あり → 対応サイクルに入る
+`true` が返れば結果 `✅ No issues` として完了報告へ。
+
+## 2. CodeRabbit コメント収集 (3 経路)
+
+CodeRabbit のコメントは 2 つの API endpoint に分散し、さらに `pulls/<N>/comments` 内には root (in_reply_to_id == null) と reply (in_reply_to_id != null) が混在する。3 経路として漏れなく集約する。
+
+### 2-1. inline スレッド (pulls/<N>/comments)
+
+```bash
+gh api "repos/${OWNER}/${REPO}/pulls/${PR}/comments" --paginate > /tmp/cr_inline.json
+```
+
+このエンドポイントには root と reply が混在する。スレッド単位で **最新発話者** と `<!-- <review_comment_addressed> -->` マーカーを見て resolved / unresolved を判定する:
+
+```bash
+jq '
+  # CodeRabbit が立てた root とその reply だけをスレッド化
+  group_by(.in_reply_to_id // .id)
+  | map(select((sort_by(.created_at) | .[0].user.login) == "coderabbitai[bot]"))
+  | map({
+      root_id:       (.[0].in_reply_to_id // .[0].id),
+      path:          .[0].path,
+      line:          .[0].line,
+      root_body:     .[0].body,
+      latest_author: (sort_by(.created_at) | last | .user.login),
+      latest_body:   (sort_by(.created_at) | last | .body)
+    })
+  | map(. + {
+      resolved: (
+        (.latest_author != "coderabbitai[bot]")
+        or (.latest_body | test("<!-- <review_comment_addressed> -->"))
+      )
+    })
+  | map(select(.resolved | not))
+' /tmp/cr_inline.json
+```
+
+判定ロジック:
+
+| 状態 | シグナル | 扱い |
+|---|---|---|
+| 最新発話者 = user (自分) | `latest_author != "coderabbitai[bot]"` | ✅ resolved (返信済み) |
+| 最新発話者 = CodeRabbit, addressed マーカーあり | body に `<!-- <review_comment_addressed> -->` | ✅ resolved (対応確認済) |
+| 最新発話者 = CodeRabbit, addressed マーカーなし | 上記いずれでもない | ⚠️ unresolved (要対応) |
+
+CodeRabbit は inline reply で「ありがとう」返信 + `<!-- <review_comment_addressed> -->` を残すため、これを resolved シグナルとして信頼する。
+
+### 2-2. PR 一般コメント (issues/<N>/comments)
+
+```bash
+gh api "repos/${OWNER}/${REPO}/issues/${PR}/comments" --paginate \
+  --jq '[.[] | select(.user.login == "coderabbitai[bot]") | {id, body, created_at}]'
+```
+
+CodeRabbit が `/issues/<N>/comments` に投稿するコメントは本文パターンで仕分ける:
+
+| 種別 | シグナル | アクション |
+|---|---|---|
+| **walkthrough (no-issues)** | `No actionable comments were generated` を含む | ✅ 終端シグナル。section 1 のポーリング完了判定にも使う |
+| **auto-reply (Analysis chain)** | `<details>` 内に `Analysis chain` を含む | ℹ informational。サマリ表示のみ。リプライ不要 |
+| **その他** | 上記いずれにも該当しない | 内容を確認し section 3 の仕分けに含める |
+
+### 2-3. 本文プレビュー時の `<details>` 除去
+
+raw body には Analysis chain などの `<details>` ブロックがそのまま含まれ、仕分けの S/N 比が悪化する。**プレビュー表示時のみ** sed で除去する (raw body は反論時の根拠引用用に保持):
+
+```bash
+echo "${BODY}" | sed -E '/<details>/,/<\/details>/d'
+```
+
+### 2-4. 集計結果
+
+3 経路をマージし、unresolved 件数で次工程を分岐:
+
+- inline unresolved 0 件 + issues comments も walkthrough のみ → 完了 (指摘なし)
+- inline unresolved 0 件 + issues comments に「その他」あり → 内容確認して仕分け
+- inline unresolved あり → section 3 の対応サイクルへ
 
 ## 3. 対応サイクル
 
@@ -233,6 +311,8 @@ gh pr comment "${PR}" --body "@coderabbitai review
 CodeRabbit レビュー対応完了:
 - PR: <PR URL>
 - 結果: ✅ No issues / 🔧 Fixed (<N>件修正) / 💬 Disputed (<N>件反論) / 📅 Deferred (<N>件保留) / ⚠️ Issues remaining / ⏭️ Excluded by path_filters / ⏭️ Not configured
+- inline unresolved: <N> 件 (うち修正 <a> / 反論 <b> / 保留 <c>)
+- issues comments: walkthrough <X> 件 / informational <Y> 件 / その他 <Z> 件
 - リプライ済みコメント: <N> 件
 - 再レビュー要求: ✅ 投稿済み / —
 ```
