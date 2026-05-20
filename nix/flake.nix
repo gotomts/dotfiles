@@ -52,13 +52,54 @@
           ''
         else
           u;
+
+      # role は repo root の .dotfiles-role ファイルから解決する (gitignored)。
+      # ファイル不在 / 空 / 全コメントなら "default" にフォールバック (CI もこの経路)。
+      # 未知の role は throw で停止 (silent な誤動作を防ぐ)。
+      #
+      # 仕様:
+      #   - "#" で始まる行と空行は無視 (.example のコメントをコピペして残しても動く)
+      #   - 最初の content 行を role 値として採用
+      #   - 認める値: "default" | "sub-1"
+      #
+      # path リテラル ../.dotfiles-role は flake が store にコピーされる際に
+      # 親ディレクトリを失うため使えない。既存の builtins.getEnv "USER" 同様、
+      # --impure 前提で HOME 相対の絶対パスで解決する。
+      role =
+        let
+          homeDir = builtins.getEnv "HOME";
+          roleFile = "${homeDir}/.dotfiles/.dotfiles-role";
+          raw =
+            if homeDir != "" && builtins.pathExists roleFile then
+              builtins.readFile roleFile
+            else
+              "";
+          rawLines = builtins.filter builtins.isString (builtins.split "\n" raw);
+          stripWs = s: builtins.replaceStrings [ " " "\t" "\r" ] [ "" "" "" ] s;
+          contentLines = builtins.filter (
+            l:
+            let
+              t = stripWs l;
+            in
+            t != "" && builtins.substring 0 1 t != "#"
+          ) rawLines;
+          resolved = if contentLines == [ ] then "default" else stripWs (builtins.head contentLines);
+        in
+        if resolved == "default" || resolved == "sub-1" then
+          resolved
+        else
+          throw ''
+            Unknown .dotfiles-role value: "${resolved}"
+            Valid values: default, sub-1
+            File: ${roleFile}
+          '';
     in
     {
       # output 名は固定値 default。PC の hostname には影響しない (flake 内部のアドレス名)。
       # darwin-rebuild 自動選択 ($HOSTNAME ベース) は活かさず、--flake .#default --impure を明示する運用。
       darwinConfigurations.default = nix-darwin.lib.darwinSystem {
         system = "aarch64-darwin";
-        specialArgs = { inherit inputs username; };
+        specialArgs = { inherit inputs username role; };
         modules = [
           ./darwin.nix
           home-manager.darwinModules.home-manager
@@ -70,7 +111,7 @@
             # 初回 activation で既存ファイルは <file>.before-nix にリネームされる。
             home-manager.backupFileExtension = "before-nix";
             home-manager.users.${username} = import ./home.nix;
-            home-manager.extraSpecialArgs = { inherit inputs username; };
+            home-manager.extraSpecialArgs = { inherit inputs username role; };
           }
         ];
       };

@@ -1,8 +1,13 @@
 # nix-darwin モジュール集約点。
 # flake.nix から直接 import される。
-# specialArgs 由来: inputs / username (flake.nix から注入)
+# specialArgs 由来: inputs / username / role (flake.nix から注入)
 # 自動注入: pkgs / lib / config (... で受け取る)
-{ inputs, username, ... }:
+#
+# role: "default" | "sub-1"
+#   - default: full app set
+#   - sub-1: reduced profile (default-only パッケージを除外)
+#   詳細は flake.nix の role 解決ロジックと .dotfiles-role.example を参照。
+{ inputs, username, role, ... }:
 
 {
   imports = [

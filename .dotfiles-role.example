@@ -1,0 +1,21 @@
+# .dotfiles-role: この Mac の role を宣言するファイル (DOT-39)
+#
+# 使い方:
+#   1. このファイルを `.dotfiles-role` (拡張子 .example を外す) にコピー
+#        cp .dotfiles-role.example .dotfiles-role
+#   2. 下記の有効値の中から 1 つを `.dotfiles-role` に書く (コメントは残しても削除しても可)
+#   3. darwin-rebuild switch を実行
+#        cd ~/.dotfiles/nix
+#        sudo USER=$USER darwin-rebuild switch --flake .#default --impure
+#
+# 有効値:
+#   default  full app set
+#   sub-1    reduced profile (default-only パッケージを除外)
+#
+# 注意:
+#   - `.dotfiles-role` は `.gitignore` 対象。host 識別情報を public repo に残さない
+#   - `.dotfiles-role` 不在 / 空 / 全コメントなら default にフォールバック
+#   - 未知の値を書くと darwin-rebuild が早期に throw で停止する (silent fail 防止)
+#   - role 別の package 内訳は `nix/modules/darwin/homebrew.nix` の coreCasks /
+#     defaultOnlyCasks 等を参照
+default

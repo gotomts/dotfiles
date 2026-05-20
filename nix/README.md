@@ -91,6 +91,53 @@ sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 
 `nix shell` / `nix run` は永続インストールしないので、`zap` の影響を受けない。お試しは基本これに倒すこと。
 
+## Per-host 構成 (.dotfiles-role)
+
+複数 Mac で dotfiles を運用する際、PC ごとに異なる subset を入れるための仕組み (DOT-39)。repo root の `.dotfiles-role` ファイル (gitignored) で切り替える。
+
+### 有効な role
+
+| Role | 用途 | 含まれるアプリ |
+|---|---|---|
+| `default` | default profile | core + default-only (full set) |
+| `sub-1` | reduced profile | core のみ (default-only パッケージを除外) |
+
+具体的な package 内訳は `nix/modules/darwin/homebrew.nix` の `coreCasks` / `defaultOnlyCasks` / `coreMasApps` / `defaultOnlyMasApps` / `coreBrews` / `defaultOnlyBrews` を参照。
+
+### role 解決ルール
+
+- `.dotfiles-role` が **存在しない / 空 / 全コメント** → `default` にフォールバック (CI 経路もこれ)
+- `.dotfiles-role` の中身 (`#` で始まる行と空行は無視、最初の content 行) を role 値として採用
+- 未知の値が書かれていると `darwin-rebuild` が `throw` で停止する (silent fail 防止)
+
+### sub-1 での初回セットアップ
+
+```sh
+# 1. dotfiles を clone
+git clone <repo-url> ~/.dotfiles
+cd ~/.dotfiles
+
+# 2. role を sub-1 に固定 (.example を .dotfiles-role としてコピーして書き換える)
+cp .dotfiles-role.example .dotfiles-role
+# .dotfiles-role の中身を編集して `default` → `sub-1` に変更
+#   - ファイル内のコメント行は残しても可 (parser が無視する)
+
+# 3. ビルド確認 (副作用なし)
+cd nix
+darwin-rebuild build --flake ~/.dotfiles/nix#default --impure
+
+# 4. 適用 (sudo の env_reset で USER=root になるのを USER=$USER で回避)
+sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+```
+
+### role の切り替え
+
+`.dotfiles-role` の値を編集して `darwin-rebuild switch` を再実行するだけ。`homebrew.onActivation.cleanup = "zap"` により、role 切り替え時に不要になったアプリは自動で Cellar ごと削除される。
+
+### sub-1 にだけ入れる package を追加したい
+
+現状 `sub-1` は「core のみ」のフラットな subset。将来 sub-1 専用の package が必要になったら、`nix/modules/darwin/homebrew.nix` の `let` ブロックに `sub1OnlyCasks` 等を追加し、`casks = coreCasks ++ lib.optionals (role == "sub-1") sub1OnlyCasks` で合成する (YAGNI のため現状は未追加)。
+
 ## プロジェクトごとの言語バージョン管理 (devbox)
 
 `languages.nix` で宣言したグローバルランタイム (Node.js 24 / Python 3.13 / Ruby 3.4 等) と異なるバージョンを特定プロジェクトで使いたい場合は [devbox](https://www.jetify.com/devbox) を利用する。`mise` / `asdf` 相当のワンライナー UX を Nix 上で提供する wrapper で、内部で nixpkgs を参照するため再現性も担保される。
