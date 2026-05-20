@@ -71,6 +71,7 @@
       "claude" # Anthropic Desktop app (claude-code CLI とは別)
       "claude-code"
       "cmux" # tap: manaflow-ai/cmux
+      "codex-app" # OpenAI Codex デスクトップアプリ (CLI は packages.nix の codex)
       "contexts"
       "cursor"
       "docker-desktop"

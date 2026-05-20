@@ -72,6 +72,11 @@
     # -------------------------------------------------------------------------
     # AI Tooling
     # -------------------------------------------------------------------------
+    # codex: OpenAI のターミナル向けコーディングエージェント CLI。
+    # Homebrew cask "codex" でも提供されるが、nixpkgs 収録済みのため packages.nix
+    # に倒す (CLAUDE.md ポリシー)。デスクトップアプリは別パッケージ "codex-app"
+    # (homebrew.nix の casks 側) で管理する。
+    codex
     # rtk: S8 で nix/modules/overlays/rtk.nix から pkgs.rtk として供給される
     rtk
   ];
