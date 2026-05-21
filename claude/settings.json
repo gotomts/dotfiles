@@ -144,6 +144,9 @@
     "linear-cli@linear-cli": true,
     "rust-analyzer-lsp@claude-plugins-official": true
   },
+  "skillOverrides": {
+    "test-driven-development": "user-invocable-only"
+  },
   "language": "japanese",
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
