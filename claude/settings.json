@@ -145,7 +145,8 @@
     "rust-analyzer-lsp@claude-plugins-official": true
   },
   "skillOverrides": {
-    "test-driven-development": "user-invocable-only"
+    "test-driven-development": "user-invocable-only",
+    "systematic-debugging": "user-invocable-only"
   },
   "language": "japanese",
   "alwaysThinkingEnabled": true,
