@@ -17,6 +17,8 @@
     ./modules/home/ssh.nix
     # claude plugin sync activation (S6 / KISSA-26)
     ./modules/home/claude.nix
+    # Codex CLI 用 dotfiles symlink (DOT-38)
+    ./modules/home/codex.nix
     # 言語ツールチェーン: mise 完全置換 (S7 / KISSA-27)
     ./modules/home/languages.nix
     # per-project Nix shell auto-activation (DOT-35)
