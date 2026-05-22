@@ -115,11 +115,12 @@ in
       # darwin-rebuild switch のたびに全パッケージが更新される状態を避け、
       # flake.lock 哲学と整合する再現性ベースの運用に切り替える。
       upgrade = false;
-      # "zap": 宣言外パッケージを Cellar ごと削除する ("uninstall" より破壊的)。
-      # darwin-rebuild switch のたびに実行されるため、
-      # homebrew.nix に載っていない手動インストール済みパッケージは即削除される。
-      # Brewfile 廃止済み。"zap" で問題なければこのまま運用。必要に応じて "uninstall" に下げる。
-      cleanup = "zap";
+      # role 別 cleanup ポリシー (DOT-39):
+      #   default: "zap" — 宣言外パッケージを Cellar ごと削除。declarative 厳格運用
+      #   sub-1:   "none" — 何も削除しない。手動 brew install / 手動 MAS app 等を保護
+      # sub-1 で手動 install したものは別 PC では復元されないため、再現性が必要なら
+      # homebrew.nix に追記する運用 (AGENTS.md「Homebrew パッケージ管理」参照)。
+      cleanup = if role == "sub-1" then "none" else "zap";
     };
 
     taps = [
