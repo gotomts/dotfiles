@@ -2,7 +2,6 @@
 
 このリポジトリは macOS の開発環境を再現するための dotfiles である。
 
-- `aliases` — シェルエイリアス定義（`~/.aliases` にシンボリックリンク）
 - `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
