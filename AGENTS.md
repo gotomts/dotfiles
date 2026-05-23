@@ -65,7 +65,7 @@ cd ~/.dotfiles/nix
 USER=ciuser nix build .#darwinConfigurations.default.system --no-link --impure
 
 # 適用 (sudo 必須、USER=$USER は sudo の env_reset で USER=root になるのを回避、--impure は username 動的解決のため必須)
-sudo USER=$USER darwin-rebuild switch --flake .#default --impure
+sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake .#default --impure
 
 # 直前世代に戻す
 sudo darwin-rebuild switch --rollback

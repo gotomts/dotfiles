@@ -63,14 +63,29 @@
       #   - 認める値: "default" | "sub-1"
       #
       # path リテラル ../.dotfiles-role は flake が store にコピーされる際に
-      # 親ディレクトリを失うため使えない。既存の builtins.getEnv "USER" 同様、
-      # --impure 前提で HOME 相対の絶対パスで解決する。
+      # 親ディレクトリを失うため使えない。--impure 前提で HOME 経由で
+      # 絶対パスを組み立てる。
+      #
+      # HOME を使う設計上の注意 (DOT-39):
+      #   `sudo USER=$USER darwin-rebuild switch ...` では sudo の env_reset で
+      #   HOME が /var/root (macOS) / /root (Linux) に書き換わる。HOME 経由で
+      #   role file を探すとファイルが見つからず silent に default に
+      #   フォールバックする事故になる。そのため root home の場合は明示的に throw。
+      #   運用は `sudo USER=$USER HOME=$HOME darwin-rebuild ...` で両方を保持する。
       role =
         let
-          homeDir = builtins.getEnv "HOME";
-          roleFile = "${homeDir}/.dotfiles/.dotfiles-role";
+          home = builtins.getEnv "HOME";
+          roleFile = "${home}/.dotfiles/.dotfiles-role";
           raw =
-            if homeDir != "" && builtins.pathExists roleFile then
+            if home == "" then
+              throw "HOME env var is empty. Run darwin-rebuild with --impure."
+            else if home == "/var/root" || home == "/root" then
+              throw ''
+                HOME env var is "${home}" (root home).
+                sudo の env_reset で書き換わった可能性が高い。
+                Use: sudo USER=$USER HOME=$HOME darwin-rebuild <build|switch> --flake .#default --impure
+              ''
+            else if builtins.pathExists roleFile then
               builtins.readFile roleFile
             else
               "";

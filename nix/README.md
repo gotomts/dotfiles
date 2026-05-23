@@ -73,7 +73,7 @@ brew upgrade && brew cleanup
 # 2. ビルド確認 (副作用なし)
 darwin-rebuild build --flake ~/.dotfiles/nix#default --impure
 # 3. 適用 (sudo の env_reset で USER=root になるのを USER=$USER で回避)
-sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ```
 
 削除も同じ流れ (`.nix` から行を消して switch すると `zap` で消える)。
@@ -127,7 +127,7 @@ cd nix
 darwin-rebuild build --flake ~/.dotfiles/nix#default --impure
 
 # 4. 適用 (sudo の env_reset で USER=root になるのを USER=$USER で回避)
-sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ```
 
 ### role の切り替え
@@ -235,7 +235,7 @@ zsh ~/.dotfiles/nix/scripts/migrate-symlinks.zsh
 ### ステップ 3: darwin-rebuild switch
 
 ```sh
-sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ```
 
 home-manager が proper directory と nix store 経由のシンボリックリンクを再生成する。
@@ -290,7 +290,7 @@ conflicts with nix-darwin's native Nix management.
 `--impure` フラグなしで実行している、または `sudo` 経由で `USER` が `root` に置き換わっている。`nix/flake.nix` は `builtins.getEnv "USER"` で実行ユーザー名を動的解決するため、`--impure` と `USER=$USER` の両方が必須:
 
 ```sh
-sudo USER=$USER darwin-rebuild switch --flake .#default --impure
+sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake .#default --impure
 ```
 
 ### flake.lock が壊れた / hash 不整合
