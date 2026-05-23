@@ -1,4 +1,0 @@
-# Per-host role marker (DOT-39)
-# `.dotfiles-role.example` のみ tracked。実際の `.dotfiles-role` は PC 識別子に
-# 相当するため public repo に残さない (flake.nix S15 ポリシーと整合)。
-/.dotfiles-role

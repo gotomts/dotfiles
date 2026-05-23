@@ -73,7 +73,7 @@ brew upgrade && brew cleanup
 # 2. ビルド確認 (副作用なし)
 darwin-rebuild build --flake ~/.dotfiles/nix#default --impure
 # 3. 適用 (sudo の env_reset で USER=root になるのを USER=$USER で回避)
-sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ```
 
 削除も同じ流れ (`.nix` から行を消して switch すると `zap` で消える)。
@@ -91,9 +91,9 @@ sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake ~/.dotfiles/nix#default
 
 `nix shell` / `nix run` は永続インストールしないので、`zap` の影響を受けない。お試しは基本これに倒すこと。
 
-## Per-host 構成 (.dotfiles-role)
+## Per-host 構成 (/etc/dotfiles-role)
 
-複数 Mac で dotfiles を運用する際、PC ごとに異なる subset を入れるための仕組み (DOT-39)。repo root の `.dotfiles-role` ファイル (gitignored) で切り替える。
+複数 Mac で dotfiles を運用する際、PC ごとに異なる subset を入れるための仕組み (DOT-39)。`/etc/dotfiles-role` (root 所有、machine-wide 設定) で切り替える。
 
 ### 有効な role
 
@@ -106,33 +106,41 @@ sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake ~/.dotfiles/nix#default
 
 ### role 解決ルール
 
-- `.dotfiles-role` が **存在しない / 空 / 全コメント** → `default` にフォールバック (CI 経路もこれ)
-- `.dotfiles-role` の中身 (`#` で始まる行と空行は無視、最初の content 行) を role 値として採用
+- `/etc/dotfiles-role` が **存在しない / 空 / 全コメント** → `default` にフォールバック (CI 経路もこれ)
+- ファイルの中身 (`#` で始まる行と空行は無視、最初の content 行) を role 値として採用
 - 未知の値が書かれていると `darwin-rebuild` が `throw` で停止する (silent fail 防止)
+
+### なぜ `/etc/` に置くか
+
+role は「この物理 Mac の identity」でありマシン単位の宣言。ユーザー単位の設定ではないため `/etc/` 配下が semantically 正しい。また、`sudo darwin-rebuild` 実行時に Nix が security 上 `HOME` を passwd の root home (`/var/root`) にフォールバックさせる挙動があり、`~/` 配下に role file を置くと HOME ベースでの解決が壊れる。`/etc/` は root 所有なのでこの影響を受けない。
 
 ### sub-1 での初回セットアップ
 
 ```sh
 # 1. dotfiles を clone
 git clone <repo-url> ~/.dotfiles
-cd ~/.dotfiles
 
-# 2. role を sub-1 に固定 (.example を .dotfiles-role としてコピーして書き換える)
-cp .dotfiles-role.example .dotfiles-role
-# .dotfiles-role の中身を編集して `default` → `sub-1` に変更
-#   - ファイル内のコメント行は残しても可 (parser が無視する)
+# 2. role を宣言 (root 所有の machine-wide 設定)
+echo sub-1 | sudo tee /etc/dotfiles-role
 
 # 3. ビルド確認 (副作用なし)
-cd nix
-darwin-rebuild build --flake ~/.dotfiles/nix#default --impure
+cd ~/.dotfiles/nix
+nix build .#darwinConfigurations.default.system --no-link --impure
 
-# 4. 適用 (sudo の env_reset で USER=root になるのを USER=$USER で回避)
-sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+# 4. 初回ブートストラップ + 実機適用
+sudo USER=$USER nix run nix-darwin -- switch --flake .#default --impure
 ```
 
 ### role の切り替え
 
-`.dotfiles-role` の値を編集して `darwin-rebuild switch` を再実行するだけ。`homebrew.onActivation.cleanup = "zap"` により、role 切り替え時に不要になったアプリは自動で Cellar ごと削除される。
+`/etc/dotfiles-role` の値を書き換えて `darwin-rebuild switch` を再実行する。
+
+```sh
+echo default | sudo tee /etc/dotfiles-role   # sub-1 → default に切り替え
+sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+```
+
+`homebrew.onActivation.cleanup = "zap"` (default) により、role 切り替え時に不要になったアプリは自動で Cellar ごと削除される (`sub-1` は `cleanup = "none"` のため切り替え時の削除はなし)。
 
 ### sub-1 にだけ入れる package を追加したい
 
@@ -235,7 +243,7 @@ zsh ~/.dotfiles/nix/scripts/migrate-symlinks.zsh
 ### ステップ 3: darwin-rebuild switch
 
 ```sh
-sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ```
 
 home-manager が proper directory と nix store 経由のシンボリックリンクを再生成する。
@@ -290,7 +298,7 @@ conflicts with nix-darwin's native Nix management.
 `--impure` フラグなしで実行している、または `sudo` 経由で `USER` が `root` に置き換わっている。`nix/flake.nix` は `builtins.getEnv "USER"` で実行ユーザー名を動的解決するため、`--impure` と `USER=$USER` の両方が必須:
 
 ```sh
-sudo USER=$USER HOME=$HOME darwin-rebuild switch --flake .#default --impure
+sudo USER=$USER darwin-rebuild switch --flake .#default --impure
 ```
 
 ### flake.lock が壊れた / hash 不整合

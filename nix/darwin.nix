@@ -6,7 +6,7 @@
 # role: "default" | "sub-1"
 #   - default: full app set
 #   - sub-1: reduced profile (default-only パッケージを除外)
-#   詳細は flake.nix の role 解決ロジックと .dotfiles-role.example を参照。
+#   詳細は flake.nix の role 解決ロジック (/etc/dotfiles-role) を参照。
 { inputs, username, role, ... }:
 
 {

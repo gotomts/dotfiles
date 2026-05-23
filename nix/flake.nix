@@ -53,39 +53,28 @@
         else
           u;
 
-      # role は repo root の .dotfiles-role ファイルから解決する (gitignored)。
+      # role は /etc/dotfiles-role から解決する (root 所有、machine-wide 設定)。
       # ファイル不在 / 空 / 全コメントなら "default" にフォールバック (CI もこの経路)。
       # 未知の role は throw で停止 (silent な誤動作を防ぐ)。
       #
       # 仕様:
-      #   - "#" で始まる行と空行は無視 (.example のコメントをコピペして残しても動く)
+      #   - "#" で始まる行と空行は無視
       #   - 最初の content 行を role 値として採用
       #   - 認める値: "default" | "sub-1"
       #
-      # path リテラル ../.dotfiles-role は flake が store にコピーされる際に
-      # 親ディレクトリを失うため使えない。--impure 前提で HOME 経由で
-      # 絶対パスを組み立てる。
+      # /etc/dotfiles-role を使う理由 (DOT-39):
+      #   role は「この物理 Mac の identity」でありマシン単位の宣言。
+      #   ユーザー単位の設定ではないため /etc/ 配下が semantically 正しい。
+      #   また、sudo darwin-rebuild 実行時に Nix が security 上 HOME を passwd の
+      #   root home (/var/root) にフォールバックさせるため、~/ 配下に置くと
+      #   HOME-based 解決が壊れる。/etc/ は root 所有なのでこの影響を受けない。
       #
-      # HOME を使う設計上の注意 (DOT-39):
-      #   `sudo USER=$USER darwin-rebuild switch ...` では sudo の env_reset で
-      #   HOME が /var/root (macOS) / /root (Linux) に書き換わる。HOME 経由で
-      #   role file を探すとファイルが見つからず silent に default に
-      #   フォールバックする事故になる。そのため root home の場合は明示的に throw。
-      #   運用は `sudo USER=$USER HOME=$HOME darwin-rebuild ...` で両方を保持する。
+      # 初回セットアップ: `echo sub-1 | sudo tee /etc/dotfiles-role`
       role =
         let
-          home = builtins.getEnv "HOME";
-          roleFile = "${home}/.dotfiles/.dotfiles-role";
+          roleFile = "/etc/dotfiles-role";
           raw =
-            if home == "" then
-              throw "HOME env var is empty. Run darwin-rebuild with --impure."
-            else if home == "/var/root" || home == "/root" then
-              throw ''
-                HOME env var is "${home}" (root home).
-                sudo の env_reset で書き換わった可能性が高い。
-                Use: sudo USER=$USER HOME=$HOME darwin-rebuild <build|switch> --flake .#default --impure
-              ''
-            else if builtins.pathExists roleFile then
+            if builtins.pathExists roleFile then
               builtins.readFile roleFile
             else
               "";
