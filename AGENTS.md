@@ -2,7 +2,6 @@
 
 このリポジトリは macOS の開発環境を再現するための dotfiles である。
 
-- `aliases` — シェルエイリアス定義（`~/.aliases` にシンボリックリンク）
 - `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
@@ -26,8 +25,10 @@
 
 # Homebrew パッケージ管理
 
-- パッケージの追加・削除は `nix/modules/darwin/homebrew.nix` で管理する。手動の `brew install` は禁止
-- `homebrew.nix` が唯一の source of truth。`Brewfile` は削除済み (DOT-29)
+- パッケージの追加・削除は `nix/modules/darwin/homebrew.nix` で管理する
+- `default` role の手動 `brew install` は禁止（switch 時に zap される）
+- `sub-1` role は手動 `brew install` 許容（cleanup = "none"）。ただし別 PC では復元されないため、再現性が必要なら `homebrew.nix` に追記する
+- `homebrew.nix` は role 別 declarative セットの宣言。`Brewfile` は削除済み (DOT-29)
 - 既存のパッケージのみを対象とする。ユーザーが明示的に依頼していないパッケージを追加しない
 - `taps` / `brews` / `casks` / `masApps` の区分を守る
 - nixpkgs 収録済みのパッケージは原則 `nix/modules/home/packages.nix` に置き、Homebrew は nixpkgs 未収録または macOS 特殊事情のあるものに限定する

@@ -91,6 +91,61 @@ sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 
 `nix shell` / `nix run` は永続インストールしないので、`zap` の影響を受けない。お試しは基本これに倒すこと。
 
+## Per-host 構成 (/etc/dotfiles-role)
+
+複数 Mac で dotfiles を運用する際、PC ごとに異なる subset を入れるための仕組み (DOT-39)。`/etc/dotfiles-role` (root 所有、machine-wide 設定) で切り替える。
+
+### 有効な role
+
+| Role | 用途 | 含まれるアプリ |
+|---|---|---|
+| `default` | default profile | core + default-only (full set) |
+| `sub-1` | reduced profile | core のみ (default-only パッケージを除外) |
+
+具体的な package 内訳は `nix/modules/darwin/homebrew.nix` の `coreCasks` / `defaultOnlyCasks` / `coreMasApps` / `defaultOnlyMasApps` / `coreBrews` / `defaultOnlyBrews` を参照。
+
+### role 解決ルール
+
+- `/etc/dotfiles-role` が **存在しない / 空 / 全コメント** → `default` にフォールバック (CI 経路もこれ)
+- ファイルの中身 (`#` で始まる行と空行は無視、最初の content 行) を role 値として採用
+- 未知の値が書かれていると `darwin-rebuild` が `throw` で停止する (silent fail 防止)
+
+### なぜ `/etc/` に置くか
+
+role は「この物理 Mac の identity」でありマシン単位の宣言。ユーザー単位の設定ではないため `/etc/` 配下が semantically 正しい。また、`sudo darwin-rebuild` 実行時に Nix が security 上 `HOME` を passwd の root home (`/var/root`) にフォールバックさせる挙動があり、`~/` 配下に role file を置くと HOME ベースでの解決が壊れる。`/etc/` は root 所有なのでこの影響を受けない。
+
+### sub-1 での初回セットアップ
+
+```sh
+# 1. dotfiles を clone
+git clone <repo-url> ~/.dotfiles
+
+# 2. role を宣言 (root 所有の machine-wide 設定)
+echo sub-1 | sudo tee /etc/dotfiles-role
+
+# 3. ビルド確認 (副作用なし)
+cd ~/.dotfiles/nix
+nix build .#darwinConfigurations.default.system --no-link --impure
+
+# 4. 初回ブートストラップ + 実機適用
+sudo USER=$USER nix run nix-darwin -- switch --flake .#default --impure
+```
+
+### role の切り替え
+
+`/etc/dotfiles-role` の値を書き換えて `darwin-rebuild switch` を再実行する。
+
+```sh
+echo default | sudo tee /etc/dotfiles-role   # sub-1 → default に切り替え
+sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
+```
+
+`homebrew.onActivation.cleanup = "zap"` (default) により、role 切り替え時に不要になったアプリは自動で Cellar ごと削除される (`sub-1` は `cleanup = "none"` のため切り替え時の削除はなし)。
+
+### sub-1 にだけ入れる package を追加したい
+
+現状 `sub-1` は「core のみ」のフラットな subset。将来 sub-1 専用の package が必要になったら、`nix/modules/darwin/homebrew.nix` の `let` ブロックに `sub1OnlyCasks` 等を追加し、`casks = coreCasks ++ lib.optionals (role == "sub-1") sub1OnlyCasks` で合成する (YAGNI のため現状は未追加)。
+
 ## プロジェクトごとの言語バージョン管理 (devbox)
 
 `languages.nix` で宣言したグローバルランタイム (Node.js 24 / Python 3.13 / Ruby 3.4 等) と異なるバージョンを特定プロジェクトで使いたい場合は [devbox](https://www.jetify.com/devbox) を利用する。`mise` / `asdf` 相当のワンライナー UX を Nix 上で提供する wrapper で、内部で nixpkgs を参照するため再現性も担保される。
@@ -179,11 +234,15 @@ zsh ~/.dotfiles/nix/scripts/migrate-symlinks.zsh
 |---|---|---|
 | `~/.aliase` | dir-symlink | home-manager が `.aliase/get-gke-credentials.sh` を管理 |
 | `~/.functions` | dir-symlink | home-manager が `.functions/fzf-history` を管理 |
+| `~/.claude/skills` | dir-symlink | home-manager が個別 skill を管理 |
 | `~/.aliases` | file-symlink | home-manager が nix store 経由で再配置 |
 | `~/.gitignore_global` | file-symlink | home-manager が nix store 経由で再配置 |
 | `~/.grip/settings.py` | file-symlink | home-manager が nix store 経由で再配置 |
 | `~/.config/cmux/config.ghostty` | file-symlink | home-manager が nix store 経由で再配置 |
 | `~/.config/starship/starship.toml` | file-symlink | home-manager は `~/.config/starship.toml` に配置 |
+| `~/.zshrc` | file-symlink | home-manager が nix store 経由で再配置 |
+| `~/.zshenv` | file-symlink | home-manager が nix store 経由で再配置 |
+| `~/.config/yazi/keymap.toml` | file-symlink | home-manager が nix store 経由で再配置 |
 
 ### ステップ 3: darwin-rebuild switch
 
