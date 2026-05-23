@@ -82,6 +82,10 @@ dir_symlinks=(
     # dir-symlink 越しに dotfiles repo 内のファイルとして見え、
     # home-manager が before-nix バックアップを repo 内に生成してしまう。
     "${HOME}/.grip"      "${HOME}/.dotfiles/grip"
+    # ~/.claude/skills -> dotfiles/claude/skills: home-manager が個別 skill を管理。
+    # dir-symlink のままだと switch 時に clobber エラー (target が違うため
+    # backupFileExtension が効かない) で activation が止まる。
+    "${HOME}/.claude/skills" "${HOME}/.dotfiles/claude/skills"
 )
 
 # ---- file-symlink の対象リスト ------------------------------------------
@@ -103,6 +107,13 @@ file_symlinks=(
     # home-manager は ~/.config/starship.toml (サブディレクトリなし) に配置するため
     # パスが異なり直接衝突はしないが、念のため旧 symlink を削除する。
     "${HOME}/.config/starship/starship.toml" "${HOME}/.dotfiles/config/starship/starship.toml"
+    # ~/.zshrc / ~/.zshenv は旧 setup.zsh が dotfiles 直下を指す symlink を作成。
+    # home-manager が nix store 経由で配置するため、削除して再配置させる。
+    "${HOME}/.zshrc"            "${HOME}/.dotfiles/zshrc"
+    "${HOME}/.zshenv"           "${HOME}/.dotfiles/zshenv"
+    # yazi の keymap.toml も旧 setup.zsh 経路。home.file に宣言されており
+    # home-manager 管理対象なので削除して再配置させる。
+    "${HOME}/.config/yazi/keymap.toml" "${HOME}/.dotfiles/config/yazi/keymap.toml"
     # yazi の grip-preview.sh は Phase B 対応のため home.file 未宣言。
     # dotfiles への symlink のままとする (削除しない)。
 )
@@ -125,6 +136,12 @@ migrate_dir_symlink() {
 
     local actual_target
     actual_target=$(/usr/bin/readlink "${path}")
+
+    # nix store 経由の symlink なら既に home-manager 管理済み
+    if [[ "${actual_target}" == /nix/store/* ]]; then
+        util::skip "${path} は既に nix store 経由の symlink です (移行済み)"
+        return 0
+    fi
 
     # 期待するターゲットと一致する場合のみ削除 (意図しない symlink を誤って削除しない)
     if [[ -n "${expected_target}" ]] && [[ "${actual_target}" != "${expected_target}" ]]; then

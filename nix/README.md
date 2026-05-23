@@ -234,11 +234,15 @@ zsh ~/.dotfiles/nix/scripts/migrate-symlinks.zsh
 |---|---|---|
 | `~/.aliase` | dir-symlink | home-manager が `.aliase/get-gke-credentials.sh` を管理 |
 | `~/.functions` | dir-symlink | home-manager が `.functions/fzf-history` を管理 |
+| `~/.claude/skills` | dir-symlink | home-manager が個別 skill を管理 |
 | `~/.aliases` | file-symlink | home-manager が nix store 経由で再配置 |
 | `~/.gitignore_global` | file-symlink | home-manager が nix store 経由で再配置 |
 | `~/.grip/settings.py` | file-symlink | home-manager が nix store 経由で再配置 |
 | `~/.config/cmux/config.ghostty` | file-symlink | home-manager が nix store 経由で再配置 |
 | `~/.config/starship/starship.toml` | file-symlink | home-manager は `~/.config/starship.toml` に配置 |
+| `~/.zshrc` | file-symlink | home-manager が nix store 経由で再配置 |
+| `~/.zshenv` | file-symlink | home-manager が nix store 経由で再配置 |
+| `~/.config/yazi/keymap.toml` | file-symlink | home-manager が nix store 経由で再配置 |
 
 ### ステップ 3: darwin-rebuild switch
 
