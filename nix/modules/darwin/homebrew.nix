@@ -36,6 +36,7 @@ let
     "google-japanese-ime"
     "linear-linear"
     "medis"
+    "nani" # jp.kiok.nani — 公式 cask (brew install --cask nani)
     "notion"
     "orbstack" # 軽量 Docker 代替 (docker-desktop は DOT-39 で削除済み)
     "postman"

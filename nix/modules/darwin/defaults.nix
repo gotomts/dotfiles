@@ -30,11 +30,10 @@
                                                   # (2=Mission Control / 4=Desktop / 5=Screensaver
                                                   #  / 11=Launchpad / 13=Lock / 14=Quick Note)
 
-      # ---- Dock 左側 (アプリ) 19 件 ----
+      # ---- Dock 左側 (アプリ) 17 件 ----
       # nix-darwin の coercedTo により文字列リストは自動的に { app = "..."; } タグ付きに変換される。
       # アプリが当該 PC に存在しないと Dock アイコンが "?" になる。
-      # 別 PC で展開するアプリは Brewfile (homebrew.nix の casks) で導入されることが前提。
-      # KingCoding は m5mbp 固有（手動 install）のためここから除外。
+      # 別 PC で展開するアプリは homebrew.nix の casks で導入されることが前提。
       persistent-apps = [
         # Apps.app は macOS 26+ の Launchpad 後継。macOS 15.x には存在しないため
         # Launchpad.app にフォールバックする。builtins.pathExists は --impure 評価時に判定。
@@ -43,22 +42,20 @@
          then "/System/Applications/Apps.app"
          else "/System/Applications/Launchpad.app")
         "/Applications/Slack.app"
-        "/Applications/Linear.app"
         "/Applications/Notion.app"
         "/Applications/Google Chrome.app"
         "/Applications/cmux.app"
         "/Applications/Claude.app"
         "/Applications/Zed.app"
-        "/Applications/Cursor.app"
         "/Applications/Figma.app"
         "/Applications/TablePlus.app"
         "/Applications/1Password.app"
         "/Applications/Postman.app"
         "/Applications/Android Studio.app"
-        "/Applications/Xcode.app"
-        "/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app"
+        "/Applications/Nani.app"
+        "/Applications/Microsoft Teams.app"
+        "/Applications/Microsoft Outlook.app"
         "/Applications/OrbStack.app"
-        "/Applications/Transporter.app"
         "/System/Applications/System Settings.app"
       ];
 
