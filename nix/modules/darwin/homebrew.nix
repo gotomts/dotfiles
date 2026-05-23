@@ -34,7 +34,7 @@ let
     "gcloud-cli"
     "google-chrome"
     "google-japanese-ime"
-    "linear-linear"
+    "linear" # 旧 linear-linear、Homebrew で rename 済み
     "medis"
     "nani" # jp.kiok.nani — 公式 cask (brew install --cask nani)
     "notion"
