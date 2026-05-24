@@ -12,14 +12,6 @@
 
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
-
-    # rtk-src: rtk (Rust Token Killer) のソース。
-    # nix/modules/overlays/rtk.nix が rustPlatform.buildRustPackage でビルドする。
-    # flake = false で nix flake input としてはソースのみ取得（rtk 自身は flake ではない）。
-    rtk-src = {
-      url = "github:rtk-ai/rtk";
-      flake = false;
-    };
   };
 
   outputs =

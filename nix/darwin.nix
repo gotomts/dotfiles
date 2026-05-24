@@ -51,10 +51,4 @@
     name = username;
     home = "/Users/${username}";
   };
-
-  # rtk overlay 適用 (S8 / KISSA-28)
-  # inputs.rtk-src を取得して pkgs.rtk として供給。home/packages.nix から参照可。
-  nixpkgs.overlays = [
-    (import ./modules/overlays/rtk.nix { inherit inputs; })
-  ];
 }

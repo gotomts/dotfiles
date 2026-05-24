@@ -6,7 +6,6 @@
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
 - `claude/agents/` — マルチエージェント開発用サブエージェント定義（developer × 10 / reviewer × 3 / pr-publisher × 1 = 14 体。`~/.claude/agents/` にシンボリックリンク）
-- `claude/RTK.md` — rtk (Rust Token Killer) 用ガイドライン。`claude/CLAUDE.md` から `@RTK.md` で取り込まれる
 - `config/` — アプリケーション設定（starship, yazi, cmux）（`~/.config/` にシンボリックリンク）
 - `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
 - `functions/` — zsh カスタム関数（`~/.functions/` にシンボリックリンク）
@@ -47,7 +46,6 @@
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
 - `claude/skills/` にはカスタムスキルを配置する
 - `claude/hooks/` 配下のフックスクリプトは PreCompact で未 handover 時のコンパクトをブロックし、SessionStart / UserPromptSubmit で未消費メモを Claude に通知する
-- `claude/RTK.md` は rtk (Rust Token Killer) のガイドライン。`claude/AGENTS.md` 末尾の `@RTK.md` で取り込まれ、`claude/settings.json` の `PreToolUse: Bash` matcher に追加した `rtk hook claude` と連動して Bash 出力を圧縮する。rtk 本体は nix overlay (`nix/modules/overlays/rtk.nix`) 経由でビルドされ、`darwin-rebuild switch` で各 PC に展開される。PC ローカルな `~/Library/Application Support/rtk/filters.toml` は初回フック実行時に自動生成される。フック順序は「破壊的コマンドブロック → rtk hook」で、`rm -rf` / `git push --force` 等が rtk のリライトを通過する前に exit 2 で止まる
 
 # Nix 環境
 

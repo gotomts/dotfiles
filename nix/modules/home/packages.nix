@@ -75,7 +75,5 @@
     # codex: nixpkgs 版 (v0.130.0) が cache.nixos.org に未登録で CI の closure
     # build が毎回 Rust ソースビルドして 20m timeout になったため、Homebrew cask
     # "codex" (OpenAI 公式 prebuilt binary) に移行した (DOT-37)。
-    # rtk: S8 で nix/modules/overlays/rtk.nix から pkgs.rtk として供給される
-    rtk
   ];
 }
