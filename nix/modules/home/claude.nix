@@ -7,14 +7,19 @@
 # ~/.claude/skills ディレクトリ全体を Nix store 経由の単一 symlink にする。新スキル追加時は
 # `home-manager switch` または `darwin-rebuild switch` で反映する必要がある。
 {
-  # ~/.claude/{agents,skills,hooks,settings.json,CLAUDE.md,RTK.md} を
+  # ~/.claude/{agents,skills,hooks,settings.json,CLAUDE.md,AGENTS.md,RTK.md} を
   # dotfiles から symlink する。
+  # AGENTS.md はグローバル指示のマスターで Claude Code は CLAUDE.md の
+  # @AGENTS.md import で取り込む。Codex 等の他 AI ツール向けには
+  # nix/modules/home/codex.nix が同じ AGENTS.md を ~/.codex/AGENTS.md に
+  # symlink して共有する。
   home.file = {
     ".claude/agents".source        = ../../../claude/agents;
     ".claude/skills".source        = ../../../claude/skills;
     ".claude/hooks".source         = ../../../claude/hooks;
     ".claude/settings.json".source = ../../../claude/settings.json;
     ".claude/CLAUDE.md".source     = ../../../claude/CLAUDE.md;
+    ".claude/AGENTS.md".source     = ../../../claude/AGENTS.md;
     ".claude/RTK.md".source        = ../../../claude/RTK.md;
   };
 
