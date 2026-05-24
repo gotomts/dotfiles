@@ -1,5 +1,5 @@
 # nix-darwin macOS defaults モジュール (S10 / KISSA-30)
-# specialArgs 由来: inputs / username (flake.nix から注入)
+# specialArgs 由来: inputs / username / role (flake.nix から注入)
 # 自動注入: pkgs / lib / config (... で受け取る)
 #
 # 元データ:
@@ -14,12 +14,69 @@
 # 棚卸 triage マルチホスト注意:
 #   このマシン (m5mbp) を source of truth として triage した値。別 PC では再 triage が必要。
 #   特に AppleLocale / KB_*QuoteOption は日本語入力環境前提。
-{ username, ... }:
+{ username, role, ... }:
 
+let
+  # ----------------------------------------------------------------
+  # Dock persistent-apps: role 別に独立宣言する
+  # ----------------------------------------------------------------
+  # homebrew.nix と異なり persistent-apps は「リスト順 = Dock 左→右の表示順」
+  # そのものなので core ++ optional パターンでは System Settings が中間に
+  # 挟まる等の表示崩れが起きる。各 role の Dock 並びは独立に宣言する。
+  #
+  # Apps.app は macOS 26+ の Launchpad 後継。macOS 15.x には存在しないため
+  # Launchpad.app にフォールバックする。builtins.pathExists は --impure 評価時に判定。
+  # OS アップデート後に Apps.app が出現したら次回 darwin-rebuild switch で自動切替。
+  launchpadApp =
+    if builtins.pathExists /System/Applications/Apps.app
+    then "/System/Applications/Apps.app"
+    else "/System/Applications/Launchpad.app";
+
+  # default role (15 件): Linear が default 専用 (sub-1 PC では Dock に出さない方針)。
+  defaultDockApps = [
+    launchpadApp
+    "/Applications/Linear.app"
+    "/Applications/Slack.app"
+    "/Applications/Notion.app"
+    "/Applications/Google Chrome.app"
+    "/Applications/cmux.app"
+    "/Applications/Claude.app"
+    "/Applications/Zed.app"
+    "/Applications/Figma.app"
+    "/Applications/TablePlus.app"
+    "/Applications/1Password.app"
+    "/Applications/Postman.app"
+    "/Applications/Nani.app"
+    "/Applications/OrbStack.app"
+    "/System/Applications/System Settings.app"
+  ];
+
+  # sub-1 role (16 件): Microsoft Teams / Outlook が sub-1 専用 (MDM 配布)。
+  # それ以外の sub-1 専用アプリは公開リポジトリには宣言しない方針 (homebrew.nix の
+  # cleanup = "none" 設計と整合) のため Dock にも含めない。
+  sub1DockApps = [
+    launchpadApp
+    "/Applications/Slack.app"
+    "/Applications/Notion.app"
+    "/Applications/Google Chrome.app"
+    "/Applications/cmux.app"
+    "/Applications/Claude.app"
+    "/Applications/Zed.app"
+    "/Applications/Figma.app"
+    "/Applications/TablePlus.app"
+    "/Applications/1Password.app"
+    "/Applications/Postman.app"
+    "/Applications/Nani.app"
+    "/Applications/Microsoft Teams.app"
+    "/Applications/Microsoft Outlook.app"
+    "/Applications/OrbStack.app"
+    "/System/Applications/System Settings.app"
+  ];
+in
 {
   system.defaults = {
     # =================================================================
-    # Dock (基本設定 5 件 + persistent-apps 19 + persistent-others 1 / 全 native)
+    # Dock (基本設定 5 件 + persistent-apps role 別 + persistent-others 1 / 全 native)
     # =================================================================
     dock = {
       autohide = true;                            # Dock 自動非表示
@@ -30,34 +87,14 @@
                                                   # (2=Mission Control / 4=Desktop / 5=Screensaver
                                                   #  / 11=Launchpad / 13=Lock / 14=Quick Note)
 
-      # ---- Dock 左側 (アプリ) 17 件 ----
+      # ---- Dock 左側 (アプリ) role 別 ----
       # nix-darwin の coercedTo により文字列リストは自動的に { app = "..."; } タグ付きに変換される。
       # アプリが当該 PC に存在しないと Dock アイコンが "?" になる。
       # 別 PC で展開するアプリは homebrew.nix の casks で導入されることが前提。
-      persistent-apps = [
-        # Apps.app は macOS 26+ の Launchpad 後継。macOS 15.x には存在しないため
-        # Launchpad.app にフォールバックする。builtins.pathExists は --impure 評価時に判定。
-        # OS アップデート後に Apps.app が出現したら次回 darwin-rebuild switch で自動切替。
-        (if builtins.pathExists /System/Applications/Apps.app
-         then "/System/Applications/Apps.app"
-         else "/System/Applications/Launchpad.app")
-        "/Applications/Slack.app"
-        "/Applications/Notion.app"
-        "/Applications/Google Chrome.app"
-        "/Applications/cmux.app"
-        "/Applications/Claude.app"
-        "/Applications/Zed.app"
-        "/Applications/Figma.app"
-        "/Applications/TablePlus.app"
-        "/Applications/1Password.app"
-        "/Applications/Postman.app"
-        "/Applications/Android Studio.app"
-        "/Applications/Nani.app"
-        "/Applications/Microsoft Teams.app"
-        "/Applications/Microsoft Outlook.app"
-        "/Applications/OrbStack.app"
-        "/System/Applications/System Settings.app"
-      ];
+      persistent-apps =
+        if role == "default" then defaultDockApps
+        else if role == "sub-1" then sub1DockApps
+        else throw "defaults.nix: unknown role \"${role}\"";
 
       # ---- Dock 右側 (フォルダ / ファイル) 1 件 ----
       # ユーザーホームをハードコードしないため username パラメータを使う。
