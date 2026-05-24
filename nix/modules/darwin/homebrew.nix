@@ -34,6 +34,7 @@ let
     "gcloud-cli"
     "google-chrome"
     "google-japanese-ime"
+    "imageoptim" # 一眼カメラ等の JPG/PNG 一括圧縮 GUI (MozJPEG / pngquant 等を内部で自動選択。初回は Preferences で Quality を 80〜85 に下げると削減率が上がる)
     "linear" # 旧 linear-linear、Homebrew で rename 済み
     "medis"
     "nani" # jp.kiok.nani — 公式 cask (brew install --cask nani)
