@@ -1,11 +1,15 @@
-{ pkgs, lib, ... }:
+{ pkgs, lib, config, ... }:
 
 # このモジュールは setup.zsh の claude/ symlink ループ + setup/install/10_claude.zsh の
 # symlink セクション（ステップ 2, 3）を home-manager で置換したもの (両スクリプト削除済み)。
 #
-# 注意: 旧 10_claude.zsh はスキルごとに個別 symlink を作っていたが、本モジュールは
-# ~/.claude/skills ディレクトリ全体を Nix store 経由の単一 symlink にする。新スキル追加時は
-# `home-manager switch` または `darwin-rebuild switch` で反映する必要がある。
+# mkOutOfStoreSymlink で dotfiles working tree への直接 symlink を張るため、
+# skills/agents/hooks/設定ファイルの追加・編集は git pull (or 直接編集) で即反映される
+# (darwin-rebuild switch は不要)。トレードオフとして ~/.dotfiles/ が存在しない PC では
+# dangling symlink になるが、本リポジトリ前提の運用なので許容する。
+let
+  dotfiles = "${config.home.homeDirectory}/.dotfiles";
+in
 {
   # ~/.claude/{agents,skills,hooks,settings.json,CLAUDE.md,AGENTS.md} を
   # dotfiles から symlink する。
@@ -14,12 +18,12 @@
   # nix/modules/home/codex.nix が同じ AGENTS.md を ~/.codex/AGENTS.md に
   # symlink して共有する。
   home.file = {
-    ".claude/agents".source        = ../../../claude/agents;
-    ".claude/skills".source        = ../../../claude/skills;
-    ".claude/hooks".source         = ../../../claude/hooks;
-    ".claude/settings.json".source = ../../../claude/settings.json;
-    ".claude/CLAUDE.md".source     = ../../../claude/CLAUDE.md;
-    ".claude/AGENTS.md".source     = ../../../claude/AGENTS.md;
+    ".claude/agents".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/agents";
+    ".claude/skills".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
+    ".claude/hooks".source         = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/hooks";
+    ".claude/settings.json".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/settings.json";
+    ".claude/CLAUDE.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/CLAUDE.md";
+    ".claude/AGENTS.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/AGENTS.md";
   };
 
   # claude plugin の宣言的同期。
