@@ -81,16 +81,7 @@
         ]
       }
     ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${HOME}/.claude/hooks/pre-compact.sh"
-          }
-        ]
-      }
-    ],
+    "PreCompact": [],
     "SessionStart": [
       {
         "hooks": [
@@ -142,7 +133,8 @@
   },
   "skillOverrides": {
     "test-driven-development": "user-invocable-only",
-    "systematic-debugging": "user-invocable-only"
+    "systematic-debugging": "user-invocable-only",
+    "handover": "user-invocable-only"
   },
   "language": "japanese",
   "alwaysThinkingEnabled": true,
