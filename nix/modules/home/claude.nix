@@ -20,7 +20,6 @@ in
   home.file = {
     ".claude/agents".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/agents";
     ".claude/skills".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
-    ".claude/hooks".source         = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/hooks";
     ".claude/settings.json".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/settings.json";
     ".claude/CLAUDE.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/CLAUDE.md";
     ".claude/AGENTS.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/AGENTS.md";

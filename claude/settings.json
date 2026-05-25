@@ -81,27 +81,6 @@
         ]
       }
     ],
-    "PreCompact": [],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${HOME}/.claude/hooks/session-start.sh"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${HOME}/.claude/hooks/user-prompt-submit.sh"
-          }
-        ]
-      }
-    ]
   },
   "statusLine": {
     "type": "command",
@@ -133,8 +112,7 @@
   },
   "skillOverrides": {
     "test-driven-development": "user-invocable-only",
-    "systematic-debugging": "user-invocable-only",
-    "handover": "user-invocable-only"
+    "systematic-debugging": "user-invocable-only"
   },
   "language": "japanese",
   "alwaysThinkingEnabled": true,
