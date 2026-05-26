@@ -18,7 +18,7 @@
 
 **スコープ外:**
 
-- worktree の **作成** (これは `feature-team` 親 / `issue-dev` スキル / 手動 `wt switch -c` の責務)
+- worktree の **作成** (これは `feature-team` 親 / 手動 `wt switch -c` の責務)
 - PR の **作成・CodeRabbit 対応** (これは `pr-publisher` の責務)
 - PR の **レビュー・マージ** (GitHub 上のユーザー判断)
 - merge 戦略の検討 (merged モードと with-pr モードのみ対応、`older-than` 等の時間フィルタは YAGNI)

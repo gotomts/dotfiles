@@ -209,7 +209,10 @@ wt switch -c <branch>
 wt list
 ```
 
-ブランチ命名規則: `feature/<slug>-issue-<sub-issue-番号>` (既存 `issue-dev` スキルと同じ)
+ブランチ命名規則 (tracker 別。Linear ID または GitHub issue 番号をブランチ名に含めることで、Linear の git automation [start → In Progress, review → In Review, merge → Done] と GitHub の issue 参照解決を両立させる):
+
+- tracker = linear: `feature/<slug>-<TEAM-XX>` (例: `feature/cleanup-skills-DOT-42`)
+- tracker = github: `feature/<slug>-issue-<sub-issue-番号>`
 
 > **注意:** Bash ツール経由では `wt switch -c` のシェル統合 (自動 `cd`) が効かない場合がある。`wt list` の出力から worktree 絶対パスを取得し、以降の Bash コマンドはそのパス内で実行するよう Agent に明示する。
 
@@ -255,7 +258,11 @@ developer から完了通知が返ったら、即座に Phase 3 (観点別レビ
 wt switch -c <branch>
 ```
 
-ブランチ命名規則: `feature/<slug>-issue-<親 issue 番号>` (ad-hoc spec の場合は `feature/<slug>` で省略可)
+ブランチ命名規則:
+
+- tracker = linear: `feature/<slug>-<TEAM-XX>` (親 issue ID)
+- tracker = github: `feature/<slug>-issue-<親 issue 番号>`
+- ad-hoc spec: `feature/<slug>` (issue 紐付け無し、Linear / GitHub の自動連携も発生しない)
 
 ### 2-B.2 親が直接実装
 
@@ -450,6 +457,4 @@ Agent(
   - `/feature-team --spec <path> [--plan <path>]` — spec/plan で直接実装 (issue 化なし)
   - `/feature-team` — 引数なしで 4 択案内 → 該当する経路へ
 - **`pick-next` 連携**: `pick-next` が `Skill(create-issue)` で issue を作成した後、ユーザーが `/feature-team <作成された番号>` を手動起動
-- **`issue-dev` 連携**: `issue-dev` が複数 sub-issue 並列実装を要するケースで `/feature-team <番号>` を案内 (issue-dev 側の挙動次第)
-
 このスキルは要件定義や issue 作成を**しない**。これらは前段の独立スキル (`grill-me` / `superpowers:brainstorming` / `superpowers:writing-plans` / `create-issue` / `pick-next`) に任せる。

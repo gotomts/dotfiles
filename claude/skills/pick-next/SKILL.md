@@ -18,13 +18,13 @@ allowed-tools:
 
 「次に何をやるか」を対話で決定する。終端は 3 つの分岐に分かれる:
 
-1. **既存 active issue を選ぶ** → Issue 番号を提示、`/issue-dev <番号>` を案内して終了
+1. **既存 active issue を選ぶ** → Issue 番号を提示、`/feature-team <番号>` を案内して終了
 2. **新規テーマを作る** → 軽量 spec/plan を書き出し → `Skill: create-issue` で親 + sub-issue を登録
 3. **今はやらない / 保留** → 何もしない（判断ログは任意）
 
 ## このスキルがしないこと
 
-- 実装の着手（`issue-dev` の責務）
+- 実装の着手（`feature-team` の責務）
 - フル spec / plan の作成（`superpowers:brainstorming` の責務）
 - ロードマップ全体の管理（`service-design-builder` の責務）
 - Issue 登録の生 API 呼び出し（`create-issue` に委譲）
@@ -110,7 +110,7 @@ allowed-tools:
 ## 確定: <Issue 番号> - <タイトル>
 
 着手するには:
-  /issue-dev <Issue 番号>
+  /feature-team <Issue 番号>
 
 または直接 worktree を切る場合:
   worktrunk <Issue 番号>
