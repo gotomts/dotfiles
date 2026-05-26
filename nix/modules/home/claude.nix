@@ -60,4 +60,44 @@ in
 
     _run_claude_plugin_sync
   '';
+
+  # MCP server の user scope を declarative に同期する。
+  # ~/.claude.json は Claude Code が動的に書き換える running config (OAuth token・
+  # projects 別 state を含む) で symlink 化できないため、dotfiles 側の宣言を
+  # activation 時に jq で recursive merge する。
+  # claude.ai connector など宣言外のエントリは保持する add-only 設計。
+  home.activation.syncClaudeMcpServers = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    _run_claude_mcp_sync() {
+      set +e
+
+      local target="''${HOME}/.claude.json"
+      local decl="${dotfiles}/claude/mcp-servers.json"
+
+      if [ ! -f "$decl" ]; then
+        echo "[claude.nix] mcp-servers.json 不在、MCP 同期をスキップ"
+        return 0
+      fi
+
+      if [ ! -f "$target" ]; then
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/touch "$target"
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/chmod 600 "$target"
+        $DRY_RUN_CMD ${pkgs.bash}/bin/sh -c "echo '{}' > '$target'"
+      fi
+
+      local tmp
+      tmp=$(${pkgs.coreutils}/bin/mktemp)
+      if ${pkgs.jq}/bin/jq --slurpfile d "$decl" '
+        .mcpServers = ((.mcpServers // {}) * ($d[0].mcpServers // {}))
+      ' "$target" > "$tmp"; then
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/mv "$tmp" "$target"
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/chmod 600 "$target"
+        echo "[claude.nix] MCP servers synced to $target"
+      else
+        ${pkgs.coreutils}/bin/rm -f "$tmp"
+        echo "[claude.nix] MCP sync failed (jq error)"
+      fi
+    }
+
+    _run_claude_mcp_sync
+  '';
 }
