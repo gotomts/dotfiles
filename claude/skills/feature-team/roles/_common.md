@@ -14,7 +14,7 @@
   - `reviewer-*`: 1 観点のレビュー
   - `pr-publisher`: 1 branch の PR 作成 + CodeRabbit 対応
 - **ユーザーと直接対話できません**。質問が必要な場合は、完了通知の中で「親への質問」として明示し、親に判断を委ねてください
-- **`developer-*` / `reviewer-*` は PR を作成しないでください**。PR 作成は Phase 6 で `pr-publisher` が担います
+- **`developer-*` / `reviewer-*` は PR を作成しないでください**。PR 作成は Phase 4 で `pr-publisher` が担います
 
 ## Worktree（worktrunk）運用
 
@@ -139,7 +139,7 @@ chore: その他
 - <質問内容>
 
 ### Next action
-親による Phase 6 集約・ユーザーへの通知を待つ
+親による Phase 4 集約・ユーザーへの通知を待つ
 ```
 
 ### Reviewer の場合
