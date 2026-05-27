@@ -55,6 +55,8 @@ let
     "android-studio"
     "aqua-voice" # AI 整形付き音声入力 (Claude Code への dictation 用)
     "flutter"
+    "obsidian"
+    "tailscale-app" # 旧 cask 名 "tailscale" は rename 済み。kernel extension 承認が初回必要 (System Settings → Privacy & Security)
   ];
 
   # ----------------------------------------------------------------
@@ -102,7 +104,6 @@ let
   # default-only brews (role == "default" のときだけ)
   defaultOnlyBrews = [
     "leoafarias/fvm/fvm" # Flutter Version Manager (flutter cask に同期)
-    "tailscale" # nixpkgs にもあるが macOS は cask + system extension が公式推奨
   ];
 
 in
