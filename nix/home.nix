@@ -21,6 +21,8 @@
     ./modules/home/codex.nix
     # 言語ツールチェーン: mise 完全置換 (S7 / KISSA-27)
     ./modules/home/languages.nix
+    # corepack によるグローバル pnpm / yarn 供給 (プロジェクト宣言優先)
+    ./modules/home/corepack.nix
     # per-project Nix shell auto-activation (DOT-35)
     ./modules/home/direnv.nix
     # grip / cmux 等の home.file 配置 (DOT-27 dir-symlink 再発防止)

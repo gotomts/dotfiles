@@ -58,6 +58,10 @@
     "defaultMode": "bypassPermissions"
   },
   "model": "claude-opus-4-8",
+  "skillOverrides": {
+    "test-driven-development": "user-invocable-only",
+    "systematic-debugging": "user-invocable-only"
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -118,6 +122,7 @@
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
   "remoteControlAtStartup": true,
-  "skipAutoPermissionPrompt": true,
-  "agentPushNotifEnabled": true
+  "inputNeededNotifEnabled": false,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
 }

@@ -29,6 +29,9 @@
     # 詳細は nix/README.md の「プロジェクトごとの言語バージョン管理 (devbox)」節を参照。
     nodejs_24
 
+    # pnpm / yarn: nixpkgs の固定版パッケージは使わず、nodejs_24 同梱の corepack で
+    # グローバル供給する (プロジェクトの package.json packageManager 宣言を優先)。
+    # 設定は corepack.nix を参照。
     # npm-fzf: nixpkgs 未収録のため Brewfile (S9 homebrew.nix) 残置 or `npm i -g npm-fzf` で対応
 
     # ===========================================================================
