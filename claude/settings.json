@@ -112,11 +112,8 @@
     "learning-output-style@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "linear-cli@linear-cli": true,
-    "rust-analyzer-lsp@claude-plugins-official": true
-  },
-  "skillOverrides": {
-    "test-driven-development": "user-invocable-only",
-    "systematic-debugging": "user-invocable-only"
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "cloudflare@claude-plugins-official": true
   },
   "language": "japanese",
   "alwaysThinkingEnabled": true,
