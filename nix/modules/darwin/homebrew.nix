@@ -124,6 +124,12 @@ in
       # sub-1 で手動 install したものは別 PC では復元されないため、再現性が必要なら
       # homebrew.nix に追記する運用 (AGENTS.md「Homebrew パッケージ管理」参照)。
       cleanup = if role == "sub-1" then "none" else "zap";
+      # Homebrew 5.x 以降、`brew bundle --cleanup` は確認を要求するようになり
+      # (--force / --force-cleanup / $HOMEBREW_ASK のいずれか必須)、非対話の
+      # darwin-rebuild switch では activation が失敗する。zap (default role) の
+      # 非対話 cleanup を維持するため --force-cleanup を付与する。cleanup="none" の
+      # sub-1 では --cleanup 自体が出ないため付与しない。
+      extraFlags = lib.optionals (role != "sub-1") [ "--force-cleanup" ];
     };
 
     taps = [
