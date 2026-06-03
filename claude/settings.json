@@ -57,7 +57,7 @@
     ],
     "defaultMode": "bypassPermissions"
   },
-  "model": "claude-opus-4-8",
+  "model": "claude-opus-4-8[1m]",
   "skillOverrides": {
     "test-driven-development": "user-invocable-only",
     "systematic-debugging": "user-invocable-only"
