@@ -32,6 +32,7 @@
     ghq
     lazygit
     lazydocker
+    jujutsu # コマンド名は jj。Git 互換の DVCS
     # worktrunk: nixpkgs 未収録のため darwin/homebrew.nix (S9) 残置
 
     # -------------------------------------------------------------------------
