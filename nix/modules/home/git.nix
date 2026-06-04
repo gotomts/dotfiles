@@ -1,4 +1,4 @@
-{ inputs, pkgs, ... }:
+{ inputs, pkgs, lib, ... }:
 
 {
   # gitmessage を ~/.gitmessage として固定パスに配置する。
@@ -73,4 +73,33 @@
   # 旧 setup.zsh が dotfiles への dir-symlink を作っていたため、migration 後も
   # file-level symlink として nix store 経由で管理する。
   home.file.".gitignore_global".source = ../../../gitignore_global;
+
+  # ~/.gitconfig を nix 非管理の「実体ファイル」として用意する。
+  # git 設定本体の SSOT は programs.git (~/.config/git/config) 側であり、
+  # ~/.gitconfig は設定を持たせず PC 固有値の隔離先としてのみ使う。
+  #
+  # なぜ home.file ではなく home.activation か:
+  #   home.file で置くと nix store への read-only symlink になり、
+  #   `git config --global` で書き込むツール (coderabbit CLI の machineId 等) が
+  #   書き込めない。git は ~/.gitconfig が存在すれば最優先で書き込み先に選ぶため、
+  #   ここを read-only にすると read-only な ~/.config/git/config へ書こうとして失敗する。
+  #   そこで書き込み可能な空の実体ファイルを置き、PC 固有値の落書き帳として隔離する。
+  #
+  # 旧構成では ~/.gitconfig が dotfiles/gitconfig への手動 symlink だったため、
+  # その残骸が残っていれば撤去してから空実体を作る。machineId は PC 固有値であり
+  # 失われても各マシンの coderabbit が再生成するだけで、共有すべきものではない。
+  home.activation.gitconfigLocalRealfile =
+    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      gitconfig="$HOME/.gitconfig"
+      if [ -L "$gitconfig" ]; then
+        case "$(readlink "$gitconfig")" in
+          */.dotfiles/gitconfig)
+            $DRY_RUN_CMD rm $VERBOSE_ARG "$gitconfig"
+            ;;
+        esac
+      fi
+      if [ ! -e "$gitconfig" ]; then
+        $DRY_RUN_CMD touch $VERBOSE_ARG "$gitconfig"
+      fi
+    '';
 }
