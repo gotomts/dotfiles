@@ -25,6 +25,11 @@
     ./modules/darwin/hitoolbox.nix
   ];
 
+  # nix-darwin はデフォルトで EDITOR=nano を /etc/zshenv (set-environment) に
+  # export するため、明示宣言で vim に上書きする。未宣言だと switch のたびに
+  # nano に戻る (git commit 等の既定エディタが nano 化する原因だった)。
+  environment.variables.EDITOR = "vim";
+
   # nix-darwin が要求する最低限の宣言:
   # stateVersion: 1〜maxStateVersion(6) の整数を指定する (2026-05 時点)
   # 初回インストール時のバージョンを設定し、以後変更しないこと
