@@ -70,6 +70,10 @@
       # 全体 build + activate (system + home-manager + brew bundle)
       # CLAUDE.md「主要コマンド」と同等。USER=$USER は sudo の env_reset 回避、--impure は username 動的解決のため必須
       darwin-switch = "sudo USER=$USER darwin-rebuild switch --flake $HOME/.dotfiles/nix#default --impure";
+
+      # claude.ai のチャット / Code を独立 Chrome ウィンドウで一括起動しグリッド整列する
+      # (本体は aliase/claude-board.zsh / 引数: チャット数 Code数)
+      claude-board = "zsh $HOME/.aliase/claude-board.zsh";
     };
 
     # -----------------------------------------------------------------------
@@ -181,5 +185,7 @@
     ".functions/fzf-history".source = ../../../functions/fzf-history;
     # GKE 認証情報取得スクリプト (shellAliases.gcgc が参照)
     ".aliase/get-gke-credentials.sh".source = ../../../aliase/get-gke-credentials.sh;
+    # claude.ai 一括起動 + グリッド整列スクリプト (shellAliases.claude-board が参照)
+    ".aliase/claude-board.zsh".source = ../../../aliase/claude-board.zsh;
   };
 }
