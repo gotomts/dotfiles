@@ -33,6 +33,7 @@
     lazygit
     lazydocker
     jujutsu # コマンド名は jj。Git 互換の DVCS
+    jjui # jujutsu (jj) の TUI
     # worktrunk: nixpkgs 未収録のため darwin/homebrew.nix (S9) 残置
 
     # -------------------------------------------------------------------------
