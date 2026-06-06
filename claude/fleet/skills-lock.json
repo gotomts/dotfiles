@@ -79,12 +79,6 @@
       "skillPath": "skills/dart-use-pattern-matching/SKILL.md",
       "computedHash": "86ea49e8f82ebcdbfd00579c0bcaca16d3f33839c96f9d3875bee95c553daa4b"
     },
-    "deploy-to-vercel": {
-      "source": "vercel-labs/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/deploy-to-vercel/SKILL.md",
-      "computedHash": "d2b5bcc7c09fdb649129ffc7dd7b647ec1b155736974b974292675afd588cb39"
-    },
     "eas-update-insights": {
       "source": "expo/skills",
       "sourceType": "github",
@@ -241,23 +235,11 @@
       "skillPath": "plugins/expo/skills/use-dom/SKILL.md",
       "computedHash": "8eca0e229f16e3499e5dbf791a79f5a5cba1e98b4af88ca495c903930d7f1ba0"
     },
-    "vercel-cli-with-tokens": {
-      "source": "vercel-labs/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/vercel-cli-with-tokens/SKILL.md",
-      "computedHash": "a2f596ac516fe8986386f9562f4c94604af9fb6a0fc417d263cbe6dc05117b72"
-    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/composition-patterns/SKILL.md",
       "computedHash": "f98931159fa9c7fed043bcd18a891a46dcf89ababa38df13a4c5b7b30dc0ce07"
-    },
-    "vercel-optimize": {
-      "source": "vercel-labs/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/vercel-optimize/SKILL.md",
-      "computedHash": "646c927b6bf575e65b721abeead453fbb2c95ca3c580f9df646b9ceecc05a02b"
     },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
