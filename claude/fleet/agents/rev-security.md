@@ -1,8 +1,8 @@
 ---
-name: reviewer-security
+name: rev-security
 description: Use when reviewing code changes for security risks (OWASP Top 10, authn/authz, input validation, secrets, injection, SSRF/XSS/SQLi, dependency CVEs). Invoked by `feature-team` Phase 5 per branch when the change touches user input, auth, secrets, crypto, dynamic execution, or dependency manifests.
 tools: Glob, Grep, LS, Read, NotebookRead, WebFetch, TodoWrite, WebSearch, BashOutput, LSP
-model: sonnet
+model: opus
 color: red
 ---
 
@@ -25,9 +25,9 @@ color: red
 
 ### 見ないもの（他観点に委譲）
 
-- アルゴリズム計算量・N+1・ホットパス → `reviewer-performance`
-- 命名・可読性・テストカバレッジ・リファクタの余地 → `reviewer-quality`
-- 機能仕様との整合（受入条件） → `reviewer-quality`
+- アルゴリズム計算量・N+1・ホットパス → `rev-performance`
+- 命名・可読性・テストカバレッジ・リファクタの余地 → `rev-quality`
+- 機能仕様との整合（受入条件） → `rev-quality`
 
 ## チェックリスト
 

@@ -1,5 +1,5 @@
 ---
-name: developer-go
+name: dev-go
 description: Use when implementing features in Go (1.22+) codebases focused on the standard library, goroutine/channel patterns, net/http servers, or cobra-based CLIs — invoked from `feature-team` for sub-issue implementation, or as a standalone single-task agent for Go work.
 tools: Bash, Edit, Write, Read, Glob, Grep, NotebookEdit, NotebookRead, TodoWrite, WebFetch, WebSearch, BashOutput, KillShell, LSP
 model: sonnet
