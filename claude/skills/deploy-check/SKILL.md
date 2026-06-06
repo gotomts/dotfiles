@@ -1,5 +1,6 @@
 ---
 name: deploy-check
+maintainer: gotomts
 description: データの欠損・古い値・期待と異なる表示など「データが正しく見えない」系の調査を始めるとき。クライアントコードに潜る前に、まず backend のデプロイ状態と、デプロイ環境側の構成（feature flag / config / 環境差分）を確認させる。ローカルの .env や secrets ファイルは読みに行かない。
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: conflict-resolver
+maintainer: gotomts
 description: Git のコンフリクトを、戦略選定から解消・検証まで対話的に支援する。
 argument-hint: <PR番号 or ブランチ名（省略可）>
 allowed-tools:

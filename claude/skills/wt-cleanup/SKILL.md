@@ -1,5 +1,6 @@
 ---
 name: wt-cleanup
+maintainer: gotomts
 description: PR 作成済みまたはマージ済みの worktree を検出し、一括クリーンアップする
 allowed-tools:
   - Bash

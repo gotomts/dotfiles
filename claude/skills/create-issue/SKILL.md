@@ -1,5 +1,6 @@
 ---
 name: create-issue
+maintainer: gotomts
 description: Spec / plan を入力に、Linear または GitHub の親 Issue + sub-issue 群を自律的に登録する。対話深掘りステップは持たず、`pick-next` / ユーザー直接実行から呼ばれる独立スキル。tracker は `.claude/project.yml` の `tracker.type` から自己解決する。
 argument-hint: <spec-path> <plan-path>
 allowed-tools:
