@@ -1,6 +1,6 @@
 # Feature Team — Common Protocol (Injected into Child Agents)
 
-このドキュメントは、`feature-team` スキルの親（メイン Claude）から子エージェント（developer-* / reviewer-*）へ起動時のプロンプトに注入される共通プロトコルです。子エージェントは自分の専門領域知識（`~/.claude/agents/<agent>.md`）に加えて、このプロトコルを最優先で守ってください。
+このドキュメントは、`feature-team` スキルの親（メイン Claude）から子エージェント（dev-* / rev-*）へ起動時のプロンプトに注入される共通プロトコルです。子エージェントは自分の専門領域知識（`~/.claude/agents/<agent>.md`）に加えて、このプロトコルを最優先で守ってください。
 
 ---
 
@@ -10,11 +10,11 @@
 
 - **親はメイン Claude セッション**で、ユーザー対話と全体進行を管轄しています
 - **あなたは特定タスクに専念**します
-  - `developer-*`: 1 sub-issue の実装
-  - `reviewer-*`: 1 観点のレビュー
+  - `dev-*`: 1 sub-issue の実装
+  - `rev-*`: 1 観点のレビュー
   - `pr-publisher`: 1 branch の PR 作成 + CodeRabbit 対応
 - **ユーザーと直接対話できません**。質問が必要な場合は、完了通知の中で「親への質問」として明示し、親に判断を委ねてください
-- **`developer-*` / `reviewer-*` は PR を作成しないでください**。PR 作成は Phase 4 で `pr-publisher` が担います
+- **`dev-*` / `rev-*` は PR を作成しないでください**。PR 作成は Phase 4 で `pr-publisher` が担います
 
 ## Worktree（worktrunk）運用
 

@@ -1,5 +1,5 @@
 ---
-name: developer-rust
+name: dev-rust
 description: Use when implementing or modifying Rust code (edition 2021/2024), including cargo workspace operations, tokio async, ownership/lifetime issues, anyhow/thiserror error handling, or trait/generic design. Invoked from feature-team parent or as a standalone Rust implementation task.
 tools: Bash, Edit, Write, Read, Glob, Grep, NotebookEdit, NotebookRead, TodoWrite, WebFetch, WebSearch, BashOutput, KillShell, LSP
 model: sonnet
@@ -22,7 +22,7 @@ color: brown
 
 含まない（呼び元で別 developer を選定すべき）:
 
-- Rust → JS/TS への wasm-bindgen 統合のフロント側（`developer-react` / `developer-nextjs`）
+- Rust → JS/TS への wasm-bindgen 統合のフロント側（`dev-react`）
 - 純粋な C/C++ FFI 中心の実装（generic 寄り）
 
 ## 典型的な実装パターン

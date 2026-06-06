@@ -36,7 +36,7 @@ pick-next (一括)                                                または
 - **親はメイン Claude セッション自身** (サブエージェント化しない)
 - **子エージェントは `~/.claude/agents/` 配下の 14 体** (developer 10 + reviewer 3 + pr-publisher 1)
 - **レビュー往復は最大 3 ラウンド**で打ち切り、超過時は親介入 → ユーザー escalate
-- **reviewer-quality は全実装で必須**。規約違反・テスト不足の素通りを防ぐ最重要ハブ
+- **rev-quality は全実装で必須**。規約違反・テスト不足の素通りを防ぐ最重要ハブ
 - **設定は `.claude/project.yml`** (リポジトリ単位)。`feature-team` が読むのは `review.*` と `volume_thresholds.*` のみ
 
 ---
@@ -80,28 +80,26 @@ pick-next (一括)                                                または
    │ (プロセス・ナレッジ系)                 (実装・レビュー系)
    ▼                                       ▼
 ┌─────────────────────────────┐   ┌─────────────────────────────────────┐
-│ SKILLS (~/.claude/skills/)  │   │ SUBAGENTS (~/.claude/agents/) 14 体  │
+│ SKILLS (~/.claude/skills/)  │   │ SUBAGENTS (fleet/agents) 12 体       │
 │ ─────────────────────────   │   │ ──────────────────────────────────  │
-│ Phase 3.5 (該当時):         │   │ DEVELOPERS (10):                    │
-│  • grill-with-docs          │   │  • developer-react                  │
-│    (ADR 化判定の対話)       │   │  • developer-nextjs                 │
-│                             │   │  • developer-flutter                │
-│ Phase 4:                    │   │  • developer-go                     │
-│  • coderabbit-review        │   │  • developer-nodejs                 │
-│    (pr-publisher 内で呼ぶ)  │   │  • developer-hono                   │
-│                             │   │  • developer-nestjs                 │
-│ 補助:                        │   │  • developer-rust                   │
-│  • handoff                  │   │  • developer-ruby                   │
-│                             │   │  • developer-generic    ← フォールバック │
-│ 前段 (このスキルからは        │   │                                     │
-│ 呼ばない):                    │   │ REVIEWERS (3):                      │
-│  • brainstorming            │   │  • reviewer-security                │
-│  • writing-plans            │   │  • reviewer-performance             │
-│  • grill-me                 │   │  • reviewer-quality                 │
-│  • create-issue             │   │      (CONTEXT/ADR 候補スクリーニングも) │
-│  • pick-next                │   │                                     │
-│                             │   │ PUBLISHER (1):                      │
-│                             │   │  • pr-publisher                     │
+│ Phase 3.5 (該当時):         │   │ DEVELOPERS (8):                     │
+│  • grill-with-docs          │   │  • dev-react (React + Next.js)      │
+│    (ADR 化判定の対話)       │   │  • dev-react-native                 │
+│                             │   │  • dev-flutter                      │
+│ Phase 4:                    │   │  • dev-nodejs (Node/NestJS/Hono)    │
+│  • coderabbit-review        │   │  • dev-go                           │
+│    (pr-publisher 内で呼ぶ)  │   │  • dev-rust                         │
+│                             │   │  • dev-infra                        │
+│ 補助:                        │   │  • dev-generic   ← フォールバック   │
+│  • handoff                  │   │                                     │
+│                             │   │ REVIEWERS (3):                      │
+│ 前段 (このスキルからは        │   │  • rev-security                     │
+│ 呼ばない):                    │   │  • rev-performance                  │
+│  • brainstorming            │   │  • rev-quality                      │
+│  • writing-plans            │   │      (CONTEXT/ADR 候補スクリーニングも) │
+│  • grill-me                 │   │                                     │
+│  • create-issue             │   │ PUBLISHER (1):                      │
+│  • pick-next                │   │  • pr-publisher                     │
 │                             │   │    Phase 4 で branch ごとに並列起動 │
 │                             │   │                                     │
 │                             │   │ 起動時に親が _common.md の規約を     │
@@ -148,7 +146,7 @@ pick-next (一括)                                                または
 │ Phase 2-A: 並列開発           │    │ Phase 2-B: 親直接実装                │
 │ ──────────────────────────   │    │ ──────────────────────────────────│
 │ 各 sub-issue ごとに wt 作成    │    │ 親が wt を 1 個作成して直接コーディング │
-│ Agent(developer-XXX)         │    │                                    │
+│ Agent(dev-XXX)         │    │                                    │
 │   × N (run_in_background)    │    │                                    │
 │                              │    │                                    │
 │ 完了通知ごとにストリーミング   │    │                                    │
@@ -159,12 +157,12 @@ pick-next (一括)                                                または
 ┌──────────────────────────────┐               │
 │ Phase 3: 観点別レビュー        │               │
 │ ──────────────────────────   │               │
-│ Agent(reviewer-quality)      │               │
+│ Agent(rev-quality)      │               │
 │   ← 全実装で必須              │               │
 │   ← CONTEXT/ADR 候補も拾う    │               │
-│ Agent(reviewer-security)     │               │
+│ Agent(rev-security)     │               │
 │   (該当時のみ)                │               │
-│ Agent(reviewer-performance)  │               │
+│ Agent(rev-performance)  │               │
 │   (該当時のみ)                │               │
 │                              │               │
 │ 親が指摘を統合 → developer に  │               │
@@ -198,28 +196,28 @@ pick-next (一括)                                                または
 
 t0   PARENT: 3 個の sub-issue を起動
        │
-       ├─ Agent(developer-go)      [wt: feat/api ]    ← run_in_background
-       ├─ Agent(developer-react)   [wt: feat/ui  ]    ← run_in_background
-       └─ Agent(developer-nextjs)  [wt: feat/page]    ← run_in_background
+       ├─ Agent(dev-go)      [wt: feat/api ]    ← run_in_background
+       ├─ Agent(dev-react)   [wt: feat/ui  ]    ← run_in_background
+       └─ Agent(dev-nodejs)  [wt: feat/page]    ← run_in_background
 
 t1   PARENT: 通常作業継続 (待たない)
 
-t2   ▼ developer-go が完了通知
+t2   ▼ dev-go が完了通知
      PARENT: 即座に対応する reviewer を起動
-       ├─ Agent(reviewer-quality)  [対象: feat/api]   ← 全実装で必須
-       ├─ Agent(reviewer-security) [対象: feat/api]   ← API endpoint があるため
+       ├─ Agent(rev-quality)  [対象: feat/api]   ← 全実装で必須
+       ├─ Agent(rev-security) [対象: feat/api]   ← API endpoint があるため
        └─ (perf は対象外と判断 → 起動しない)
 
-t3   ▼ developer-react 完了
+t3   ▼ dev-react 完了
      PARENT: 即座に対応する reviewer を起動
-       ├─ Agent(reviewer-quality)  [対象: feat/ui]   ← 全実装で必須
+       ├─ Agent(rev-quality)  [対象: feat/ui]   ← 全実装で必須
        └─ (security/perf は対象外)
 
-t4   ▼ reviewer-security@feat/api 完了 (指摘あり)
-     PARENT: 指摘を整理して developer-go に戻す
-       └─ Agent(developer-go) [Round 2/3] ← 再開
+t4   ▼ rev-security@feat/api 完了 (指摘あり)
+     PARENT: 指摘を整理して dev-go に戻す
+       └─ Agent(dev-go) [Round 2/3] ← 再開
 
-t5   ▼ developer-nextjs 完了 / reviewer-quality@feat/ui 完了 (CONTEXT 追記候補)
+t5   ▼ dev-nodejs 完了 / rev-quality@feat/ui 完了 (CONTEXT 追記候補)
      PARENT: feat/ui の用語追記候補を判断 → 親が Edit で追記
             feat/ui を Phase 4 (PR) へ進める
             feat/page は新たに reviewer 起動
@@ -259,8 +257,8 @@ tN   ▼ feat/api が Round 3 でも収束しない
 │   役割: 専門領域の知識・イディオム・典型エラー・テスト戦略                  │
 │   性質: 全プロジェクト横断資産。feature-team 以外からも呼べる              │
 │   内容:                                                                  │
-│    • developer-XXX: 言語/FW 固有の規約・テスト・依存管理                   │
-│    • reviewer-YYY: 観点固有のチェックリスト・既知パターン                  │
+│    • dev-XXX: 言語/FW 固有の規約・テスト・依存管理                   │
+│    • rev-YYY: 観点固有のチェックリスト・既知パターン                  │
 │    • pr-publisher: PR 本文生成・CodeRabbit 対応・push/PR 作成             │
 └─────────────────────────────────────────────────────────────────────────┘
 
@@ -289,9 +287,9 @@ tN   ▼ feat/api が Round 3 でも収束しない
 | K | worktree 管理 | worktrunk (`wt`) を使用 |
 | L | PR 単位の確定タイミング | Phase 1 (ボリューム判断時) |
 | M | 対象が薄い/不在時の挙動 | 親が要件定義を肩代わりせず 4 択案内で停止: (a) 要件詰めへ / (b) 既存 issue 指定 / (c) spec/plan 指定 / (d) ad-hoc 対話で最小実装 (質問 3 つ超で (a) へ戻す) |
-| N | reviewer-quality の必須化 | 全実装で必須 (Phase 2-A の各 sub-issue、Phase 2-B、ad-hoc spec すべて) |
+| N | rev-quality の必須化 | 全実装で必須 (Phase 2-A の各 sub-issue、Phase 2-B、ad-hoc spec すべて) |
 | O | Phase 4 の PR 作成 | `pr-publisher` エージェントを branch ごとに `run_in_background=true` で並列起動 |
-| P | CONTEXT.md / ADR 連携 | CONTEXT.md / docs/adr/ 存在時のみ。reviewer-quality が候補列挙 → 用語追記は親が Edit、ADR 化判定は `Skill(grill-with-docs)` に委譲 |
+| P | CONTEXT.md / ADR 連携 | CONTEXT.md / docs/adr/ 存在時のみ。rev-quality が候補列挙 → 用語追記は親が Edit、ADR 化判定は `Skill(grill-with-docs)` に委譲 |
 | Q | 前段スキルとの組み合わせ | `pick-next` / `brainstorming → writing-plans → create-issue` / `grill-me` or `grill-with-docs` + 手書き spec/plan / UI 手動 |
 
 ---
@@ -332,7 +330,7 @@ tN   ▼ feat/api が Round 3 でも収束しない
 - 4 つ目以降 (accessibility, i18n, etc.) は `quality` reviewer の延長として扱える
 - 必要観点だけ起動するためコスト最適化が効く
 
-### なぜ reviewer-quality を全実装で必須にしたのか
+### なぜ rev-quality を全実装で必須にしたのか
 
 - 旧設計でも parent.md に「quality は常に必須」と書かれていたが、旧 Phase 4-B (小規模親直実装、現 Phase 2-B 相当) の文中で「最低 quality 観点で 1 回」と緩めに書かれていた箇所もあり、運用上スキップされやすかった
 - 規約違反・テスト不足・バグの素通り防止の最後の砦なので、新設計では SKILL.md / parent.md 両方で**全実装必須**を強調する形に統一した
@@ -342,7 +340,7 @@ tN   ▼ feat/api が Round 3 でも収束しない
 
 - 中間層 (frontend / backend) は特化版より弱く generic より中途半端で、選定ロジックも複雑化する
 - 10 種は現実的なカバレッジ (react / nextjs / flutter / go / nodejs / hono / nestjs / rust / ruby / generic)
-- 該当なしは `developer-generic` でフォールバックすれば運用上問題ない
+- 該当なしは `dev-generic` でフォールバックすれば運用上問題ない
 
 ### なぜレビュー上限を 3 ラウンドにしたのか
 
@@ -356,7 +354,7 @@ tN   ▼ feat/api が Round 3 でも収束しない
 - grill-with-docs スキル本体に既に 3 条件判定 (Hard to reverse / Surprising without context / Real trade-off) と CONTEXT-FORMAT / ADR-FORMAT が定義されている
 - これを feature-team 側に再定義すると **判断基準が 2 箇所に分散** し、grill-with-docs 側の改修が将来あったとき同期忘れで崩壊する典型的なアンチパターンになる
 - 役割分担:
-  - reviewer-quality: 候補スクリーニングだけ (3 条件判定はしない)
+  - rev-quality: 候補スクリーニングだけ (3 条件判定はしない)
   - 親: 候補ありで grill-with-docs を起動するかどうかをユーザーに 3 択提示
   - grill-with-docs: 3 条件判定と ADR 書き出し (一元管理)
 - 用語追記は軽量判断なので grill-with-docs を呼ばず親が直接 Edit する (フォーマットだけ CONTEXT-FORMAT.md を参照)

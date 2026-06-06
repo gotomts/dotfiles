@@ -1,6 +1,6 @@
 ---
-name: developer-generic
-description: Use as a fallback developer when no specialized stack agent (react/nextjs/flutter/go/nodejs/hono/nestjs/rust/ruby) matches the sub-issue. Reads project conventions (README/Makefile/package manifests) first and conforms to existing patterns. Invoked from feature-team parent or as a standalone implementation task.
+name: dev-generic
+description: Use as a fallback developer when no specialized stack agent (react/react-native/flutter/go/nodejs/rust/infra) matches the sub-issue. Reads project conventions (README/Makefile/package manifests) first and conforms to existing patterns. Invoked from feature-team parent or as a standalone implementation task.
 tools: Bash, Edit, Write, Read, Glob, Grep, NotebookEdit, NotebookRead, TodoWrite, WebFetch, WebSearch, BashOutput, KillShell, LSP
 model: sonnet
 color: gray
@@ -12,7 +12,7 @@ color: gray
 
 含む:
 
-- 特化版 Developer（react / nextjs / flutter / go / nodejs / hono / nestjs / rust / ruby）が**いずれも該当しない**プロジェクト（例: Python / Elixir / Kotlin / Swift / C# / シェルスクリプト / IaC / 設定リポジトリ等）
+- 特化版 Developer（react / react-native / flutter / go / nodejs / rust / infra）が**いずれも該当しない**プロジェクト（例: Python / Elixir / Kotlin / Swift / C# / シェルスクリプト / 設定リポジトリ等）
 - monorepo の中の言語横断的タスク（CI 設定、Docker、Makefile、shell script）
 - ドキュメント整備、設定ファイル更新、軽微な refactor のうち単一スタックに分類しづらいもの
 
@@ -148,4 +148,4 @@ def find_user(users: Iterable[User], target_id: str) -> User | None:
 
 `_common.md` の Developer 報告フォーマットに従う。再掲しない。`_common.md` を参照して受入条件達成状況・主要な実装判断・変更ファイル・検証結果・親への質問を記述する。
 
-加えて、generic として起動された経緯から、**「どの特化版にも該当しないと判断した根拠」**を「主要な実装判断」セクションに 1 行含めること（例: "Python 3.12 + FastAPI のため、特化版 developer-* に該当なし"）。
+加えて、generic として起動された経緯から、**「どの特化版にも該当しないと判断した根拠」**を「主要な実装判断」セクションに 1 行含めること（例: "Python 3.12 + FastAPI のため、特化版 dev-* に該当なし"）。

@@ -219,7 +219,7 @@ wt list
 
 ### 2-A.2 各 sub-issue の developer を選定
 
-`roles/parent.md` の「2. Developer 選定基準」を参照。10 種の特化版 (react/nextjs/flutter/go/nodejs/hono/nestjs/rust/ruby) から該当するものを選び、該当なしなら `developer-generic` にフォールバックする。
+`roles/parent.md` の「2. Developer 選定基準」を参照。7 種の特化版 (react/react-native/flutter/nodejs/go/rust/infra) から該当するものを選び、該当なしなら `dev-generic` にフォールバックする。
 
 ### 2-A.3 Agent を並列起動
 
@@ -227,7 +227,7 @@ wt list
 
 ```
 Agent(
-  subagent_type="developer-<lang>",
+  subagent_type="dev-<lang>",
   description="<sub-issue タイトルの短縮>",
   prompt="<下記テンプレート>",
   run_in_background=true,
@@ -289,7 +289,7 @@ wt switch -c <branch>
 
 ```
 Agent(
-  subagent_type="reviewer-<perspective>",
+  subagent_type="rev-<perspective>",
   description="<対象 branch>: <perspective> review",
   prompt="<下記テンプレート>",
   run_in_background=true,
@@ -304,9 +304,9 @@ Agent(
 4. 観点 (security / performance / quality)
 5. 報告フォーマット: 重要度別 (critical / major / minor) の指摘リスト + 修正不要箇所の明示
 
-#### reviewer-quality 専用追加指示: CONTEXT.md / ADR 候補スクリーニング
+#### rev-quality 専用追加指示: CONTEXT.md / ADR 候補スクリーニング
 
-reviewer-quality 起動時のみ、以下を追加する:
+rev-quality 起動時のみ、以下を追加する:
 
 ```
 リポジトリに CONTEXT.md または docs/adr/ が存在する場合のみ、追加の観点として以下を含めること:
@@ -335,7 +335,7 @@ reviewer 完了後、親が指摘を統合する。**子の出力をそのまま
 
 ```
 Agent(
-  subagent_type="developer-<lang>",
+  subagent_type="dev-<lang>",
   description="<sub-issue>: review feedback round <N>",
   prompt="<critical/major 指摘の整理 + 期待する修正方針>",
   run_in_background=true,
@@ -351,7 +351,7 @@ Agent(
 
 ### 3.5 CONTEXT.md / ADR 連携 (該当時のみ)
 
-reviewer-quality からの候補列挙を受けて:
+rev-quality からの候補列挙を受けて:
 
 - **CONTEXT.md 追記候補がある場合 (Minor 指摘)**:
   - 親が直接 `Edit` で追記する。フォーマットは `~/.claude/skills/grill-with-docs/CONTEXT-FORMAT.md` に従う

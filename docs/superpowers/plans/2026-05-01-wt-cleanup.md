@@ -9,7 +9,7 @@ spec: docs/superpowers/specs/2026-05-01-wt-cleanup-design.md
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **For feature-team parent orchestrator:** This plan is consumed by Phase 2 (`create-issue`) which converts each Task into 1 sub-issue. Phase 4-A then dispatches `developer-generic` per sub-issue in parallel worktrees.
+> **For feature-team parent orchestrator:** This plan is consumed by Phase 2 (`create-issue`) which converts each Task into 1 sub-issue. Phase 4-A then dispatches `dev-generic` per sub-issue in parallel worktrees.
 
 **Goal:** wt-cleanup スキルに dry-run モードと uncommitted/未push ガードを追加し、feature-team との責務分離を README で双方向参照する。
 

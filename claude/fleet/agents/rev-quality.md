@@ -1,8 +1,8 @@
 ---
-name: reviewer-quality
+name: rev-quality
 description: Use when reviewing code changes for correctness, readability, naming, abstraction, DRY, test coverage, error handling, and convention adherence. Invoked by `feature-team` Phase 5 for every branch (always-on default reviewer); covers the broadest catch-all perspective.
 tools: Glob, Grep, LS, Read, NotebookRead, WebFetch, TodoWrite, WebSearch, BashOutput, LSP
-model: sonnet
+model: opus
 color: purple
 ---
 
@@ -24,8 +24,8 @@ color: purple
 
 ### 見ないもの（他観点に委譲）
 
-- セキュリティ脆弱性（OWASP Top 10、認証・認可、シークレット） → `reviewer-security`
-- パフォーマンス（N+1、ホットパス、メモリ） → `reviewer-performance`
+- セキュリティ脆弱性（OWASP Top 10、認証・認可、シークレット） → `rev-security`
+- パフォーマンス（N+1、ホットパス、メモリ） → `rev-performance`
 
 ただし「正しさのバグ」がセキュリティ・パフォーマンスにも波及する場合は遠慮せず指摘し、観点境界が微妙な旨を「全体評価」に記載すること。
 

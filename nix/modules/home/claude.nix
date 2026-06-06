@@ -11,23 +11,23 @@ let
   dotfiles = "${config.home.homeDirectory}/.dotfiles";
 in
 {
-  # ~/.claude/{agents,skills,settings.json,CLAUDE.md,AGENTS.md} を
+  # ~/.claude/{skills,settings.json,CLAUDE.md,AGENTS.md} を
   # dotfiles から symlink する。
   # AGENTS.md はグローバル指示のマスターで Claude Code は CLAUDE.md の
   # @AGENTS.md import で取り込む。Codex 等の他 AI ツール向けには
   # nix/modules/home/codex.nix が同じ AGENTS.md を ~/.codex/AGENTS.md に
   # symlink して共有する。
   #
-  # 二層レイアウト (DOT-XX): 個人・常用層 (claude/skills = 自作 + 外部 vendor)
-  # だけを ~/.claude/ に link する。公式スキルを束ねた fleet 層
-  # (claude/fleet/skills, skills CLI が npx skills update で管理) は
-  # 意図的に link しない (global に常時展開しない)。fleet 層は Claude Code on
-  # the web の SessionStart hook claude/fleet/inject-fleet.sh が
-  # CLAUDE_CODE_REMOTE 環境でのみ ~/.claude/skills へ inject する canonical 方式。
-  # claude/ 配下を個別 path で link しているため claude/fleet/ は自動的に
-  # link 対象外になる (ここに fleet エントリを足さないことが調整内容)。
+  # 二層レイアウト: 個人・常用層 (claude/skills = 自作 + 外部 vendor)
+  # だけを ~/.claude/ に link する。AI 組織専用の fleet 層
+  # (claude/fleet/skills = 公式 vendored スキル, claude/fleet/agents = dev-*/rev-*
+  # サブエージェント。DOT-45 で claude/agents から移動) は意図的に link しない
+  # (global に常時展開しない)。fleet 層は Claude Code on the web の SessionStart
+  # hook claude/fleet/inject-fleet.sh が CLAUDE_CODE_REMOTE 環境でのみ
+  # ~/.claude/{skills,agents} へ inject する canonical 方式。claude/ 配下を個別
+  # path で link しているため claude/fleet/ は自動的に link 対象外になる
+  # (ここに fleet エントリ・agents エントリを足さないことが調整内容)。
   home.file = {
-    ".claude/agents".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/agents";
     ".claude/skills".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
     ".claude/settings.json".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/settings.json";
     ".claude/CLAUDE.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/CLAUDE.md";

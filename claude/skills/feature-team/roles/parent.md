@@ -43,28 +43,28 @@
 
 ## 2. Developer 選定基準
 
-### 10 種の特化版
+### 7 種の特化版（＋ generic フォールバック）
+
+言語・ランタイムの土台で括り、framework / プラットフォーム固有はスキルで載せる設計。各 `dev-*` の frontmatter `skills:` 許可リストが framework 固有の手順を供給する。
 
 | Developer | 想定スタック・領域 |
 |-----------|----|
-| `developer-react` | React (CRA / Vite / pure React)。状態管理 (Redux/Zustand) 含む。Next.js 専用機能は含めない |
-| `developer-nextjs` | Next.js (App Router / Pages Router)。SSR / RSC / API Routes / middleware |
-| `developer-flutter` | Flutter / Dart。iOS/Android のネイティブブリッジ含む |
-| `developer-go` | Go。標準ライブラリ・goroutine / channel パターン |
-| `developer-nodejs` | Node.js (フレームワークなし、または Express)。CLI ツール・サーバー両対応 |
-| `developer-hono` | Hono フレームワーク。Cloudflare Workers / Bun / Deno デプロイターゲット |
-| `developer-nestjs` | NestJS。依存注入・モジュール設計・TypeORM/Prisma 統合 |
-| `developer-rust` | Rust。所有権・ライフタイム・async (tokio) |
-| `developer-ruby` | Ruby / Rails。ActiveRecord・migration・rspec |
-| `developer-generic` | 上記いずれにも該当しない場合のフォールバック |
+| `dev-react` | React Web (Vite / CRA / pure React、Redux/Zustand) **＋ Next.js** (App Router / RSC / Server Actions / Route Handlers / middleware)。Next.js 固有は `next-*` スキルで供給 |
+| `dev-react-native` | React Native / Expo (React + TS、モバイル＋デスクトップ)。Expo Router / EAS。Expo・RN スキルで供給 |
+| `dev-flutter` | Flutter / Dart。iOS/Android のネイティブブリッジ含む。flutter/dart スキルで供給 |
+| `dev-nodejs` | バックエンド JS/TS: Node.js (framework なし / Express)、**NestJS** (DI・三層)、**Hono** (エッジ・マルチランタイム)。CLI / サーバー両対応 |
+| `dev-go` | Go。標準ライブラリ・goroutine / channel パターン |
+| `dev-rust` | Rust。所有権・ライフタイム・async (tokio) |
+| `dev-infra` | IaC (Terraform)・Docker・CI/CD (GitHub Actions)・PaaS デプロイ (GAE/Firebase/Vercel/Cloudflare) |
+| `dev-generic` | 上記いずれにも該当しない場合のフォールバック |
 
 ### 選定アルゴリズム
 
 ```
 1. sub-issue の本文・タグ・対象ファイル拡張子から主要スタックを推定
 2. 上記表に該当があれば特化版を選ぶ
-3. 該当なし → developer-generic
-4. 複数該当 (例: Next.js + Hono の monorepo の sub-issue)
+3. 該当なし → dev-generic
+4. 複数該当 (例: Next.js フロント + Hono バックエンドの monorepo の sub-issue)
    → 主要な変更領域で判断。判定困難なら親が分割を検討 (sub-issue を分けて create-issue にやり直し依頼)
 ```
 
@@ -81,22 +81,22 @@
 
 | Reviewer | 主に見る観点 |
 |----------|----|
-| `reviewer-security` | OWASP Top 10、認証・認可、入力バリデーション、秘密情報の取扱い、依存ライブラリの既知脆弱性、SSRF/XSS/SQL/コマンドインジェクションリスク |
-| `reviewer-performance` | ホットパス (リクエスト処理、ループ内処理)、N+1 クエリ、不要な再計算、メモリリーク、大量データ処理のスケーラビリティ、I/O ブロッキング |
-| `reviewer-quality` | バグ・機能的正確性、可読性、命名、抽象化の整合、DRY、テストカバレッジ、コメント品質、エラーハンドリングの妥当性、規約遵守。**CONTEXT.md / docs/adr/ が存在する場合は候補スクリーニング** (3.5 参照) |
+| `rev-security` | OWASP Top 10、認証・認可、入力バリデーション、秘密情報の取扱い、依存ライブラリの既知脆弱性、SSRF/XSS/SQL/コマンドインジェクションリスク |
+| `rev-performance` | ホットパス (リクエスト処理、ループ内処理)、N+1 クエリ、不要な再計算、メモリリーク、大量データ処理のスケーラビリティ、I/O ブロッキング |
+| `rev-quality` | バグ・機能的正確性、可読性、命名、抽象化の整合、DRY、テストカバレッジ、コメント品質、エラーハンドリングの妥当性、規約遵守。**CONTEXT.md / docs/adr/ が存在する場合は候補スクリーニング** (3.5 参照) |
 
 ### 起動判定
 
 `.claude/project.yml` の `review.default_reviewers` を起点に、各 sub-issue / branch ごとに以下を加味して観点を決める。
 
-#### `reviewer-quality` は**全実装で必須**
+#### `rev-quality` は**全実装で必須**
 
 - 既定で全 sub-issue / branch / ad-hoc spec 実装に起動する
 - どんな小規模変更でも起動コストは小さく、抜け漏れ検出に有効
 - **省略不可**。Phase 0.4 (d) ルートの最小実装でも、Phase 2-B の親直実装でも、必ず 1 回は走らせる
-- このスキルが起動されない・reviewer-quality が走らないことが、規約違反・テスト不足・バグを素通りさせる主因なので、ここは絶対に妥協しない
+- このスキルが起動されない・rev-quality が走らないことが、規約違反・テスト不足・バグを素通りさせる主因なので、ここは絶対に妥協しない
 
-#### `reviewer-security` を**追加で起動する**条件
+#### `rev-security` を**追加で起動する**条件
 
 - ユーザー入力を受ける処理 (API endpoint, form, CLI 引数, file upload)
 - 認証・セッション・トークン管理
@@ -106,7 +106,7 @@
 - 暗号化・ハッシュ・乱数生成
 - 依存追加 (`package.json` / `Cargo.toml` / `go.mod` 等の更新)
 
-#### `reviewer-performance` を**追加で起動する**条件
+#### `rev-performance` を**追加で起動する**条件
 
 - DB クエリの追加・変更 (特にループ内)
 - バッチ処理・大量レコード処理
@@ -190,7 +190,7 @@
 | 兆候 | 対応 |
 |------|------|
 | `gh pr create` が既存 PR と衝突 | 既存 PR があれば再利用方針を pr-publisher へ追加指示 |
-| CodeRabbit 指摘の対応で大量修正が必要 | Phase 3 に差し戻し (reviewer-quality を再起動) |
+| CodeRabbit 指摘の対応で大量修正が必要 | Phase 3 に差し戻し (rev-quality を再起動) |
 | push で hook 失敗 (lint/test) | pr-publisher 内で fix → 再 push (破壊的操作はしない) |
 
 ### 親が直接 PR を作らない理由
@@ -225,8 +225,8 @@
 - **要件定義を自分で始めない**。Phase 0 で対象が不在/薄いとき、grill-me / brainstorming 等の対話を肩代わりせず、4 択案内で停止する
 - **`Skill(create-issue)` を呼ばない**。Issue 作成は前段の責務。`feature-team` は既に存在する issue または手元の spec/plan を消費するだけ
 - **Phase 0 で対象を推測しない**。issue 番号が不明、spec/plan が薄い、状況証拠だけがあるといった状況で「たぶんこれだろう」で進めない。確信が持てなければユーザーに確認する
-- **3 条件判定を `reviewer-quality` や親が代行しない**。ADR 化判断は `Skill(grill-with-docs)` に必ず委譲する (詳細は 8. 参照)
-- **CONTEXT.md / ADR を勝手に書き換えない**。reviewer-quality からの候補列挙を起点に、用語追記は直接 Edit してよいが、ADR は必ず grill-with-docs を経由する
+- **3 条件判定を `rev-quality` や親が代行しない**。ADR 化判断は `Skill(grill-with-docs)` に必ず委譲する (詳細は 8. 参照)
+- **CONTEXT.md / ADR を勝手に書き換えない**。rev-quality からの候補列挙を起点に、用語追記は直接 Edit してよいが、ADR は必ず grill-with-docs を経由する
 
 ## 8. CONTEXT.md / ADR 連携
 
@@ -236,7 +236,7 @@
 
 | 主体 | 責務 |
 |------|------|
-| `reviewer-quality` | 候補スクリーニング: 新用語・重要決定を Minor / Major 指摘として列挙する。3 条件判定はしない |
+| `rev-quality` | 候補スクリーニング: 新用語・重要決定を Minor / Major 指摘として列挙する。3 条件判定はしない |
 | 親 (メイン Claude) | 集約と起動判断: 用語追記は直接 Edit、ADR 化候補はユーザーに 3 択提示して `Skill(grill-with-docs)` を呼ぶ |
 | `Skill(grill-with-docs)` | 3 条件 (Hard to reverse / Surprising without context / Real trade-off) の最終判定、ADR の書き出し、CONTEXT.md の正規フォーマット適用 |
 
@@ -250,7 +250,7 @@
 
 ### 8.3 親の動き (Phase 3.5)
 
-1. reviewer-quality の候補列挙を読む
+1. rev-quality の候補列挙を読む
 2. **CONTEXT.md 追記候補 (Minor)**: 親が直接 Edit で追記。フォーマットは `CONTEXT-FORMAT.md` 準拠。実装コミットと混ぜず別コミット (`docs: add <term> to CONTEXT.md` 等)
 3. **ADR 化候補 (Major)**: `AskUserQuestion` で 3 択提示:
    - (i) 今すぐ `Skill(grill-with-docs)` で対話判定
@@ -260,7 +260,7 @@
 
 ### 8.4 該当ファイルが存在しないリポジトリでの挙動
 
-- reviewer-quality の追加プロンプトを**含めない** (起動コスト削減 + プロンプト膨張回避)
+- rev-quality の追加プロンプトを**含めない** (起動コスト削減 + プロンプト膨張回避)
 - 親側の Phase 3.5 もスキップ
 - 静かに退避する (ユーザーに「CONTEXT.md がありません」と通知しない)
 
@@ -293,7 +293,7 @@
 - 設計判断 / 代替案検討 / 前提整理 / ドメイン探求はしない (それは grill-me / brainstorming の責務)
 - **質問が 3 つ目を超えそうになったら、ad-hoc 運用を中断して grill-me / brainstorming に案内し直す**
 - ad-hoc spec のファイル化はデフォルト無し。ユーザーが「後で振り返れる形にしたい」と希望したときのみ `docs/superpowers/specs/` に書き出す
-- ad-hoc spec で実装するときも Phase 3 の reviewer-quality は必須
+- ad-hoc spec で実装するときも Phase 3 の rev-quality は必須
 
 #### ad-hoc 運用が向くケース
 

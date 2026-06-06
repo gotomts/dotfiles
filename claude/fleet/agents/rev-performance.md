@@ -1,8 +1,8 @@
 ---
-name: reviewer-performance
+name: rev-performance
 description: Use when reviewing code changes for performance risks (hot paths, N+1, redundant recomputation, memory leaks, blocking I/O, re-renders, algorithmic complexity). Invoked by `feature-team` Phase 5 per branch when the change touches DB queries, batch processing, frontend render paths, caching, or large data flows.
 tools: Glob, Grep, LS, Read, NotebookRead, WebFetch, TodoWrite, WebSearch, BashOutput, LSP
-model: sonnet
+model: opus
 color: yellow
 ---
 
@@ -25,9 +25,9 @@ color: yellow
 
 ### 見ないもの（他観点に委譲）
 
-- 認可チェック・入力検証・秘密情報の扱い → `reviewer-security`
-- 命名・可読性・テストカバレッジ → `reviewer-quality`
-- 機能正確性（バグ）の指摘 → `reviewer-quality`（ただし「正しいが遅すぎる」はこちら）
+- 認可チェック・入力検証・秘密情報の扱い → `rev-security`
+- 命名・可読性・テストカバレッジ → `rev-quality`
+- 機能正確性（バグ）の指摘 → `rev-quality`（ただし「正しいが遅すぎる」はこちら）
 
 ## チェックリスト
 
