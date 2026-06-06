@@ -6,6 +6,10 @@
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
 - `claude/agents/` — マルチエージェント開発用サブエージェント定義（developer × 10 / reviewer × 3 / pr-publisher × 1 = 14 体。`~/.claude/agents/` にシンボリックリンク）
+- `claude/fleet/` — AI 組織（fleet）専用リソース。global に symlink せず、SessionStart hook が remote 時のみ inject する（後述「Claude Code 設定」参照）
+- `claude/fleet/skills/` — AI 組織専用の公式 vendored スキル群（global に symlink しない）
+- `claude/fleet/inject-fleet.sh` — canonical 注入 hook
+- `claude/fleet/skills-lock.json` — 公式 vendor の更新管理
 - `claude/mcp-servers.json` — user scope の MCP server 宣言（home-manager activation で `~/.claude.json` に merge）
 - `config/` — アプリケーション設定（starship, yazi, cmux）（`~/.config/` にシンボリックリンク）
 - `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
@@ -45,7 +49,12 @@
 - `claude/AGENTS.md` はグローバル指示のマスター (SSOT)。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`nix/modules/home/codex.nix`) で同じ AGENTS.md を読む
 - `claude/CLAUDE.md` は `@AGENTS.md` 1 行のみの薄い参照ファイル。プロジェクト固有のルールはここに書かない (グローバル指示は `claude/AGENTS.md` 側に集約)
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
-- `claude/skills/` にはカスタムスキルを配置する
+- スキルは二層で管理する：
+  - `claude/skills/` ＝個人・常用層。`~/.claude/skills` に symlink され、全セッション（ローカル / remote）で可視
+  - `claude/fleet/skills/` ＝AI 組織（fleet）専用層。global に symlink せず、SessionStart hook (`claude/fleet/inject-fleet.sh`) が remote 時のみ `~/.claude/skills` に inject する
+- 出所マーカー（安全ルール）：SKILL.md frontmatter の `maintainer: gotomts` ＝自作・編集可。**無印＝外部由来（vendor）・中身は編集しない**（更新は `npx skills update`）
+- 公式スキルの取り込み：`npx skills add` で `claude/fleet/skills/` に vendor する（CLI ネイティブの仕組みに任せ、自作の取り込みスクリプトは持たない）
+- 注入方針：canonical hook 方式のみを使う。`curl | bash` 型の Setup script は使わない（供給網リスク・キャッシュ陳腐化のため）。各 AI 組織リポジトリには hook 本体（フル canonical）をコミットする。hook は remote-gated（`CLAUDE_CODE_REMOTE=true` のときだけ動作）・冪等・ローカルでは no-op
 - `claude/hooks/` 配下のフックスクリプトは PreCompact で未 handover 時のコンパクトをブロックし、SessionStart / UserPromptSubmit で未消費メモを Claude に通知する
 - `claude/mcp-servers.json` は user scope の MCP server を declarative 宣言する。`darwin-rebuild switch` 時に `nix/modules/home/claude.nix` の `home.activation.syncClaudeMcpServers` が `~/.claude.json` の `mcpServers` キーに recursive merge する (add-only、claude.ai connector など宣言外エントリは保持)。`~/.claude.json` は Claude Code が動的に書き換える running config (OAuth token を含む) のため symlink 化できない事情への対応
 
