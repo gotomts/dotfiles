@@ -1,5 +1,6 @@
 ---
 name: feature-team
+maintainer: gotomts
 description: 実装専任のチーム展開スキル。実装対象 (issue 番号/ID または spec/plan パス) を引数で受け取り、developer 並列起動 → reviewer 観点別 → pr-publisher で PR まで自走する。要件定義 (brainstorming/grill-me/grill-with-docs) や issue 作成 (create-issue) は外部スキルの責務でこのスキルではやらない。
 allowed-tools:
   - Skill

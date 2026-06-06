@@ -1,5 +1,6 @@
 ---
 name: sleep-guard
+maintainer: gotomts
 description: Mac の蓋を閉じても Claude Code を動かし続けるためのスリープ管理。
 argument-hint: on / off
 allowed-tools:

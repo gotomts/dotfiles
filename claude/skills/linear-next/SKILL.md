@@ -1,5 +1,6 @@
 ---
 name: linear-next
+maintainer: gotomts
 description: Linear の active issue (Backlog/Todo/In Progress) を確認し、依存関係・進行中作業・現在のブランチ状態を統合して、次にやるべき issue を推奨順で提示する。「次に何やる？」「Linear 確認して」「優先度教えて」と聞かれたら必ず使う。引数なしで動作。
 argument-hint: "[--epic <issue-id> | --all]"
 allowed-tools:

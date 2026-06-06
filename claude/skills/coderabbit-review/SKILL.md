@@ -1,5 +1,6 @@
 ---
 name: coderabbit-review
+maintainer: gotomts
 description: PR の CodeRabbit インラインコメントを確認し、指摘への対応・リプライを行う。
 argument-hint: <PR番号 or PR URL>
 allowed-tools:
