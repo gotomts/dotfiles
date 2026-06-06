@@ -6,11 +6,10 @@ DOTFILES_REPO="${DOTFILES_REPO:-https://github.com/gotomts/dotfiles}"
 DOTFILES_REF="${DOTFILES_REF:-main}"
 DEST="${HOME}/.claude"
 log() { echo "[inject-fleet] $*"; }
-git config --global --add safe.directory '*' >/dev/null 2>&1 || true
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 log "cloning dotfiles ($DOTFILES_REF) ..."
 git clone --depth 1 --filter=blob:none --sparse --branch "$DOTFILES_REF" "$DOTFILES_REPO" "$TMP/dotfiles"
-git -C "$TMP/dotfiles" sparse-checkout set claude
+git -c safe.directory="$TMP/dotfiles" -C "$TMP/dotfiles" sparse-checkout set claude
 SRC="$TMP/dotfiles/claude"; mkdir -p "$DEST"
 rm -rf "${DEST:?}/skills"; mkdir -p "$DEST/skills"
 [ -d "$SRC/skills" ]       && cp -R "$SRC/skills/."       "$DEST/skills/"
