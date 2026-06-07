@@ -91,8 +91,8 @@ allowed-tools:
 
 **Step 3 — SessionStart 登録（settings.json マージ）**
 
-- 登録コマンド: `bash "$CLAUDE_PROJECT_DIR/.claude/hooks/inject-fleet.sh"`。
-  - ※ 実装時に SCN-31 / ANTTT-32 の committed hook 参照形へ突合して最終確定する。hook は remote-gated（`CLAUDE_CODE_REMOTE != true` で `exit 0`）のため、local を含む全環境に登録しても無害。
+- 登録コマンド: `bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/inject-fleet.sh"`。
+  - `${CLAUDE_PROJECT_DIR}` は Claude Code 公式 docs が定めるリポジトリルートの placeholder／環境変数で、SessionStart hook からもアクセス可能（確認済み）。hook は remote-gated（`CLAUDE_CODE_REMOTE != true` で `exit 0`）のため、local を含む全環境に登録しても無害。
 - settings.json 無し → SessionStart エントリ付きで新規作成。
 - 有り → `jq` で安全にマージ。同等エントリが既にあれば追加しない（冪等）。
 - settings.json が不正 JSON → clobber せず abort してユーザーに報告。
