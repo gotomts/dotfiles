@@ -133,13 +133,13 @@ feature-team は AFK を止まらず消化、HITL は人の関所で止まる。
 - 承認：AGENTS の Linear 書き込みルール（都度承認 or「常に許可」設定）に従う。**起票ターンは AskUserQuestion を併用しない**（同一ターン併用は承認モーダルを潰す疑い）。バッチ起票は 1 ターンで複数 save_issue。
 - 破壊的な「全消し→再作成」はしない（冪等な update/create のみ）。
 
-## 推奨スキル注釈（dev-* × スキル）
+## 推奨スキル注釈（`dev-*` × スキル）
 
-各 issue に「どの dev-* で・どのスキルを使って実装するか」の助言を `### 推奨スキル` として付ける。
+各 issue に「どの `dev-*` で・どのスキルを使って実装するか」の助言を `### 推奨スキル` として付ける。
 
-- **責務＝助言（advisory）**：issue-decomposer は「推奨 dev-*＋推奨スキル＋理由」を提案として書くが、**最終的な dev-* 選定は feature-team parent が権威**。parent は自分が選んだ dev-* の `skills:` 許可リストと推奨スキルを交差させ、外れたものは落とす（安全フォールバック）。
+- **責務＝助言（advisory）**：issue-decomposer は「推奨 `dev-*`＋推奨スキル＋理由」を提案として書くが、**最終的な `dev-*` 選定は feature-team parent が権威**。parent は自分が選んだ `dev-*` の `skills:` 許可リストと推奨スキルを交差させ、外れたものは落とす（安全フォールバック）。
 - **生成元**：dotfiles（`gotomts/dotfiles`）の `claude/agents/*.md` の `skills:` 許可リストと `claude/skills/*/SKILL.md` の name＋description を GitHub MCP で直読し、issue 内容と突き合わせて提案する。
-- **フォーマット（リスト・スキルごとに理由）**：推奨 dev-* は見出しに 1 回だけ示し（1 issue＝1 dev-* 割当）、各スキルを `- skill-name：理由（1 行）` で列挙。
+- **フォーマット（リスト・スキルごとに理由）**：推奨 `dev-*` は見出しに 1 回だけ示し（1 issue＝1 `dev-*` 割当）、各スキルを `- skill-name：理由（1 行）` で列挙。
 
   ```
   ### 推奨スキル
