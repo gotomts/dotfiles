@@ -6,7 +6,7 @@
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
 - `claude/fleet/` — AI 組織（fleet）専用リソース。**default role ではローカルにも展開**し、remote では SessionStart hook が inject、別 role には展開しない（後述「Claude Code 設定」参照）
-- `claude/fleet/agents/` — マルチエージェント開発用サブエージェント定義（dev × 8 / rev × 3 / pr-publisher × 1 = 12 体。DOT-45 で `claude/agents/` から移動）
+- `claude/fleet/agents/` — マルチエージェント開発用サブエージェント定義（dev × 8 / rev × 3 / pr-publisher × 1 = 12 体）
 - `claude/fleet/skills/` — AI 組織専用の公式 vendored スキル群
 - `claude/fleet/inject-fleet.sh` — canonical 注入 hook（remote 専用）
 - `claude/fleet/skills-lock.json` — 公式 vendor の更新管理
@@ -52,7 +52,7 @@
 - スキル・サブエージェントは二層で管理する：
   - `claude/skills/` ＝個人・常用層。全 role の `~/.claude/skills` に展開され、全セッション（ローカル / remote）で可視
   - `claude/fleet/skills/`・`claude/fleet/agents/` ＝AI 組織（fleet）専用層。dev-*/rev-* サブエージェントと公式 vendored スキルを束ねる
-- fleet 層の配送（DOT-45 改訂で「AI 組織開発を default のベースにする」方針に確定）：
+- fleet 層の配送（「AI 組織開発を default のベースにする」方針）：
   - **ローカル（default role）**：`nix/modules/home/claude.nix` が fleet/agents を `~/.claude/agents` に symlink し、fleet/skills を個人層とマージして `~/.claude/skills` に per-entry symlink で展開する（個人層スキルと並存）。role は `/etc/dotfiles-role` で解決（`default` / `sub-1`）
   - **ローカル（default 以外の role）**：fleet は展開しない（個人層スキルのみ）。クライアント作業など fleet 不要な環境向け
   - **remote（Claude Code on the web）**：role に依らず SessionStart hook (`claude/fleet/inject-fleet.sh`) が `CLAUDE_CODE_REMOTE=true` のとき `~/.claude/{skills,agents}` に inject する
