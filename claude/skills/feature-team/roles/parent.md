@@ -75,6 +75,17 @@
 - 特化版が育てば育つほど中間層は不要化する
 - 該当がなければ generic で十分 (汎用エージェントは元々強い)
 
+### 選定後: 推奨スキルの受け渡し
+
+dev-* を選定したら、issue 本文の `### 推奨スキル` 注釈 (issue-decomposer がプラン時に付与する) を消費する 1 ステップを踏む:
+
+1. 選んだ dev-* のエージェント定義 frontmatter `skills:` 許可リストを Read で読む
+2. issue の `### 推奨スキル` と許可リストを**交差**させる (許可リストにあるものだけ残す)
+3. 残ったスキルを dev-* 起動プロンプトに「推奨スキル＋理由」として含める。dev-* は許可リスト内の progressive disclosure で本文をロードする
+4. **交差が空のとき** (issue が想定した dev-* と parent の選定がズレた / 推奨なし / 許可リストに無い) は**何も渡さない**。dev-* は通常どおり自動発見で実装する。**この不一致をユーザーに問わない** (実行時自律)
+
+許可リストの単一真実源はエージェント frontmatter のまま。parent.md に複製しない (drift 回避)。注釈の書式・生成は issue-decomposer の責務。
+
 ## 3. Reviewer 観点選定基準
 
 ### 3 観点固定
@@ -184,6 +195,15 @@
 6. spec / plan ファイルへの絶対パス (PR 本文への引用元、ad-hoc spec の場合は省略)
 7. Phase 3 の review summary (critical/major のみ、CONTEXT/ADR 更新の有無)
 8. 期待アクション: コミット整理 → push → `gh pr create` → `Skill(coderabbit-review)` 起動
+9. **auto-merge の可否** (下記「選択的 auto-merge」。AI 自走可なら有効化を指示、HITL/設計重なら無効)
+
+### 選択的 auto-merge の可否判断
+
+PR を開いただけでは auto-merge は発火しない (branch protection 設定だけでは不可。PR オープン時に明示有効化が必要)。親が HITL 状態から可否を判断し、pr-publisher に渡す:
+
+- **AI 自走マージ可の PR のみ** auto-merge を有効化する (pr-publisher が `gh pr merge --auto` を実行)。CI 緑で自動マージに乗せてよい、明確で狭い・低リスクなスライスが対象
+- **人間レビューが必要な PR** (HITL タグ・設計重スライス・§10 で Opus 格上げしたもの等) には **auto-merge を有効化しない**。AI 独断マージを避け、人間承認後のマージに委ねる
+- 可否は parent が決めて pr-publisher プロンプトに明示する (pr-publisher は自分で判断しない)
 
 ### 失敗パターンと対応
 
@@ -309,3 +329,26 @@
 - 設計判断を伴う
 - 既存挙動の変更 (破壊的変更の可能性)
 - 影響範囲が読めない
+
+## 10. モデル配分と HITL 格上げ
+
+ゲートとオーケストレータに Opus を集中し、developer は sonnet 既定、難所だけ格上げする方針。
+
+### 既定の配分
+
+| 層 | モデル | 備考 |
+|----|--------|------|
+| 親 (オーケストレータ＝起動側セッション) | Opus | 統合・差配・ラウンド超過時の親直修正 (§4) など高判断層。**feature-team は親を Opus で運用する前提** |
+| `rev-*` (quality 必須ゲート＋必要時 security/performance) | Opus | 品質の床 (受入条件達成・エッジ・テスト欠落・エラー処理・命名/抽象) を強く担保。実体は agent frontmatter `model:` (fleet 側で設定済み) |
+| `dev-*` | sonnet 既定 | 細かい垂直スライス＋BDD 受入条件なら sonnet で足りる |
+
+### HITL/設計重スライスの格上げ
+
+issue-decomposer が付ける **HITL タグ** (人の判断が要る＝設計重・リスク高の目印) が付いたスライス、または親が「設計判断を伴う / 影響範囲が読めない」と判断したスライスは、sonnet 既定から格上げする:
+
+- **Opus 作者**: 該当 dev-* を Opus で起動する (`Agent(..., model="opus")`)
+- **親直実装**: または親 (Opus) が Phase 2-B 相当で直接書く
+
+格上げは既存の HITL タグをトリガにする段階制で、新機構は設けない。HITL/設計重で格上げした PR は Phase 4 で auto-merge を有効化しない (§5)。
+
+留保: 強レビューは品質の床を上げるが、設計品質の天井は作者依存。手直し率を見て tier を調整する。

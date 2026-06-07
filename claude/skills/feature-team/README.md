@@ -34,9 +34,11 @@ pick-next (一括)                                                または
 ポイント:
 
 - **親はメイン Claude セッション自身** (サブエージェント化しない)
-- **子エージェントは `~/.claude/agents/` 配下の 14 体** (developer 10 + reviewer 3 + pr-publisher 1)
+- **子エージェントは `~/.claude/agents/`（fleet/agents 由来）の 12 体** (dev 8 + rev 3 + pr-publisher 1)
 - **レビュー往復は最大 3 ラウンド**で打ち切り、超過時は親介入 → ユーザー escalate
 - **rev-quality は全実装で必須**。規約違反・テスト不足の素通りを防ぐ最重要ハブ
+- **dev-* はテスト駆動** (red-green-refactor の垂直ループ。`roles/_common.md` の TDD 規律)
+- **親と rev-* は Opus、dev-* は sonnet 既定**。HITL/設計重スライスは Opus 作者 or 親直実装に格上げ
 - **設定は `.claude/project.yml`** (リポジトリ単位)。`feature-team` が読むのは `review.*` と `volume_thresholds.*` のみ
 
 ---
@@ -253,7 +255,7 @@ tN   ▼ feat/api が Round 3 でも収束しない
                           │ 親が prompt 注入
                           ▼ (Agent ツール呼び出し時、_common.md を埋め込む)
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ レイヤー B: エージェント (~/.claude/agents/) 14 体                        │
+│ レイヤー B: エージェント (~/.claude/agents/) 12 体                        │
 │   役割: 専門領域の知識・イディオム・典型エラー・テスト戦略                  │
 │   性質: 全プロジェクト横断資産。feature-team 以外からも呼べる              │
 │   内容:                                                                  │
@@ -275,13 +277,13 @@ tN   ▼ feat/api が Round 3 でも収束しない
 | # | 項目 | 設計値 |
 |---|------|--------|
 | A | 親 = メイン Claude セッション | サブエージェント化しない (ユーザー対話と escalate のため) |
-| B | スペシャリストの配置 | `~/.claude/agents/` 配下の 14 体 |
+| B | スペシャリストの配置 | `~/.claude/agents/`（fleet/agents 由来）の 12 体 |
 | C | プロトコルの注入方法 | 親が `roles/_common.md` の内容を Agent プロンプトに埋め込む |
 | D | レビュアー起動 | ストリーミング (developer 完了通知ごとに `run_in_background: true`) |
 | E | レビュー往復上限 | 3 ラウンド (`.claude/project.yml` の `review.round_limit` で上書き可) |
 | F | PR 単位 | 大規模 = n 個独立 PR / 小規模 = 1 個統合 PR |
 | G | reviewer の種類 | security / performance / quality の 3 観点固定 |
-| H | developer の種類 | 10 種特化 + generic フォールバック。中間層なし |
+| H | developer の種類 | 7 種特化 + generic フォールバック (計 8)。中間層なし |
 | I | スキル責務 | **実装専任**。要件定義 / 計画作成 / Issue 作成は前段の独立スキル |
 | J | 起動引数 | `<issue-番号|ID>` または `--spec <path> [--plan <path>]` または引数なし (4 択案内) |
 | K | worktree 管理 | worktrunk (`wt`) を使用 |
@@ -291,6 +293,10 @@ tN   ▼ feat/api が Round 3 でも収束しない
 | O | Phase 4 の PR 作成 | `pr-publisher` エージェントを branch ごとに `run_in_background=true` で並列起動 |
 | P | CONTEXT.md / ADR 連携 | CONTEXT.md / docs/adr/ 存在時のみ。rev-quality が候補列挙 → 用語追記は親が Edit、ADR 化判定は `Skill(grill-with-docs)` に委譲 |
 | Q | 前段スキルとの組み合わせ | `pick-next` / `brainstorming → writing-plans → create-issue` / `grill-me` or `grill-with-docs` + 手書き spec/plan / UI 手動 |
+| R | TDD 規律 | dev-* は red-green-refactor / 1 テスト→1 実装の垂直ループ / public interface 越しの behavior テスト (`roles/_common.md`)。trivial はスケールダウン可 |
+| S | モデル配分 | 親・rev-* = Opus / dev-* = sonnet 既定。HITL・設計重スライスは Opus 作者 (`model="opus"`) or 親直実装に格上げ (`parent.md` §10) |
+| T | 推奨スキルの受け渡し | parent が選定 dev-* の `skills:` 許可リストで issue の `### 推奨スキル` を絞り、起動プロンプトに渡す。交差が空なら渡さない (`parent.md` §2) |
+| U | pr-publisher の auto-merge | AI 自走可 PR のみ有効化 (`gh pr merge --auto`)。HITL/設計重は無効。可否は parent が判断して渡す (`parent.md` §5) |
 
 ---
 
@@ -336,11 +342,11 @@ tN   ▼ feat/api が Round 3 でも収束しない
 - 規約違反・テスト不足・バグの素通り防止の最後の砦なので、新設計では SKILL.md / parent.md 両方で**全実装必須**を強調する形に統一した
 - ad-hoc spec (Phase 0.4 (d)) の小実装でも省略不可
 
-### なぜ developer を 10 種に絞ったのか
+### なぜ developer を 7 種特化＋generic に絞ったのか
 
 - 中間層 (frontend / backend) は特化版より弱く generic より中途半端で、選定ロジックも複雑化する
-- 10 種は現実的なカバレッジ (react / nextjs / flutter / go / nodejs / hono / nestjs / rust / ruby / generic)
-- 該当なしは `dev-generic` でフォールバックすれば運用上問題ない
+- 言語/ランタイムの土台で括り、framework 固有はスキルで載せる: react[+Next.js] / react-native / flutter / nodejs[+NestJS/Hono] / go / rust / infra の 7 特化
+- 該当なしは `dev-generic` でフォールバックすれば運用上問題ない (計 8 体)
 
 ### なぜレビュー上限を 3 ラウンドにしたのか
 
@@ -366,13 +372,39 @@ tN   ▼ feat/api が Round 3 でも収束しない
 - CodeRabbit 指摘対応が大量修正に発展した場合の切り分け (Phase 3 へ差し戻すべきか pr-publisher 内で完結するか) が、エージェント単位の完了通知で明確になる
 - 親は集約・通知に専念でき、メイン context の圧迫を抑えられる
 
+### なぜ TDD を `_common.md` に注入したのか (Skill 都度呼びでなく)
+
+- TDD は安定した既知規律で、エッセンスの蒸留は低リスク (grill-with-docs の可変判定基準とは性質が違い SSOT 厳守の必要性が低い)
+- 全 developer に常時効かせたい規律なので、`Skill(tdd)` の都度呼び (重い) や各エージェント個別記述 (分散) より `_common.md` 一括注入が効率的
+- フル版は `mattpocock/skills` の `tdd` を参照元として残し、`_common.md` はエッセンスのみ持つ
+
+### なぜ親・rev-* を Opus、dev-* を sonnet 既定にしたのか
+
+- ゲート (rev-*) とオーケストレータ (親) に Opus を集中すると、品質の床 (受入条件・エッジ・テスト欠落) と差配・親直修正の判断層を強く担保できる
+- 細かい垂直スライス＋BDD 受入条件なら dev-* は sonnet で「外しにくい形」になり、大半はこれで足りる
+- 難所だけ HITL タグをトリガに Opus 作者 or 親直実装へ格上げする段階制 (新機構を増やさない)
+- 留保: 強レビューは床を上げるが設計品質の天井は作者依存。手直し率を見て tier を調整する
+
+### なぜ auto-merge を選択的にしたのか
+
+- auto-merge は branch protection だけでは発火せず PR オープン時に明示有効化が要る (実証済み)
+- AI 自走可の明確・低リスク PR は `gh pr merge --auto` で自動マージに乗せ、人手を介さず回す
+- HITL/設計重 PR には有効化せず人間承認後マージに委ねる (AI 独断マージの防止)
+- 可否判断は HITL 状態を持つ親に集約し、pr-publisher には結論だけ渡す (子に判断させない)
+
+### なぜ推奨スキルを許可リストで絞って渡すのか
+
+- issue-decomposer が issue 本文に付ける `### 推奨スキル` を、選定 dev-* の frontmatter `skills:` 許可リストと交差させて渡すと、無関係スキルが dev-* プロンプトに混じらない
+- 許可リストの単一真実源はエージェント frontmatter のまま (parent.md に複製せず drift を避ける)
+- 交差が空のとき (選定ズレ・推奨なし) は静かに何も渡さず自動発見に委ねる。人に問わない (実行時自律)
+
 ---
 
 ## 改修するときの注意点
 
 ### `_common.md` を変更する前に
 
-子エージェントに注入される定型プロトコルなので、**全 14 体の挙動に影響**する。変更前に:
+子エージェントに注入される定型プロトコルなので、**全 12 体の挙動に影響**する。変更前に:
 
 1. 各 developer / reviewer のエージェント定義 (`~/.claude/agents/<agent>.md`) と矛盾しないか確認
 2. SKILL.md の Phase 2 / Phase 3 の Agent プロンプトテンプレートと整合しているか確認
