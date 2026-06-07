@@ -8,8 +8,16 @@ DEST="${HOME}/.claude"
 log() { echo "[inject-fleet] $*"; }
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 log "cloning dotfiles ($DOTFILES_REF) ..."
-git clone --depth 1 --filter=blob:none --sparse --branch "$DOTFILES_REF" "$DOTFILES_REPO" "$TMP/dotfiles"
-git -c safe.directory="$TMP/dotfiles" -C "$TMP/dotfiles" sparse-checkout set claude
+if ! timeout "${INJECT_FLEET_GIT_TIMEOUT:-30s}" \
+  git clone --depth 1 --filter=blob:none --sparse --branch "$DOTFILES_REF" "$DOTFILES_REPO" "$TMP/dotfiles"; then
+  log "warn: clone failed; skip injection"
+  exit 0
+fi
+if ! timeout "${INJECT_FLEET_GIT_TIMEOUT:-30s}" \
+  git -c safe.directory="$TMP/dotfiles" -C "$TMP/dotfiles" sparse-checkout set claude; then
+  log "warn: sparse-checkout failed; skip injection"
+  exit 0
+fi
 SRC="$TMP/dotfiles/claude"; mkdir -p "$DEST"
 rm -rf "${DEST:?}/skills"; mkdir -p "$DEST/skills"
 [ -d "$SRC/skills" ]       && cp -R "$SRC/skills/."       "$DEST/skills/"
