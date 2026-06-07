@@ -5,10 +5,10 @@
 - `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
-- `claude/agents/` — マルチエージェント開発用サブエージェント定義（developer × 10 / reviewer × 3 / pr-publisher × 1 = 14 体。`~/.claude/agents/` にシンボリックリンク）
-- `claude/fleet/` — AI 組織（fleet）専用リソース。global に symlink せず、SessionStart hook が remote 時のみ inject する（後述「Claude Code 設定」参照）
-- `claude/fleet/skills/` — AI 組織専用の公式 vendored スキル群（global に symlink しない）
-- `claude/fleet/inject-fleet.sh` — canonical 注入 hook
+- `claude/fleet/` — AI 組織（fleet）専用リソース。**default role ではローカルにも展開**し、remote では SessionStart hook が inject、別 role には展開しない（後述「Claude Code 設定」参照）
+- `claude/fleet/agents/` — マルチエージェント開発用サブエージェント定義（dev × 8 / rev × 3 / pr-publisher × 1 = 12 体）
+- `claude/fleet/skills/` — AI 組織専用の公式 vendored スキル群
+- `claude/fleet/inject-fleet.sh` — canonical 注入 hook（remote 専用）
 - `claude/fleet/skills-lock.json` — 公式 vendor の更新管理
 - `claude/mcp-servers.json` — user scope の MCP server 宣言（home-manager activation で `~/.claude.json` に merge）
 - `config/` — アプリケーション設定（starship, yazi, cmux）（`~/.config/` にシンボリックリンク）
@@ -49,9 +49,13 @@
 - `claude/AGENTS.md` はグローバル指示のマスター (SSOT)。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`nix/modules/home/codex.nix`) で同じ AGENTS.md を読む
 - `claude/CLAUDE.md` は `@AGENTS.md` 1 行のみの薄い参照ファイル。プロジェクト固有のルールはここに書かない (グローバル指示は `claude/AGENTS.md` 側に集約)
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
-- スキルは二層で管理する：
-  - `claude/skills/` ＝個人・常用層。`~/.claude/skills` に symlink され、全セッション（ローカル / remote）で可視
-  - `claude/fleet/skills/` ＝AI 組織（fleet）専用層。global に symlink せず、SessionStart hook (`claude/fleet/inject-fleet.sh`) が remote 時のみ `~/.claude/skills` に inject する
+- スキル・サブエージェントは二層で管理する：
+  - `claude/skills/` ＝個人・常用層。全 role の `~/.claude/skills` に展開され、全セッション（ローカル / remote）で可視
+  - `claude/fleet/skills/`・`claude/fleet/agents/` ＝AI 組織（fleet）専用層。dev-*/rev-* サブエージェントと公式 vendored スキルを束ねる
+- fleet 層の配送（「AI 組織開発を default のベースにする」方針）：
+  - **ローカル（default role）**：`nix/modules/home/claude.nix` が fleet/agents を `~/.claude/agents` に symlink し、fleet/skills を個人層とマージして `~/.claude/skills` に per-entry symlink で展開する（個人層スキルと並存）。role は `/etc/dotfiles-role` で解決（`default` / `sub-1`）
+  - **ローカル（default 以外の role）**：fleet は展開しない（個人層スキルのみ）。クライアント作業など fleet 不要な環境向け
+  - **remote（Claude Code on the web）**：role に依らず SessionStart hook (`claude/fleet/inject-fleet.sh`) が `CLAUDE_CODE_REMOTE=true` のとき `~/.claude/{skills,agents}` に inject する
 - 出所マーカー（安全ルール）：SKILL.md frontmatter の `maintainer: gotomts` ＝自作・編集可。**無印＝外部由来（vendor）・中身は編集しない**（更新は `npx skills update`）
 - 公式スキルの取り込み：`npx skills add` で `claude/fleet/skills/` に vendor する（CLI ネイティブの仕組みに任せ、自作の取り込みスクリプトは持たない）
 - 注入方針：canonical hook 方式のみを使う。`curl | bash` 型の Setup script は使わない（供給網リスク・キャッシュ陳腐化のため）。各 AI 組織リポジトリには hook 本体（フル canonical）をコミットする。hook は remote-gated（`CLAUDE_CODE_REMOTE=true` のときだけ動作）・冪等・ローカルでは no-op

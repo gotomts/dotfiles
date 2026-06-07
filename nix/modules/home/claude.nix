@@ -1,43 +1,51 @@
-{ pkgs, lib, config, ... }:
+{ pkgs, lib, config, role, ... }:
 
-# このモジュールは setup.zsh の claude/ symlink ループ + setup/install/10_claude.zsh の
-# symlink セクション（ステップ 2, 3）を home-manager で置換したもの (両スクリプト削除済み)。
-#
-# mkOutOfStoreSymlink で dotfiles working tree への直接 symlink を張るため、
-# skills/agents/hooks/設定ファイルの追加・編集は git pull (or 直接編集) で即反映される
-# (darwin-rebuild switch は不要)。トレードオフとして ~/.dotfiles/ が存在しない PC では
-# dangling symlink になるが、本リポジトリ前提の運用なので許容する。
+# ~/.claude/ の設定・skills・agents を dotfiles から配置する home-manager モジュール。
+# mkOutOfStoreSymlink で working tree を直接指すため、追加・編集は git pull で即反映される。
 let
   dotfiles = "${config.home.homeDirectory}/.dotfiles";
+  # default role = 自分の開発機 (fleet 層も展開)。sub-1 等 = fleet なし。
+  isDefault = role == "default";
 in
 {
-  # ~/.claude/{skills,settings.json,CLAUDE.md,AGENTS.md} を
-  # dotfiles から symlink する。
-  # AGENTS.md はグローバル指示のマスターで Claude Code は CLAUDE.md の
-  # @AGENTS.md import で取り込む。Codex 等の他 AI ツール向けには
-  # nix/modules/home/codex.nix が同じ AGENTS.md を ~/.codex/AGENTS.md に
-  # symlink して共有する。
-  #
-  # 二層レイアウト: 個人・常用層 (claude/skills = 自作 + 外部 vendor)
-  # だけを ~/.claude/ に link する。AI 組織専用の fleet 層
-  # (claude/fleet/skills = 公式 vendored スキル, claude/fleet/agents = dev-*/rev-*
-  # サブエージェント。DOT-45 で claude/agents から移動) は意図的に link しない
-  # (global に常時展開しない)。fleet 層は Claude Code on the web の SessionStart
-  # hook claude/fleet/inject-fleet.sh が CLAUDE_CODE_REMOTE 環境でのみ
-  # ~/.claude/{skills,agents} へ inject する canonical 方式。claude/ 配下を個別
-  # path で link しているため claude/fleet/ は自動的に link 対象外になる
-  # (ここに fleet エントリ・agents エントリを足さないことが調整内容)。
+  # 個人層 (claude/skills) は全 role で可視。fleet 層 (claude/fleet/{skills,agents})
+  # は default role のみローカル展開。remote では inject-fleet.sh が別途 inject する。
   home.file = {
-    ".claude/skills".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
     ".claude/settings.json".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/settings.json";
     ".claude/CLAUDE.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/CLAUDE.md";
     ".claude/AGENTS.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/AGENTS.md";
+  }
+  // lib.optionalAttrs isDefault {
+    ".claude/agents".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/fleet/agents";
+  }
+  // lib.optionalAttrs (!isDefault) {
+    ".claude/skills".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
   };
 
-  # claude plugin の宣言的同期。
-  # enabledPlugins キーを settings.json から読んで CLI で install/update を実行する。
-  # writeBoundary 後に走らせることで symlink が確立された状態で実行される。
-  # 関数化により set +e / return 0 を局所化し、後続 activation への漏出を防ぐ。
+  # default role の ~/.claude/skills は個人層 + fleet 層のマージ。2 つの source dir を
+  # 1 symlink で束ねられず、eval 時の dir 読み取りは CI を壊すため、activation で
+  # per-entry symlink を張り直す (working tree を指すので編集は即反映)。
+  home.activation.claudeFleetSkills = lib.mkIf isDefault (
+    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      _link_claude_skills() {
+        set +e
+        local target="''${HOME}/.claude/skills"
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/rm -rf "$target"
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p "$target"
+        local src entry
+        for src in "${dotfiles}/claude/skills" "${dotfiles}/claude/fleet/skills"; do
+          [ -d "$src" ] || continue
+          for entry in "$src"/*; do
+            [ -e "$entry" ] || continue
+            $DRY_RUN_CMD ${pkgs.coreutils}/bin/ln -sfn "$entry" "$target/$(${pkgs.coreutils}/bin/basename "$entry")"
+          done
+        done
+      }
+      _link_claude_skills
+    ''
+  );
+
+  # claude plugin の宣言的同期。settings.json の enabledPlugins を CLI で install/update。
   home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     _run_claude_plugin_sync() {
       set +e  # 個々のプラグイン失敗で関数内処理を止めない
@@ -70,11 +78,9 @@ in
     _run_claude_plugin_sync
   '';
 
-  # MCP server の user scope を declarative に同期する。
-  # ~/.claude.json は Claude Code が動的に書き換える running config (OAuth token・
-  # projects 別 state を含む) で symlink 化できないため、dotfiles 側の宣言を
-  # activation 時に jq で recursive merge する。
-  # claude.ai connector など宣言外のエントリは保持する add-only 設計。
+  # MCP server (user scope) の declarative 同期。~/.claude.json は Claude Code が動的に
+  # 書き換える running config (OAuth token 等) で symlink 化できないため、jq で
+  # recursive merge する (add-only、宣言外エントリは保持)。
   home.activation.syncClaudeMcpServers = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     _run_claude_mcp_sync() {
       set +e
