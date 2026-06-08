@@ -200,8 +200,8 @@ args: <SPEC> <PLAN>
 
 | 日付       | タイトル                   | 親 Issue |
 |------------|---------------------------|---------|
-| 2026-05-14 | auth-rate-limit-improve   | KISSA-72 |
-| 2026-05-07 | coffee-log-export         | KISSA-65 |
+| 2026-05-14 | auth-rate-limit-improve   | ABC-103 |
+| 2026-05-07 | coffee-log-export         | ABC-104 |
 ```
 
 ### `--review`

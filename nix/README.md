@@ -93,7 +93,7 @@ sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 
 ## Per-host 構成 (/etc/dotfiles-role)
 
-複数 Mac で dotfiles を運用する際、PC ごとに異なる subset を入れるための仕組み (DOT-39)。`/etc/dotfiles-role` (root 所有、machine-wide 設定) で切り替える。
+複数 Mac で dotfiles を運用する際、PC ごとに異なる subset を入れるための仕組み。`/etc/dotfiles-role` (root 所有、machine-wide 設定) で切り替える。
 
 ### 有効な role
 
@@ -295,7 +295,7 @@ Determinate uses its own daemon to manage the Nix installation that
 conflicts with nix-darwin's native Nix management.
 ```
 
-`nix/darwin.nix` で `nix.enable = false;` が宣言されているか確認する。S14 (KISSA-46) で対処済みの本番ブロッカー。詳細は `nix/darwin.nix` のコメントを参照。
+`nix/darwin.nix` で `nix.enable = false;` が宣言されているか確認する。S14 で対処済みの本番ブロッカー。詳細は `nix/darwin.nix` のコメントを参照。
 
 ### `USER env var is empty` で `darwin-rebuild` が落ちる
 

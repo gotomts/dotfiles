@@ -121,7 +121,7 @@ Phase 1: ボリューム判断 (parent.md のしきい値)
 ```
 /feature-team <issue-番号|ID>
   例: /feature-team 123          (GitHub Issue 番号)
-       /feature-team KISSA-72   (Linear Issue ID)
+       /feature-team ABC-123   (Linear Issue ID)
 
 /feature-team --spec <path> [--plan <path>]
   例: /feature-team --spec docs/superpowers/specs/2026-05-27-foo-design.md
@@ -212,7 +212,7 @@ wt list
 
 ブランチ命名規則 (tracker 別。Linear ID または GitHub issue 番号をブランチ名に含めることで、Linear の git automation [start → In Progress, review → In Review, merge → Done] と GitHub の issue 参照解決を両立させる):
 
-- tracker = linear: `feature/<slug>-<TEAM-XX>` (例: `feature/cleanup-skills-DOT-42`)
+- tracker = linear: `feature/<slug>-<TEAM-XX>` (例: `feature/cleanup-skills-ABC-123`)
 - tracker = github: `feature/<slug>-issue-<sub-issue-番号>`
 
 > **注意:** Bash ツール経由では `wt switch -c` のシェル統合 (自動 `cd`) が効かない場合がある。`wt list` の出力から worktree 絶対パスを取得し、以降の Bash コマンドはそのパス内で実行するよう Agent に明示する。

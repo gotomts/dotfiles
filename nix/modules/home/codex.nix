@@ -1,6 +1,6 @@
 { config, ... }:
 
-# このモジュールは Codex CLI 用の dotfiles を home-manager で symlink する (DOT-38)。
+# このモジュールは Codex CLI 用の dotfiles を home-manager で symlink する。
 #
 # project-level AGENTS.md はリポジトリ root に置かれ、Codex CLI が working
 # directory の AGENTS.md を自動検出するため symlink せず repo 内に閉じる。

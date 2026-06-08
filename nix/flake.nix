@@ -54,7 +54,7 @@
       #   - 最初の content 行を role 値として採用
       #   - 認める値: "default" | "sub-1"
       #
-      # /etc/dotfiles-role を使う理由 (DOT-39):
+      # /etc/dotfiles-role を使う理由:
       #   role は「この物理 Mac の identity」でありマシン単位の宣言。
       #   ユーザー単位の設定ではないため /etc/ 配下が semantically 正しい。
       #   また、sudo darwin-rebuild 実行時に Nix が security 上 HOME を passwd の

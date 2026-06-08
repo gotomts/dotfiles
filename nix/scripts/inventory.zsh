@@ -3,7 +3,7 @@
 # 現マシンの macOS 設定を自動ダンプし、人間 triage 用チェックリストを生成する。
 # 出力先: ~/.dotfiles/docs/inventory/<hostname>-<YYYY-MM-DD>.md
 #
-# 刷新: defaults export | python3 plistlib ベース (DOT-24)
+# 刷新: defaults export | python3 plistlib ベース
 #   旧実装の "defaults read を行単位で flatten" を廃止。
 #   plistlib で構造化解析し、bookmark バイナリ・構造記号・機械的 metadata を除去。
 #   出力行数を 5,000+ 行 → 300 行以下に圧縮。

@@ -6,7 +6,7 @@
 #   setup.zsh は ~/.aliase / ~/.functions 等を dotfiles/ 内ディレクトリへの
 #   dir-symlink として配置していた。home-manager の home.file がこれらの
 #   ディレクトリ内にファイルを配置しようとすると、dotfiles リポジトリ内に
-#   <file>.before-nix バックアップが生成される問題があった (DOT-27)。
+#   <file>.before-nix バックアップが生成される問題があった。
 #
 # 解決策:
 #   dir-symlink をいったん削除し、home-manager が proper directory として
@@ -29,7 +29,6 @@
 #   各ファイルを配置する。
 #
 # 関連:
-#   - Linear: DOT-27
 #   - nix/README.md: "既存 PC 移行手順 (dir-symlink → proper directory)" セクション
 
 set -eu

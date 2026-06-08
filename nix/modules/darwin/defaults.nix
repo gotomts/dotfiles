@@ -1,4 +1,4 @@
-# nix-darwin macOS defaults モジュール (S10 / KISSA-30)
+# nix-darwin macOS defaults モジュール (S10)
 # specialArgs 由来: inputs / username / role (flake.nix から注入)
 # 自動注入: pkgs / lib / config (... で受け取る)
 #

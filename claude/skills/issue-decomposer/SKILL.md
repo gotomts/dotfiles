@@ -19,7 +19,7 @@ maintainer: gotomts
 5. **issue-decomposer**（分解 / Claude Chat）← このスキル
 6. feature-team（実装 / Claude Code）
 
-- 入力：tech-designer の `04-tech-designer/` 配下（接頭辞付き機能一覧・モジュール構造・ドメインモデル・ADR/CONTEXT.md）＋プロトタイプ実体（GitHub `gotomts/ai-prototypes/{service}/`）。
+- 入力：tech-designer の `04-tech-designer/` 配下（接頭辞付き機能一覧・モジュール構造・ドメインモデル・ADR/CONTEXT.md）＋プロトタイプ実体（GitHub のプロトタイプ用リポジトリ `{prototype-repo}/{service}/`）。
 - 出力：ステージ 1＝`projects/active-dev/{service}/05-issue-decomposer/index.md`（軽い一覧）／ステージ 2＝Linear（MCP 経由の詳細 issue）。
 - 下流：feature-team（Claude Code）が Linear の issue を依存順・AFK 優先で消化する。
 

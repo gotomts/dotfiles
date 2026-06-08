@@ -20,7 +20,6 @@
 #   2  Determinate Nix インストーラ失敗
 #
 # 関連:
-#   - Linear: KISSA-32 (S12)
 #   - 公式: https://github.com/DeterminateSystems/nix-installer
 #   - nix-darwin との競合解消: nix/darwin.nix `nix.enable = false`
 

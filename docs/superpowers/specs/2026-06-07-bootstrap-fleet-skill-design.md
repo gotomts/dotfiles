@@ -1,7 +1,6 @@
 ---
 title: bootstrap-fleet スキル 設計
 date: 2026-06-07
-issue: DOT-42
 status: approved
 depends-on:
   - claude/fleet/inject-fleet.sh
@@ -12,13 +11,13 @@ truth-source: projects/ai-org/chat/agent-fleet/design-notes.md
 
 ## 背景・目的
 
-canonical な `inject-fleet.sh`（Claude Code on the web 用 SessionStart hook）を任意リポジトリに敷く作業を、毎回手書きせず再現可能にする再利用形スキル。ANTTT-32 / SCN-32 のような「canonical hook を敷く」作業の再利用形（DOT-42）。
+canonical な `inject-fleet.sh`（Claude Code on the web 用 SessionStart hook）を任意リポジトリに敷く作業を、毎回手書きせず再現可能にする再利用形スキル。他リポジトリで canonical hook を敷いた同種の作業を、再利用できる形にまとめたもの。
 
 真実源は vault `projects/ai-org/chat/agent-fleet/design-notes.md` の「再利用形：bootstrap スキル」「補足：注入の置き方（full hook vs thin bootstrap）」。本 spec はその設計時判断（full hook 採用）を確定し、dotfiles 上の実体化仕様に落とす。
 
 ## スコープ
 
-DOT-42 のスコープに限定する。**含む**:
+本スキルのスコープに限定する。**含む**:
 
 - 対象リポの `.claude/hooks/inject-fleet.sh` 配置（canonical full hook）
 - `.claude/settings.json` の SessionStart 登録（マージ or 新規作成）

@@ -1,4 +1,4 @@
-# nix-darwin IME / 入力ソース設定モジュール (DOT-25)
+# nix-darwin IME / 入力ソース設定モジュール
 # specialArgs 由来: inputs / username (flake.nix から注入)
 # 自動注入: pkgs / lib / config (... で受け取る)
 #

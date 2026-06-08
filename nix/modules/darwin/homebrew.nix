@@ -7,7 +7,7 @@
 # darwin.nix への配線:
 #   imports = [ ./modules/darwin/homebrew.nix ];
 #
-# role 別構造 (DOT-39):
+# role 別構造:
 #   core*           両方の role に入れる共通セット
 #   defaultOnly*    role == "default" のときだけ追加するセット
 #   sub-1 は今のところ "core のみ" の reduced profile。
@@ -25,7 +25,7 @@ let
     "claude-code"
     "cmux" # tap: manaflow-ai/cmux
     "coderabbit" # AI コードレビュー CLI (cask だが Binary artifact。`coderabbit` コマンド。公式 homebrew-cask なので tap 不要)
-    "codex" # OpenAI Codex CLI (公式 prebuilt binary; nixpkgs 版が cache.nixos.org 未登録で CI timeout したため移行 — DOT-37)
+    "codex" # OpenAI Codex CLI (公式 prebuilt binary; nixpkgs 版が cache.nixos.org 未登録で CI timeout したため移行)
     "codex-app" # OpenAI Codex デスクトップアプリ (CLI は同 casks の codex で管理)
     "contexts"
     "cursor"
@@ -40,7 +40,7 @@ let
     "medis"
     "nani" # jp.kiok.nani — 公式 cask (brew install --cask nani)
     "notion"
-    "orbstack" # 軽量 Docker 代替 (docker-desktop は DOT-39 で削除済み)
+    "orbstack" # 軽量 Docker 代替 (docker-desktop は削除済み)
     "postman"
     "raycast"
     "slack"
@@ -119,7 +119,7 @@ in
       # darwin-rebuild switch のたびに全パッケージが更新される状態を避け、
       # flake.lock 哲学と整合する再現性ベースの運用に切り替える。
       upgrade = false;
-      # role 別 cleanup ポリシー (DOT-39):
+      # role 別 cleanup ポリシー:
       #   default: "zap" — 宣言外パッケージを Cellar ごと削除。declarative 厳格運用
       #   sub-1:   "none" — 何も削除しない。手動 brew install / 手動 MAS app 等を保護
       # sub-1 で手動 install したものは別 PC では復元されないため、再現性が必要なら

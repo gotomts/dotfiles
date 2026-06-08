@@ -6,26 +6,26 @@
 
 {
   imports = [
-    # CLI ツール群 (S3 / KISSA-23)
+    # CLI ツール群 (S3)
     ./modules/home/packages.nix
-    # zsh + oh-my-zsh + initExtra/envExtra (S4 / KISSA-24)
+    # zsh + oh-my-zsh + initExtra/envExtra (S4)
     ./modules/home/zsh.nix
-    # 設定ファイル系 (S5 / KISSA-25)
+    # 設定ファイル系 (S5)
     ./modules/home/git.nix
     ./modules/home/starship.nix
     ./modules/home/yazi.nix
     ./modules/home/ssh.nix
-    # claude plugin sync activation (S6 / KISSA-26)
+    # claude plugin sync activation (S6)
     ./modules/home/claude.nix
-    # Codex CLI 用 dotfiles symlink (DOT-38)
+    # Codex CLI 用 dotfiles symlink
     ./modules/home/codex.nix
-    # 言語ツールチェーン: mise 完全置換 (S7 / KISSA-27)
+    # 言語ツールチェーン: mise 完全置換 (S7)
     ./modules/home/languages.nix
     # corepack によるグローバル pnpm / yarn 供給 (プロジェクト宣言優先)
     ./modules/home/corepack.nix
-    # per-project Nix shell auto-activation (DOT-35)
+    # per-project Nix shell auto-activation
     ./modules/home/direnv.nix
-    # grip / cmux 等の home.file 配置 (DOT-27 dir-symlink 再発防止)
+    # grip / cmux 等の home.file 配置 (dir-symlink 再発防止)
     ./modules/home/misc.nix
   ];
 

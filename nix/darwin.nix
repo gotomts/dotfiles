@@ -11,17 +11,17 @@
 
 {
   imports = [
-    # cask + mas + 例外 brew (S9 / KISSA-29)
+    # cask + mas + 例外 brew (S9)
     ./modules/darwin/homebrew.nix
-    # pmset NOPASSWD (S11 / KISSA-31)
+    # pmset NOPASSWD (S11)
     ./modules/darwin/sudoers.nix
     # SF Mono 等 (S11)。空リストで雛形のみ
     ./modules/darwin/fonts.nix
     # Touch ID for sudo (S11)
     ./modules/darwin/pam.nix
-    # macOS defaults / Dock / Finder / Trackpad / Menubar etc. (S10 / KISSA-30)
+    # macOS defaults / Dock / Finder / Trackpad / Menubar etc. (S10)
     ./modules/darwin/defaults.nix
-    # IME / 入力ソース (DOT-25)。HIToolbox は array of dict 構造のため defaults import 方式
+    # IME / 入力ソース。HIToolbox は array of dict 構造のため defaults import 方式
     ./modules/darwin/hitoolbox.nix
   ];
 

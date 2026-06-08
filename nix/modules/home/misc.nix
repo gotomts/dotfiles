@@ -8,7 +8,7 @@
 #   - cmux / ghostty のターミナル設定
 #
 # 旧 setup.zsh が dotfiles への dir-symlink / file-symlink で配置していたものを
-# home-manager の file-level symlink に移行する (DOT-27 dir-symlink 再発防止)。
+# home-manager の file-level symlink に移行する (dir-symlink 再発防止)。
 { ... }:
 
 {
