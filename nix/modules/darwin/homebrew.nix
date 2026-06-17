@@ -12,9 +12,25 @@
 #   defaultOnly*    role == "default" のときだけ追加するセット
 #   sub-1 は今のところ "core のみ" の reduced profile。
 #   後で sub-1 専用パッケージが必要になったら lib.optionals (role == "sub-1") で追加。
-{ role, lib, ... }:
+{ role, lib, username, ... }:
 
 let
+  # ----------------------------------------------------------------
+  # taps: 非公式 (third-party) tap
+  # ----------------------------------------------------------------
+  # SSOT。homebrew.taps と trust.json (下記 extraActivation) の両方がこれを参照する。
+  taps = [
+    "leoafarias/fvm"
+    "manaflow-ai/cmux"
+    "oven-sh/bun"
+    "schpet/tap"
+  ];
+
+  # Homebrew 6.0+ は非公式 tap の formula/cask/command を brew trust で信頼しない限り
+  # ロードを拒否する (HOMEBREW_REQUIRE_TAP_TRUST がデフォルト true)。trust エントリは
+  # ~/.homebrew/trust.json に文字列配列 {"trustedtaps":[...]} 形式で保存される。
+  trustJson = builtins.toJSON { trustedtaps = taps; };
+
   # ----------------------------------------------------------------
   # casks: GUI アプリケーション
   # ----------------------------------------------------------------
@@ -133,12 +149,7 @@ in
       extraFlags = lib.optionals (role != "sub-1") [ "--force-cleanup" ];
     };
 
-    taps = [
-      "leoafarias/fvm"
-      "manaflow-ai/cmux"
-      "oven-sh/bun"
-      "schpet/tap"
-    ];
+    inherit taps;
 
     brews = coreBrews ++ lib.optionals (role == "default") defaultOnlyBrews;
 
@@ -146,4 +157,16 @@ in
 
     masApps = coreMasApps // lib.optionalAttrs (role == "default") defaultOnlyMasApps;
   };
+
+  # Homebrew tap trust を bundle 実行前に配置する。
+  # nix-darwin の activation 順序は extraActivation → … → homebrew (bundle) のため、
+  # ここで書けば常に 1 回の switch で trust が効く (home-manager の user activation は
+  # bundle より後に走るので home.file 方式では新規 tap 追加時に 2-switch を要した)。
+  # root が書いて対象ユーザーに chown する (bundle は sudo --user で当該ユーザー実行のため
+  # 読めれば足りる)。trustJson の中身は上記 taps を SSOT にして生成する。
+  system.activationScripts.extraActivation.text = ''
+    mkdir -p /Users/${username}/.homebrew
+    printf '%s\n' ${lib.escapeShellArg trustJson} > /Users/${username}/.homebrew/trust.json
+    chown ${username} /Users/${username}/.homebrew/trust.json
+  '';
 }
