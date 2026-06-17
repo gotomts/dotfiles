@@ -74,8 +74,8 @@
 - 完了タスクの要約・整理はユーザーに指摘される前に行うこと
 - コンテキスト圧縮警告が出た場合やツール呼び出しが多くなった場合、作業状態の保存を提案すること
 - 中断・再開に備え、進行中のタスク状況・決定事項・既知の問題を構造化して記録できる状態を維持すること
-- handoff skill で書き出すときは `$TMPDIR/handoff-<repo-slug>.md` に保存すること（1 リポジトリ 1 ファイル、上書き運用）。`<repo-slug>` は main git working dir の basename（worktree からは `git rev-parse --git-common-dir` 経由）、git 外ならカレントディレクトリの basename。`$TMPDIR` は macOS では `/var/folders/.../T/`、Linux では通常 `/tmp`。skill 本体（`claude/skills/handoff/SKILL.md`）は upstream（mattpocock/skills）と完全同期する運用なので触らず、この AGENTS.md の規約を skill の指示より優先すること
-- 「ハンドオフから再開」と言われたら、上記の規則で `$TMPDIR/handoff-<repo-slug>.md` を Read で読んでから応答すること。該当ファイルが無ければユーザーにパスを確認すること
+- handoff skill で書き出すときは `$TMPDIR/handoff-<repo-slug>-<branch-slug>.md` に保存すること（repo × branch 単位で 1 ファイル、同一ブランチ内は上書き運用）。複数セッションを別ブランチ（別 worktree）で並行運用しても衝突しないよう、ファイル名は repo と branch の複合キーにする。`<repo-slug>` は main git working dir の basename（worktree からは `git rev-parse --git-common-dir` 経由）、git 外ならカレントディレクトリの basename。`<branch-slug>` は現在のブランチ名を sanitize したもの（`/` 等を `-` に置換）、detached HEAD や git 外などブランチを解決できない場合は `nobranch` とする。旧形式の `handoff-<repo-slug>.md` が残っていても触らない（移行で消さない）。`$TMPDIR` は macOS では `/var/folders/.../T/`、Linux では通常 `/tmp`。skill 本体（`claude/skills/handoff/SKILL.md`）は upstream（mattpocock/skills）と完全同期する運用なので触らず、この AGENTS.md の規約を skill の指示より優先すること
+- 「ハンドオフから再開」と言われたら、上記の規則で `$TMPDIR/handoff-<repo-slug>-<branch-slug>.md` を Read で読んでから応答すること。該当ファイルが無ければユーザーにパスを確認すること
 
 # 実装前検証
 
