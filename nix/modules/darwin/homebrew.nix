@@ -20,6 +20,7 @@ let
   # ----------------------------------------------------------------
   # SSOT。homebrew.taps と trust.json (下記 extraActivation) の両方がこれを参照する。
   taps = [
+    "arto-app/tap"
     "leoafarias/fvm"
     "manaflow-ai/cmux"
     "oven-sh/bun"
@@ -37,6 +38,7 @@ let
   # core (両 role 共通)
   coreCasks = [
     "1password"
+    "arto" # tap: arto-app/tap。Rust 製 macOS ネイティブ Markdown リーダー (閲覧専用、`arto` CLI 同梱)
     "claude" # Anthropic Desktop app (claude-code CLI とは別)
     "claude-code"
     "cmux" # tap: manaflow-ai/cmux
