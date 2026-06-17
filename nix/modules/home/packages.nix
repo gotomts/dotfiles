@@ -77,5 +77,13 @@
     # codex: nixpkgs 版 (v0.130.0) が cache.nixos.org に未登録で CI の closure
     # build が毎回 Rust ソースビルドして 20m timeout になったため、Homebrew cask
     # "codex" (OpenAI 公式 prebuilt binary) に移行した。
+
+    # agent-browser: AI エージェント向けブラウザ自動化 CLI (Rust)。claude/skills/
+    # agent-browser の stub スキルが実体を `agent-browser skills get core` で配信する
+    # 前提のため CLI 本体が必要。nixpkgs 版はバイナリが cache.nixos.org 登録済みのため
+    # codex のような CI ソースビルド timeout は起きない。nixpkgs はやや版ラグあり
+    # (収録 0.25.x / upstream 0.28.x) だが、CLI が install 版と整合した skill 内容を
+    # 配信する設計のため機能上の陳腐化は起きない。最新追従が要るなら Homebrew へ切替検討。
+    agent-browser
   ];
 }
