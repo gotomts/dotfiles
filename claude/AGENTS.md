@@ -105,5 +105,10 @@
 
 # Local Overrides
 
-- `~/.claude/CLAUDE.local.md` が存在する場合、セッション開始時に Read で読み込み、その内容も指示として従うこと
-- `CLAUDE.local.md` は PC 固有の設定・制約を記述するためのファイルであり、このファイル（CLAUDE.md）の内容を上書きする
+- `~/.claude/CLAUDE.local.md` は `~/.dotfiles/claude/CLAUDE.md` の `@CLAUDE.local.md` import 経由で自動ロードされる。Claude Code が起動時に CLAUDE.md チェーンを解決する際に inject される機械的ロード機構であり、エージェントが Read を忘れる余地はない
+- `CLAUDE.local.md` は PC 固有の設定・制約を記述するためのファイルであり、このファイル（CLAUDE.md / AGENTS.md）の内容を上書きする。優先順位: User CLAUDE.local.md > AGENTS.md（global）> Claude Code 既定挙動
+- import 解決の経路:
+  1. Claude Code が `~/.claude/CLAUDE.md`（dotfiles の `claude/CLAUDE.md` への symlink）を読む
+  2. CLAUDE.md 内の `@AGENTS.md` で AGENTS.md を inject
+  3. 続く `@CLAUDE.local.md` で `~/.claude/CLAUDE.local.md` を inject（ファイルが存在しない PC では skip される）
+- CLAUDE.local.md が読まれていることを確認するには Claude Code 起動後に `/memory` でメモリ階層を表示する
