@@ -1,49 +1,17 @@
-{ pkgs, lib, config, role, ... }:
+{ pkgs, lib, config, ... }:
 
-# ~/.claude/ の設定・skills・agents を dotfiles から配置する home-manager モジュール。
+# ~/.claude/ の設定・skills を dotfiles から配置する home-manager モジュール。
 # mkOutOfStoreSymlink で working tree を直接指すため、追加・編集は git pull で即反映される。
 let
   dotfiles = "${config.home.homeDirectory}/.dotfiles";
-  # default role = 自分の開発機 (fleet 層も展開)。sub-1 等 = fleet なし。
-  isDefault = role == "default";
 in
 {
-  # 個人層 (claude/skills) は全 role で可視。fleet 層 (claude/fleet/{skills,agents})
-  # は default role のみローカル展開。remote では inject-fleet.sh が別途 inject する。
   home.file = {
     ".claude/settings.json".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/settings.json";
     ".claude/CLAUDE.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/CLAUDE.md";
     ".claude/AGENTS.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/AGENTS.md";
-  }
-  // lib.optionalAttrs isDefault {
-    ".claude/agents".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/fleet/agents";
-  }
-  // lib.optionalAttrs (!isDefault) {
-    ".claude/skills".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
+    ".claude/skills".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
   };
-
-  # default role の ~/.claude/skills は個人層 + fleet 層のマージ。2 つの source dir を
-  # 1 symlink で束ねられず、eval 時の dir 読み取りは CI を壊すため、activation で
-  # per-entry symlink を張り直す (working tree を指すので編集は即反映)。
-  home.activation.claudeFleetSkills = lib.mkIf isDefault (
-    lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      _link_claude_skills() {
-        set +e
-        local target="''${HOME}/.claude/skills"
-        $DRY_RUN_CMD ${pkgs.coreutils}/bin/rm -rf "$target"
-        $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p "$target"
-        local src entry
-        for src in "${dotfiles}/claude/skills" "${dotfiles}/claude/fleet/skills"; do
-          [ -d "$src" ] || continue
-          for entry in "$src"/*; do
-            [ -e "$entry" ] || continue
-            $DRY_RUN_CMD ${pkgs.coreutils}/bin/ln -sfn "$entry" "$target/$(${pkgs.coreutils}/bin/basename "$entry")"
-          done
-        done
-      }
-      _link_claude_skills
-    ''
-  );
 
   # claude plugin の宣言的同期。settings.json の enabledPlugins を CLI で install/update。
   home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
