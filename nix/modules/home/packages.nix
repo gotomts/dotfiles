@@ -4,7 +4,8 @@
 # home.nix の imports に追加することで有効化される（S3 integration commit で配線）。
 #
 # 自動注入: pkgs / lib / config (... で受け取る)
-{ pkgs, ... }:
+# specialArgs 由来: role (flake.nix から home-manager.extraSpecialArgs 経由で注入)
+{ pkgs, lib, role, ... }:
 
 {
   home.packages = with pkgs; [
@@ -85,5 +86,9 @@
     # (収録 0.25.x / upstream 0.28.x) だが、CLI が install 版と整合した skill 内容を
     # 配信する設計のため機能上の陳腐化は起きない。最新追従が要るなら Homebrew へ切替検討。
     agent-browser
-  ];
+  ] ++ lib.optionals (role == "default") (with pkgs; [
+    # default-only packages (role == "default" のときだけ追加)
+    tmux # Shell & Terminal: マルチプレクサ
+    mosh # Network & API: UDP ベースの SSH 代替 (高遅延・モバイル回線で接続維持しやすい)。受け側は UDP 60000-61000 の listen 許可が必要 (Tailnet 内なら ACL でカバー)
+  ]);
 }
