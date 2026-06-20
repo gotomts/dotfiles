@@ -125,6 +125,23 @@ let
     "leoafarias/fvm/fvm" # Flutter Version Manager (flutter cask に同期)
   ];
 
+  # ----------------------------------------------------------------
+  # local overlay: PC ローカル専用拡張 (リポジトリ外配置)
+  # ----------------------------------------------------------------
+  # 「git に追跡させずに zap から守りたい」cask を宣言する逃がし口。
+  # 配置先は ~/.config/dotfiles/homebrew.local.nix。リポジトリ内に
+  # 置くと nix flake (git tree のみコピー) から不可視になるため、
+  # 絶対パスで参照する (--impure は flake.nix で既に有効)。
+  # ファイル不在なら空セット扱いで no-op。別 PC では復元されないので、
+  # 再現性が必要なものは本ファイル (homebrew.nix) 本体に書くこと。
+  # 現状 casks のみサポート。brews/taps/masApps の overlay が必要に
+  # なったらこの local 解決と各セットの結合点を拡張する。
+  localPath = /. + "/Users/${username}/.config/dotfiles/homebrew.local.nix";
+  local =
+    if builtins.pathExists localPath
+    then { casks = [ ]; } // (import localPath)
+    else { casks = [ ]; };
+
 in
 {
   homebrew = {
@@ -155,7 +172,7 @@ in
 
     brews = coreBrews ++ lib.optionals (role == "default") defaultOnlyBrews;
 
-    casks = coreCasks ++ lib.optionals (role == "default") defaultOnlyCasks;
+    casks = coreCasks ++ lib.optionals (role == "default") defaultOnlyCasks ++ local.casks;
 
     masApps = coreMasApps // lib.optionalAttrs (role == "default") defaultOnlyMasApps;
   };

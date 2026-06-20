@@ -11,6 +11,7 @@
 - `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
 - `functions/` — zsh カスタム関数（`~/.functions/` にシンボリックリンク）
 - git 設定は nix の `programs.git`（`nix/modules/home/git.nix`）が SSOT で `~/.config/git/config` を生成する。`~/.gitconfig` は nix 非管理の実体ファイルとして `home.activation` で用意し、`git config --global` で書き込むツール（coderabbit の machineId 等）の PC 固有値を隔離する落書き帳として使う（リポジトリには格納しない）
+- `.gitignore` — リポジトリ内に偶発的に作られたローカル overlay ファイル（例: `nix/modules/darwin/homebrew.local.nix`）を保険的に除外する
 - `gitignore_global` — グローバル gitignore（`~/.gitignore_global` にシンボリックリンク）
 - `grip/` — grip 設定（`~/.grip/` にシンボリックリンク）
 - `nix/` — nix-darwin + home-manager + flakes による環境構築定義（`darwin-rebuild` から参照される。詳細は `nix/README.md`）
@@ -32,6 +33,7 @@
 - 既存のパッケージのみを対象とする。ユーザーが明示的に依頼していないパッケージを追加しない
 - `taps` / `brews` / `casks` / `masApps` の区分を守る
 - nixpkgs 収録済みのパッケージは原則 `nix/modules/home/packages.nix` に置き、Homebrew は nixpkgs 未収録または macOS 特殊事情のあるものに限定する
+- PC ローカル専用の cask は `~/.config/dotfiles/homebrew.local.nix`（リポジトリ外配置）で declarative に宣言する。`homebrew.nix` が絶対パスで `builtins.pathExists` + `import` する。用途は「git に追跡させたくないが `default` role の zap から守りたい cask」（例: 特定アカウントの個人用ツール、業務用アプリ）。別 PC では復元されないため、再現性が必要なものは `homebrew.nix` 本体に書くこと。現状 casks のみ対応（brews / taps / masApps の overlay が必要になったら `homebrew.nix` の `local` 解決を拡張する）。nix flake は git tree のみコピーするため、`.gitignore` で除外したリポジトリ内ファイルは flake から不可視になる点に注意（リポジトリ外配置を選んでいる理由）
 
 # zsh スクリプト規約
 
