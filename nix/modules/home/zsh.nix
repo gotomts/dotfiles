@@ -41,6 +41,11 @@
       reload   = "exec $SHELL -l";
       datetime = "date '+%Y%m%d%T' | tr -d ':'";
 
+      # tmux
+      tls = "tmux ls";              # セッション一覧
+      ta  = "tmux attach -t";       # ta <name> で接続
+      tad = "tmux attach -d -t";    # 他クライアントを切って接続 (Mac で全画面再開時)
+
       # git
       gp    = "git push origin HEAD";
       gch   = "git branch --all | tr -d '* ' | grep -v -e '->' | fzf | sed -e 's+remotes/[^/]*/++g' | xargs git checkout";
@@ -138,6 +143,14 @@
       alias kubectle='kubectl exec -it KP $@'
       alias kubectll='kubectl stern $(kubectl get deploy | fzf | awk "{print \$1}")'
       alias kubectlo='kubectl get KA -o yaml'
+
+      # tmux — カレント dir 名でセッション作成/接続、引数で枝番
+      # 例: ~/dotfiles で `tn`     → セッション "dotfiles"
+      #     ~/dotfiles で `tn dev` → セッション "dotfiles-dev"
+      tn() {
+        local name="$(basename "$PWD")''${1:+-$1}"
+        tmux new -A -s "$name"
+      }
     '';
 
     # -----------------------------------------------------------------------
