@@ -84,10 +84,6 @@ let
   # core (両 role 共通)
   coreMasApps = {
     "Magnet" = 441258766;
-    # Xcode は 15GB+ のため初回 darwin-rebuild switch に時間がかかる。
-    # Apple ID で App Store にサインイン済みである必要がある。
-    # Simulator.app は Xcode に bundled なので別途宣言不要。
-    "Xcode" = 497799835;
   };
 
   # default-only masApps (role == "default" のときだけ)
