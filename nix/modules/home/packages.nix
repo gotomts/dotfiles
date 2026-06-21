@@ -62,9 +62,9 @@
     # Network & API
     # -------------------------------------------------------------------------
     grpcurl
-    # tailscale: macOS ではシステム拡張 + Cask 経由が推奨のため
-    #   darwin/homebrew.nix (S9) 残置。nixpkgs に存在はするが
-    #   tailscaled デーモンの管理方式が homebrew cask と異なるため除外
+    # tailscale: CLI のみ運用に切り替え済み。darwin/homebrew.nix の brews に
+    #   formula で残置 (旧 tailscale-app cask は廃止)。nixpkgs 版は macOS 向け
+    #   tailscaled LaunchDaemon の起動ラッパが整備されていないため採用しない
 
     # -------------------------------------------------------------------------
     # Task Management

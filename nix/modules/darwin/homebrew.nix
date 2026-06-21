@@ -75,7 +75,6 @@ let
     "aqua-voice" # AI 整形付き音声入力 (Claude Code への dictation 用)
     "flutter"
     "obsidian"
-    "tailscale-app" # 旧 cask 名 "tailscale" は rename 済み。kernel extension 承認が初回必要 (System Settings → Privacy & Security)
   ];
 
   # ----------------------------------------------------------------
@@ -119,6 +118,11 @@ let
   # default-only brews (role == "default" のときだけ)
   defaultOnlyBrews = [
     "leoafarias/fvm/fvm" # Flutter Version Manager (flutter cask に同期)
+    # tailscale CLI 単体。GUI cask (旧 tailscale-app) を外して formula に切り替え。
+    # 初回のみ `sudo tailscaled install-system-daemon` で LaunchDaemon を登録し、
+    # `sudo tailscale up` でログイン。system extension の承認は手動 (System
+    # Settings → Privacy & Security) で必要。
+    "tailscale"
   ];
 
   # ----------------------------------------------------------------
