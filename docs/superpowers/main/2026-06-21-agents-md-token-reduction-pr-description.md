@@ -17,7 +17,7 @@
 
 > ※ AGENTS.md は CLI Claude Code が起動時に auto-load するため、ブラウザではなくターミナルで確認する。
 
-1. `darwin-rebuild switch --flake .#default --impure` で symlink を更新する
+1. `darwin-rebuild switch --flake .#default --impure` で nix 設定を適用する（既存 symlink の更新は副作用、新規ファイルは絶対パス参照のため symlink 不要）
 2. Claude Code を再起動する
 3. Claude Code 内で `/context` コマンドを実行する
 4. メモリ階層の `claude/AGENTS.md` 行が **2.1k〜2.5k tokens** 範囲に収まることを確認する（期待値 ~2.3k）

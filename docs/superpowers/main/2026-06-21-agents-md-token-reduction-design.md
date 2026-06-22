@@ -43,6 +43,8 @@ slug: agents-md-token-reduction
 ~/.dotfiles/docs/memory-loading.md    (memory load の仕組み解説)
 ```
 
+外部化ファイル（`handoff-policy.md` / `memory-loading.md`）は AGENTS.md から `~/.dotfiles/...` 絶対パスで参照する設計のため、`~/.claude/` 配下への symlink は不要である。`claude.nix` の `home.file` は個別ファイル列挙方式であり、新規ファイルは自動 symlink されない。どちらのファイルも dotfiles リポジトリ内の絶対パス参照で機能する。
+
 ### load 機構の不変条件
 
 - `CLAUDE.md → @AGENTS.md → @CLAUDE.local.md` の auto-import チェーンは変更しない。
@@ -132,7 +134,7 @@ slug: agents-md-token-reduction
 | 外部化先ファイルを Read し忘れる | AGENTS.md 残存記述に**明示的にファイルパス**を書き込む |
 | `#6 コードレビュー` 削除でレビュー品質が下がる | Claude default の "OWASP top 10... immediately fix" が最低限カバー。実害が出たら CLAUDE.local.md 側で個別追加可能（ロールバック容易） |
 | `#7 L40 OWASP` 削除で security 軽視 | Claude default に OWASP top 10 記述がそのまま含まれる |
-| 外部化ファイルが symlink で配布されない | `nix/modules/home/claude.nix` で `claude/` 配下は既に symlink 展開済み。`docs/` は dotfiles リポジトリ内なので追加対応不要 |
+| 外部化ファイルが symlink で配布されない | AGENTS.md は外部化ファイルを `~/.dotfiles/...` 絶対パス参照で扱う設計のため、`~/.claude/` への symlink は不要。`claude/` 配下も `docs/` 配下も dotfiles リポジトリの直接参照で機能する |
 | 別 PC で `CLAUDE.local.md` が無い | 既存挙動と同じく `@import` で skip されるだけ。本変更で挙動変化なし |
 
 ## 9. 検証方法
@@ -144,13 +146,13 @@ slug: agents-md-token-reduction
 | V3 | 外部化先ファイルが存在し抜けがない | `ls claude/handoff-policy.md docs/memory-loading.md` と内容確認 |
 | V4 | AGENTS.md に外部ファイル参照が残る | `grep -E "handoff-policy.md\|memory-loading.md" claude/AGENTS.md` |
 | V5 | nix build が成功 | `USER=ciuser nix build .#darwinConfigurations.default.system --no-link --impure` |
-| V6 | symlink 展開が機能 | `darwin-rebuild switch` 後に `ls -la ~/.claude/handoff-policy.md` |
+| V6 | 外部化ファイルが dotfiles から読める | `ls -la ~/.dotfiles/claude/handoff-policy.md ~/.dotfiles/docs/memory-loading.md` |
 
 ## 10. スコープ外
 
 - `claude/AGENTS.md` 以外のメモリファイル（project AGENTS.md 5.2k tokens 等）の削減。別タスクとして検討する。
 - `handoff` skill 本体の改変。upstream 同期方針を維持する。
-- nix 設定の構造変更。`claude/handoff-policy.md` は既存 symlink 設定の対象範囲内で配布される。
+- nix 設定の構造変更。`claude/handoff-policy.md` / `docs/memory-loading.md` は dotfiles からの直接参照で機能し、追加の nix 設定不要。
 - AGENTS.md の文体・トーンの統一作業。今回は内容削減に集中する。
 
 ## 11. ロールバック方針

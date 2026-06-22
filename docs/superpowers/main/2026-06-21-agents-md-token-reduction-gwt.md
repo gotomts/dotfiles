@@ -76,8 +76,8 @@ summary: ./2026-06-21-agents-md-token-reduction-summary.md
 - [x] AC-4: AGENTS.md 残存記述が外部ファイルへの参照を含む（Task 3 review で `grep -c "handoff-policy.md"` = 1, `grep -c "memory-loading.md"` = 1）
 - [x] AC-5: nix build が成功する（Task 4 Step 1 で exit 0 確認、darwin-rebuild switch も成功）
 - [ ] AC-6: 削除されたルールが Claude default でカバーされる（Q1 verification 時に default の OWASP 記述を確認済。実害は実運用で確認）
-- [ ] AC-E1: 別 PC で `CLAUDE.local.md` が無い場合のフォールバック
-- [ ] AC-E2: 外部化ファイルへの参照が壊れた場合の挙動
+- [ ] AC-E1: 別 PC で `CLAUDE.local.md` が無い場合のフォールバック（別 PC 環境が必要なため本タスクスコープ外。将来のフォローアップで検証）
+- [ ] AC-E2: 外部化ファイルへの参照が壊れた場合の挙動（意図的にファイル削除が必要なため optional。実害発生時のみ手動再現）
 
 ## 変更履歴
 

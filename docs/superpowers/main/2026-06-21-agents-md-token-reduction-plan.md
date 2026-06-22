@@ -6,11 +6,11 @@
 
 **Architecture:** `claude/handoff-policy.md` と `docs/memory-loading.md` を新規追加し、AGENTS.md からは `@import` を使わずパス参照のみ残す（auto-load しない）。AGENTS.md は 17 セクションを削除・統合・圧縮して短縮。`CLAUDE.md → @AGENTS.md → @CLAUDE.local.md` の既存 import チェーンは変更しない。
 
-**Tech Stack:** Markdown のみ。nix-darwin + home-manager で symlink 配布されるため、新規ファイルも既存の `claude/` / `docs/` 配下に置けば自動展開される。
+**Tech Stack:** Markdown のみ。nix-darwin + home-manager の既存設定は変更しない。新規ファイルは `~/.dotfiles/...` 絶対パスから直接参照される。
 
 ## Global Constraints
 
-- ファイル配置: 全成果物は `~/.dotfiles/` 配下に置く。`claude/` 配下と `docs/` 配下は既存の nix `home.activation` で symlink 展開される
+- ファイル配置: 全成果物は `~/.dotfiles/` 配下に置く。AGENTS.md からは `~/.dotfiles/...` 絶対パスで参照し、`~/.claude/` への symlink は不要
 - import チェーン不変: `CLAUDE.md → @AGENTS.md → @CLAUDE.local.md` の auto-load チェーンに変更を加えない
 - 外部化ファイル: `@import` 構文を使わない。AGENTS.md から絶対パス（`~/.dotfiles/...`）で参照する
 - コミットメッセージ: Conventional Commits（`docs(claude):` / `refactor(claude):` 等）に従う
@@ -25,7 +25,7 @@
 - Create: `/Users/goto/.dotfiles/claude/handoff-policy.md`
 
 **Interfaces:**
-- Produces: `~/.dotfiles/claude/handoff-policy.md`（symlink 経由で `~/.claude/handoff-policy.md` からアクセス可能）。Task 3 で AGENTS.md からパス参照される
+- Produces: `~/.dotfiles/claude/handoff-policy.md`（AGENTS.md から絶対パスで参照される）。Task 3 で AGENTS.md からパス参照される
 
 - [ ] **Step 1: ファイルを作成する**
 
@@ -517,13 +517,13 @@ EOF
 実行: `cd /Users/goto/.dotfiles/nix && USER=ciuser nix build .#darwinConfigurations.default.system --no-link --impure`
 期待: exit 0 で完了
 
-- [ ] **Step 2: darwin-rebuild switch で symlink を更新**
+- [ ] **Step 2: darwin-rebuild switch で nix 設定を適用**
 
 実行: `cd /Users/goto/.dotfiles/nix && sudo USER=$USER darwin-rebuild switch --flake .#default --impure`
-期待: exit 0 で完了、`~/.claude/handoff-policy.md` が `claude/handoff-policy.md` への symlink として作成されている
+期待: exit 0 で完了、AGENTS.md / CLAUDE.md / settings.json などの既存 symlink が更新されている
 
-実行: `ls -la ~/.claude/handoff-policy.md`
-期待: symlink 表示で `-> /Users/goto/.dotfiles/claude/handoff-policy.md` が見える
+実行: `ls -la ~/.dotfiles/claude/handoff-policy.md ~/.dotfiles/docs/memory-loading.md`
+期待: 両ファイルが存在し読める
 
 - [ ] **Step 3: Claude Code で token 数を確認**
 
