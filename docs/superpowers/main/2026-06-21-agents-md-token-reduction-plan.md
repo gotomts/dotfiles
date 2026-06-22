@@ -191,105 +191,262 @@ EOF
 実行: `git log -1 --format="%h" -- claude/AGENTS.md`
 期待: 直近の AGENTS.md コミット hash が取得できること（ロールバック起点）
 
-- [ ] **Step 2: AGENTS.md 全体を新規内容で置き換える**
+- [ ] **Step 2: AGENTS.md を Read する**
 
-`/Users/goto/.dotfiles/claude/AGENTS.md` を Write ツールで以下の内容に上書きする（Read 済の前提）:
+Edit 操作の前提として、Read ツールで `/Users/goto/.dotfiles/claude/AGENTS.md` の現状を読み込む。
 
-````markdown
-## Git Commit Rules
+- [ ] **Step 3: `## Git Commit Rules` の squash 系 2 項目を統合（Edit）**
 
-- NEVER squash unrelated commits。Each commit は独立を保つ（ユーザーが明示的に squash を指示した場合を除く）
-- When committing, always confirm the target repository (dotfiles vs project) before running git commands
-- NEVER force-push without explicit user authorization. `--amend` の許可は push の許可ではない。push は別途承認を取ること
+old_string:
+```
+- NEVER squash unrelated commits when pushing or creating PRs
+- Each commit should remain independent unless user explicitly requests squash
+```
 
-## Worktree Workflow
+new_string:
+```
+- NEVER squash unrelated commits when pushing or creating PRs（each commit は独立を保ち、ユーザーが明示的に squash を指示した場合のみ例外）
+```
 
-- `wt` shell function を使って並列ワークを開始する（plain git branch/checkout より優先）
-- Never restore deliberately deleted local branches without explicit user confirmation
-- ユーザーが parallel work を言及したら worktree ベースのフローをデフォルトとする
+- [ ] **Step 4: `## Worktree Workflow` の括弧書きを削除（Edit）**
 
-## Configuration Scope
+old_string:
+```
+- Use the worktree CLI (現状: `wt` shell function — `wt --help`) instead of plain git branch/checkout when starting parallel work
+```
 
-- 設定変更を行う前に、対象スコープ（global / per-project / per-repo）を明示してユーザーに確認すること。対象は git config、シェル alias / function、claude settings.json、エディタ設定など
-- 「グローバルに入れる」と「このリポジトリだけ」では影響範囲が大きく異なるため、判断を委ねずに先に確認する
+new_string:
+```
+- Use the `wt` shell function instead of plain git branch/checkout when starting parallel work
+```
 
-# コミュニケーション方針
+- [ ] **Step 5: `## Configuration Scope` の対象例を本文に統合（Edit）**
 
-- 技術的に誤った意見には根拠を示して反論すること。懸念・代替案は実装提案の前に伝える
-- 曖昧な指示に対しては推測で進めず、具体的に確認すること
-- 一問一答を徹底する。1 ターンにつき 1 つだけ質問し、ユーザーが yes / no または番号で答えられる選択肢化・二択化を行う。自由記述を要する問い・複数質問同時提示は禁止
+old_string:
+```
+- 設定変更を行う前に、対象スコープ（global / per-project / per-repo）を明示してユーザーに確認すること
+- 対象: git config, シェル alias / function, claude settings.json, エディタ設定など
+```
+
+new_string:
+```
+- 設定変更を行う前に、対象スコープ（global / per-project / per-repo）を明示してユーザーに確認すること。対象は git config・シェル alias / function・claude settings.json・エディタ設定など
+```
+
+- [ ] **Step 6: `# コミュニケーション方針` の一問一答 2 項目を統合（Edit）**
+
+old_string:
+```
+- 一問一答を徹底する。質問は 1 ターンにつき 1 つだけ提示し、ユーザーの回答を得てから次の質問に進む。複数質問・選択肢を一度に並べない（3 つ以上の選択肢を提示する場合も他の質問と混ぜず単独のターンで聞く）。例外は設けない
+- 一問一答の質問は、ユーザーが yes / no もしくは番号だけで回答できる形式にすること。自由記述を要する問いは選択肢化・二択化して提示する
+```
+
+new_string:
+```
+- 一問一答を徹底する。1 ターンにつき 1 つだけ質問し、ユーザーが yes / no または番号で答えられる選択肢化・二択化を行う。自由記述を要する問い・複数質問同時提示・他質問との混在は禁止
+```
+
+- [ ] **Step 7: `## 出力方針` セクションを削除し本文を `# コミュニケーション方針` 末尾に統合（Edit）**
+
+old_string:
+```
 - 判断を伴う選択をユーザーに求める場合は、推奨案と各選択肢のメリット・デメリットを併記する。推奨案は技術負債にならないことを確認した上で提案する
+
+## 出力方針
+
+- 設計・レビュー・分析は分割確認せず、完全な形で一度に出力すること
+```
+
+new_string:
+```
+- 判断を伴う選択をユーザーに求める場合は、推奨案と各選択肢のメリット・デメリットを併記する。推奨案は技術負債にならないことを確認した上で提案する
+- 設計・レビュー・分析は分割確認せず、完全な形で一度に出力すること
+```
+
+- [ ] **Step 8: `# コードレビュー` セクション全体を削除（Edit）**
+
+old_string:
+```
+- 設計・レビュー・分析は分割確認せず、完全な形で一度に出力すること
+
+# コードレビュー
+
+- レビューは厳格に行うこと。問題点は妥協せず明確に指摘する
+- バグ、パフォーマンス問題、設計上の欠陥、可読性の低下を見逃さない
+- セキュリティ上の懸念は最優先で指摘すること
+
+# セキュリティ
+```
+
+new_string:
+```
 - 設計・レビュー・分析は分割確認せず、完全な形で一度に出力すること
 
 # セキュリティ
+```
 
+- [ ] **Step 9: `# セキュリティ` から OWASP / 積極提案行を削除（Edit）**
+
+old_string:
+```
+- OWASP Top 10 に該当する脆弱性を発見した場合、即座に報告・修正すること
+- セキュリティ改善の提案を積極的に行うこと（依頼がなくても）
 - シークレット、認証情報、APIキーがコードやコミットに含まれないことを確認すること
+```
 
-# 実装規律
+new_string:
+```
+- シークレット、認証情報、APIキーがコードやコミットに含まれないことを確認すること
+```
 
-- 初回の実装パスでバリデーション（範囲制約、境界値、型チェック）を含めること
-- コミット前に linter・型チェッカー・フォーマッター・テストを実行すること
-- LSP が利用可能な場合、シンボル調査・定義元・参照箇所の特定に Grep/Glob より優先して使うこと
+- [ ] **Step 10: `# 実装規律` の文言を圧縮（Edit）**
+
+old_string:
+```
+- 成果物（コード・ドキュメント・設計）を提出する前にセルフレビューを行うこと。プレースホルダー、矛盾、曖昧さがないことを確認する
+- ワークフローの各フェーズ（設計・プラン作成・実装等）で成果物をファイルに書き出した後、次のフェーズに進む前に git status を確認し、未コミットの成果物があればコミットすること
+```
+
+new_string:
+```
 - 成果物（コード・ドキュメント・設計）を提出する前にセルフレビューを行う（プレースホルダー・矛盾・曖昧さなし）
 - ワークフローの各フェーズで成果物を書き出した後、次のフェーズに進む前に git status を確認し、未コミットの成果物があればコミットすること
+```
 
-# テスト
+- [ ] **Step 11: `# テスト` から L54 削除、L55+L56 を統合（Edit）**
 
+old_string:
+```
+- テストは積極的に実装すること。Unit・Integration・E2E・VRT すべてを対象とする
+- ゴールデンテストを基本アプローチとすること
+- テストの種類・粒度はプロジェクトの規約に従うこと
+```
+
+new_string:
+```
 - ゴールデンテストを基本アプローチとし、種類・粒度はプロジェクトの規約に従う
+```
 
-# コミットメッセージ
+- [ ] **Step 12: `# コミットメッセージ` の 2 項目を統合（Edit）**
 
+old_string:
+```
+- デフォルトは Conventional Commits（feat:, fix:, refactor: 等）に従うこと
+- プロジェクト固有の規約や既存のコミット履歴がある場合はそちらを優先すること
+```
+
+new_string:
+```
 - デフォルトは Conventional Commits（feat:, fix:, refactor: 等）に従う。プロジェクト固有の規約や既存のコミット履歴があればそちらを優先する
+```
 
-# マルチエージェント
+- [ ] **Step 13: `# マルチエージェント` の文言を圧縮（Edit）**
 
-- サブエージェントには明確なスコープと完了条件を与え、出力は検証する
+old_string:
+```
+- サブエージェントには明確なスコープと完了条件を与え、作業の重複を防ぐこと
+- サブエージェントの出力は検証すること
+- デフォルトの分業は Research → Synthesis → Implementation → Verification とすること
+```
+
+new_string:
+```
+- サブエージェントには明確なスコープと完了条件を与え、出力を検証する
 - デフォルトの分業は Research → Synthesis → Implementation → Verification
-- サブエージェントの調査結果をそのまま次のエージェントへ転送せず、オーケストレーター自身が理解・統合してから次の指示を書く
-- サブエージェント向けプロンプトは自己完結であること。`based on your findings` のような理解責任の再委譲を禁止する
-- read-only な探索は積極的に並列化、同一ファイル群への write-heavy な作業は直列化する
-- 失敗修正や直前作業の継続は同一エージェント continuation を優先、独立 verification や方針の全面変更は fresh context のエージェントを使う
+```
 
-# セッション管理
+- [ ] **Step 14: `# セッション管理` の handoff 詳細を外部ファイル参照に置換（Edit）**
 
+old_string:
+```
+- 完了タスクの要約・整理はユーザーに指摘される前に行うこと
+- コンテキスト圧縮警告が出た場合やツール呼び出しが多くなった場合、作業状態の保存を提案すること
+- 中断・再開に備え、進行中のタスク状況・決定事項・既知の問題を構造化して記録できる状態を維持すること
+- handoff skill で書き出すときは `$TMPDIR/handoff-<repo-slug>-<branch-slug>.md` に保存すること（repo × branch 単位で 1 ファイル、同一ブランチ内は上書き運用）。複数セッションを別ブランチ（別 worktree）で並行運用しても衝突しないよう、ファイル名は repo と branch の複合キーにする。`<repo-slug>` は main git working dir の basename（worktree からは `git rev-parse --git-common-dir` 経由）、git 外ならカレントディレクトリの basename。`<branch-slug>` は現在のブランチ名を sanitize したもの（`/` 等を `-` に置換）、detached HEAD や git 外などブランチを解決できない場合は `nobranch` とする。旧形式の `handoff-<repo-slug>.md` が残っていても触らない（移行で消さない）。`$TMPDIR` は macOS では `/var/folders/.../T/`、Linux では通常 `/tmp`。skill 本体（`claude/skills/handoff/SKILL.md`）は upstream（mattpocock/skills）と完全同期する運用なので触らず、この AGENTS.md の規約を skill の指示より優先すること
+- 「ハンドオフから再開」と言われたら、上記の規則で `$TMPDIR/handoff-<repo-slug>-<branch-slug>.md` を Read で読んでから応答すること。該当ファイルが無ければユーザーにパスを確認すること
+```
+
+new_string:
+```
 - 完了タスクの要約・整理はユーザーに指摘される前に行う
-- コンテキスト圧縮警告 / ツール呼び出し増加時は作業状態の保存を提案
+- コンテキスト圧縮警告 / ツール呼び出し増加時は作業状態の保存を提案する
 - handoff skill の保存先・命名規約は `~/.dotfiles/claude/handoff-policy.md` に従う。「ハンドオフから再開」と言われたら同ファイルの規則で Read してから応答すること
+```
 
-# 実装前検証
+- [ ] **Step 15: `# 実装前検証` の文末「〜こと」を統一して微圧縮（Edit）**
 
+old_string:
+```
+- 実装開始前に、関連する依存ライブラリの実際のバージョンと既存コードを確認すること
+- 前提条件（バージョン、API互換性、プロジェクト状態）をコメントで明示してから実装に入ること
+```
+
+new_string:
+```
 - 実装開始前に、関連する依存ライブラリの実際のバージョンと既存コードを確認する
 - 前提条件（バージョン、API互換性、プロジェクト状態）をコメントで明示してから実装に入る
+```
 
-# フォーマッタ・リンタのスコープ
+- [ ] **Step 16: `# Document Dependency Check` の仕組み説明を短縮（Edit）**
 
-- フォーマッタやリンタは変更したファイルのみに適用する
-- git diff --name-only で対象を特定し、全体実行しない
+old_string:
+```
+- md ファイルの frontmatter に `depends-on` が宣言されている場合、そのドキュメントはコード変更の影響を受ける可能性がある
+- コード変更を含むタスクを完了する際、関連ドキュメントの更新が必要か検討すること
+- ドキュメントの更新はユーザー承認後に行うこと。自動更新は禁止
+```
 
-# Document Dependency Check
-
+new_string:
+```
 - md ファイルの frontmatter に `depends-on` が宣言されているドキュメントはコード変更の影響を受ける可能性がある。コード変更タスク完了時に該当ドキュメントの更新要否を検討する
 - ドキュメントの更新はユーザー承認後に行うこと。自動更新は禁止
+```
 
-# Knowledge Capture
+- [ ] **Step 17: `# Knowledge Capture` の対象/除外リストを 1 行化（Edit）**
 
-- タスク完了時、作業中に得たプロジェクト固有の知見（アーキテクチャパターン、暗黙の制約・落とし穴、ドメイン知識・ビジネスルール、設計判断の根拠）を auto memory に記録する。コード/git history から自明な内容と一般論は除外
+old_string:
+```
+- タスク完了時、作業中に得たプロジェクト固有の知見を auto memory に記録すること
+- 対象: アーキテクチャパターン、暗黙の制約・落とし穴、ドメイン知識・ビジネスルール、設計判断の根拠
+- 除外: コード/git history から自明なもの、一般的なベストプラクティス
+- 既存メモリ（MEMORY.md）と重複しないこと
+- 記録件数の目安: 0〜3件。該当なしなら記録不要
+- 記録後、何を保存したかを通知すること
+```
+
+new_string:
+```
+- タスク完了時、作業中に得たプロジェクト固有の知見（アーキテクチャパターン・暗黙の制約・落とし穴・ドメイン知識・ビジネスルール・設計判断の根拠）を auto memory に記録する。コード/git history から自明な内容と一般論は除外
 - 既存メモリ（MEMORY.md）と重複しないこと
 - 記録件数の目安: 0〜3 件。該当なしなら記録不要。記録後、何を保存したかを通知する
+```
 
-# Local Overrides
+- [ ] **Step 18: `# Local Overrides` の import 解説を外部ファイル参照に置換（Edit）**
 
+old_string:
+```
+- `~/.claude/CLAUDE.local.md` は `~/.dotfiles/claude/CLAUDE.md` の `@CLAUDE.local.md` import 経由で自動ロードされる。Claude Code が起動時に CLAUDE.md チェーンを解決する際に inject される機械的ロード機構であり、エージェントが Read を忘れる余地はない
+- `CLAUDE.local.md` は PC 固有の設定・制約を記述するためのファイルであり、このファイル（CLAUDE.md / AGENTS.md）の内容を上書きする。優先順位: User CLAUDE.local.md > AGENTS.md（global）> Claude Code 既定挙動
+- import 解決の経路:
+  1. Claude Code が `~/.claude/CLAUDE.md`（dotfiles の `claude/CLAUDE.md` への symlink）を読む
+  2. CLAUDE.md 内の `@AGENTS.md` で AGENTS.md を inject
+  3. 続く `@CLAUDE.local.md` で `~/.claude/CLAUDE.local.md` を inject（ファイルが存在しない PC では skip される）
+- CLAUDE.local.md が読まれていることを確認するには Claude Code 起動後に `/memory` でメモリ階層を表示する
+```
+
+new_string:
+```
 - 優先順位: User CLAUDE.local.md > AGENTS.md（global）> Claude Code 既定挙動
 - CLAUDE.local.md は PC 固有の設定・制約を記述するファイル。AGENTS.md の内容を上書きする
 - 読み込みの仕組み・デバッグ手順は `~/.dotfiles/docs/memory-loading.md` 参照
-````
+```
 
-- [ ] **Step 3: char 数を検証する**
+- [ ] **Step 19: char 数を検証する**
 
 実行: `wc -c /Users/goto/.dotfiles/claude/AGENTS.md`
 期待: 6,000〜7,200 chars 範囲（目標 ~6,665、許容幅 ±600）。許容を外れた場合は git diff を見て圧縮しすぎ/不足を判断
 
-- [ ] **Step 4: 外部ファイル参照が残っていることを検証する**
+- [ ] **Step 20: 外部ファイル参照が残っていることを検証する**
 
 実行: `grep -c "handoff-policy.md" /Users/goto/.dotfiles/claude/AGENTS.md`
 期待: 1（セッション管理セクションで 1 回参照）
@@ -297,7 +454,7 @@ EOF
 実行: `grep -c "memory-loading.md" /Users/goto/.dotfiles/claude/AGENTS.md`
 期待: 1（Local Overrides セクションで 1 回参照）
 
-- [ ] **Step 5: 削除対象セクションが消えていることを検証する**
+- [ ] **Step 21: 削除対象セクションが消えていることを検証する**
 
 実行: `grep -c "^# コードレビュー" /Users/goto/.dotfiles/claude/AGENTS.md`
 期待: 0（セクション全削除されていること）
@@ -308,7 +465,7 @@ EOF
 実行: `grep -c "^## 出力方針" /Users/goto/.dotfiles/claude/AGENTS.md`
 期待: 0（独立セクションが消え、# コミュニケーション方針に統合されていること）
 
-- [ ] **Step 6: 重要ルールが残っていることを検証する**
+- [ ] **Step 22: 重要ルールが残っていることを検証する**
 
 実行: `grep -c "シークレット" /Users/goto/.dotfiles/claude/AGENTS.md`
 期待: 1（#7 セキュリティの secrets 行が残っていること）
@@ -319,7 +476,7 @@ EOF
 実行: `grep -c "ハンドオフから再開" /Users/goto/.dotfiles/claude/AGENTS.md`
 期待: 1（handoff 再開トリガが残っていること）
 
-- [ ] **Step 7: コミット**
+- [ ] **Step 23: コミット**
 
 ```bash
 git add claude/AGENTS.md
