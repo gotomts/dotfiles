@@ -45,6 +45,7 @@
       tls = "tmux ls";              # セッション一覧
       ta  = "tmux attach -t";       # ta <name> で接続
       tad = "tmux attach -d -t";    # 他クライアントを切って接続 (Mac で全画面再開時)
+      trn = "tmux rename-session";  # trn <new> で現セッション rename / trn -t <old> <new> で指定セッション rename
 
       # git
       gp    = "git push origin HEAD";
