@@ -23,8 +23,6 @@
       "Bash(op *)",
       "Bash(ssh *)",
       "Bash(scp *)",
-      "Read(**/.env)",
-      "Read(**/.env.*)",
       "Read(**/master.key)",
       "Read(**/*.pem)",
       "Read(**/*.key)",
