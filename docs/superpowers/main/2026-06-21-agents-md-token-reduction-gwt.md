@@ -70,12 +70,12 @@ summary: ./2026-06-21-agents-md-token-reduction-summary.md
 
 > 各 AC の検証状況を一覧で管理する。テストして AC を満たしたら `- [ ]` を `- [x]` に書き換える。
 
-- [ ] AC-1: AGENTS.md のトークン数が削減目標に達する
-- [ ] AC-2: 外部化ファイル `claude/handoff-policy.md` が機能する
-- [ ] AC-3: 外部化ファイル `docs/memory-loading.md` が機能する
-- [ ] AC-4: AGENTS.md 残存記述が外部ファイルへの参照を含む
-- [ ] AC-5: nix build が成功する
-- [ ] AC-6: 削除されたルールが Claude default でカバーされる
+- [ ] AC-1: AGENTS.md のトークン数が削減目標に達する（新規セッションでの /context 確認待ち。char 数 6,165 / 比 2.85 から推定 ~2.2k tokens で許容幅内）
+- [ ] AC-2: 外部化ファイル `claude/handoff-policy.md` が機能する（新規セッションで「ハンドオフから再開」動作確認待ち。ファイル存在は `ls -la` で確認済）
+- [x] AC-3: 外部化ファイル `docs/memory-loading.md` が機能する（ファイル存在を `ls -la` で確認、内容も brief 通り）
+- [x] AC-4: AGENTS.md 残存記述が外部ファイルへの参照を含む（Task 3 review で `grep -c "handoff-policy.md"` = 1, `grep -c "memory-loading.md"` = 1）
+- [x] AC-5: nix build が成功する（Task 4 Step 1 で exit 0 確認、darwin-rebuild switch も成功）
+- [ ] AC-6: 削除されたルールが Claude default でカバーされる（Q1 verification 時に default の OWASP 記述を確認済。実害は実運用で確認）
 - [ ] AC-E1: 別 PC で `CLAUDE.local.md` が無い場合のフォールバック
 - [ ] AC-E2: 外部化ファイルへの参照が壊れた場合の挙動
 
@@ -83,4 +83,5 @@ summary: ./2026-06-21-agents-md-token-reduction-summary.md
 
 > テスト実施でバグが発覚し AC を修正した場合や、仕様変更で受け入れ条件が更新された場合に追記する。新しいエントリを上に積む（逆時系列）。
 
+- 2026-06-21: AC-3 / AC-4 / AC-5 を実機検証で更新。AC-1 / AC-2 は新規セッション確認待ち（char 数推定で許容幅内見込み）
 - 2026-06-21: 初版作成
