@@ -109,6 +109,15 @@ base: origin/main
 git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'
 ```
 
+**例外: 未 push の自分の commit を検証したいケース**
+
+「自スキル改善の検証」「直前 commit の動作確認」など、ローカル main に未 push の commit を含めたい場合、Step 4 の候補提示時に base 候補も切り替える:
+
+- `--base main` (ローカル main、未 push 含む)
+- `--base @` (現在地、HEAD)
+
+入力テキストに「検証」「動作確認」「dryrun」「smoke test」等が含まれる、もしくはユーザーが直前ターンで commit している (`git log -1 --since="10 minutes ago"` でヒット) ことを検出したら、Step 4 で `base: main (local)` も代替案として提示し、ユーザーに選ばせる。
+
 ### Step 6: 実行
 
 ユーザー承認後にのみ実行:
