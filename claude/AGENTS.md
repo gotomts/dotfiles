@@ -2,7 +2,14 @@
 
 - NEVER squash unrelated commits when pushing or creating PRs（each commit は独立を保ち、ユーザーが明示的に squash を指示した場合のみ例外）
 - When committing, always confirm the target repository (dotfiles vs project) before running git commands
-- NEVER force-push without explicit user authorization. `--amend` の許可は push の許可ではない。push は別途承認を取ること
+
+## Push & PR Policy
+
+- Never `git push` without explicit user authorization in the current message.
+- Never force-push without explicit authorization. `--amend` の許可は push の許可ではない。
+- Create PRs via the local review-then-submit flow, not direct `gh pr create`.
+- Write PR descriptions to a file first; do not paste inline.
+- Use 7-character commit hashes (GitHub short SHA standard) when referencing commits in docs/replies.
 
 ## Worktree Workflow
 
@@ -14,6 +21,12 @@
 
 - 設定変更を行う前に、対象スコープ（global / per-project / per-repo）を明示してユーザーに確認すること。対象は git config・シェル alias / function・claude settings.json・エディタ設定など
 - 「グローバルに入れる」と「このリポジトリだけ」では影響範囲が大きく異なるため、判断を委ねずに先に確認する
+
+## Verification
+
+- Always run verification from the repository root (e.g., `pnpm lint`, `pnpm type-check`, `pnpm test`), NOT scoped with `--filter`.
+- Never use `| tail`, `| head`, or other pipes that mask exit codes when verifying. Check raw exit status.
+- Report 'green' only after seeing the actual passing exit code, not partial output.
 
 # コミュニケーション方針
 
@@ -34,6 +47,12 @@
 - LSP が利用可能な場合、シンボル調査・定義元・参照箇所の特定に Grep/Glob より優先して使うこと
 - 成果物（コード・ドキュメント・設計）を提出する前にセルフレビューを行う（プレースホルダー・矛盾・曖昧さなし）
 - ワークフローの各フェーズで成果物を書き出した後、次のフェーズに進む前に git status を確認し、未コミットの成果物があればコミットすること
+
+## Editing Discipline
+
+- Honor 'extension only' / 'preserve existing code' constraints strictly: do not delete JSDoc, restructure tests, or change env vars unless explicitly requested.
+- During md-discussion / design phase, do NOT make code changes — discuss only until plan is approved.
+- Use absolute paths per the path convention rule; never relative.
 
 # テスト
 
@@ -57,6 +76,12 @@
 - 完了タスクの要約・整理はユーザーに指摘される前に行う
 - コンテキスト圧縮警告 / ツール呼び出し増加時は作業状態の保存を提案する
 - handoff skill の保存先・命名規約は `~/.dotfiles/claude/handoff-policy.md` に従う。「ハンドオフから再開」と言われたら同ファイルの規則で Read してから応答すること
+
+## Resume / Handoff Protocol
+
+- When invoked via handoff or resume, load context and produce a brief state summary, then STOP and wait for explicit user direction.
+- Do NOT proactively call AskUserQuestion or propose next actions on resume — the user may be waiting for review or have their own next step.
+- Verify handoff intent against spec/PR before implementing; do not assume direction of renames, removals, or ENV changes.
 
 # 実装前検証
 
