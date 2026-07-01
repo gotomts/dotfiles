@@ -110,6 +110,7 @@ let
   # core (両 role 共通)
   coreBrews = [
     "worktrunk"
+    "herdr" # ターミナル多重化 CLI (tmux 代替; herdr.dev)。nixpkgs 未収録のため Homebrew 経由
     "oven-sh/bun/bun" # tap: oven-sh/bun。S3 で「S7 で確認」とした保守的残置
     "pipx" # nixpkgs にもあるが、Python venv 周りの ergonomics で homebrew 版を選好
     "schpet/tap/linear" # tap: schpet/tap
