@@ -59,7 +59,6 @@ let
     "nani" # jp.kiok.nani — 公式 cask (brew install --cask nani)
     "notion"
     "orbstack" # 軽量 Docker 代替 (docker-desktop は削除済み)
-    "paseo" # AI coding agent 用 self-hosted daemon (paseo.sh)。cask だが paseo CLI バイナリ同梱。公式 homebrew-cask なので tap 不要
     "postman"
     "raycast"
     "slack"
