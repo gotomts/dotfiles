@@ -6,6 +6,8 @@
 ## Push & PR Policy
 
 - Never `git push` without explicit user authorization in the current message.
+  - 例外: ユーザーが自律ループを明示的に起動した場合、そのループ内での feature branch への非 force push は、起動時の承認をもって authorized と見なす。force push / protected branch (main/master) への push はこの例外の対象外（従来どおり禁止）。
+  - この例外があっても、CLAUDE.local.md（PC ローカルルール）が PR/push を禁じていればローカルルールが優先し、自律ループでも push / PR 作成を行わない。
 - Never force-push without explicit authorization. `--amend` の許可は push の許可ではない。
 - Create PRs via the local review-then-submit flow, not direct `gh pr create`.
 - Write PR descriptions to a file first; do not paste inline.
