@@ -109,7 +109,17 @@
     "learning-output-style@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "linear-cli@linear-cli": true,
-    "rust-analyzer-lsp@claude-plugins-official": true
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "enhance-superpowers@claude-collections": true,
+    "indie-studio@claude-collections": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-collections": {
+      "source": {
+        "source": "github",
+        "repo": "gotomts/claude-collections"
+      }
+    }
   },
   "language": "japanese",
   "alwaysThinkingEnabled": true,
