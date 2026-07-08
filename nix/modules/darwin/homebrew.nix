@@ -60,6 +60,7 @@ let
     "notion"
     "orbstack" # 軽量 Docker 代替 (docker-desktop は削除済み)
     "postman"
+    "proxyman" # HTTP デバッグプロキシ (proxyman.com)。公式 homebrew-cask なので tap 不要
     "raycast"
     "slack"
     "tableplus"
