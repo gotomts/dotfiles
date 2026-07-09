@@ -113,6 +113,7 @@ let
     "worktrunk"
     "herdr" # ターミナル多重化 CLI (tmux 代替; herdr.dev)。nixpkgs 未収録のため Homebrew 経由
     "hunk" # review-first ターミナル diff ビューア (hunk.dev、公式 homebrew-core)。nixpkgs 未収録のため Homebrew 経由
+    "crit" # agent feedback ループ用のローカル review UI (crit.md、公式 homebrew-core)。plan/diff/実行中アプリをブラウザでレビュー。nixpkgs 未収録のため Homebrew 経由
     "oven-sh/bun/bun" # tap: oven-sh/bun。S3 で「S7 で確認」とした保守的残置
     "pipx" # nixpkgs にもあるが、Python venv 周りの ergonomics で homebrew 版を選好
     "schpet/tap/linear" # tap: schpet/tap
