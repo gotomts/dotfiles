@@ -105,8 +105,6 @@
     "claude-code-setup@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "hookify@claude-plugins-official": true,
-    "explanatory-output-style@claude-plugins-official": true,
-    "learning-output-style@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": true,
     "linear-cli@linear-cli": true,
     "rust-analyzer-lsp@claude-plugins-official": true,
