@@ -38,6 +38,7 @@ let
   # core (両 role 共通)
   coreCasks = [
     "1password"
+    "alacritty" # OpenGL ベースの GPU 高速化ターミナルエミュレータ (公式 homebrew-cask)。設定は ~/.config/alacritty/alacritty.toml
     "arto" # tap: arto-app/tap。Rust 製 macOS ネイティブ Markdown リーダー (閲覧専用、`arto` CLI 同梱)
     "claude" # Anthropic Desktop app (claude-code CLI とは別)
     "claude-code"
