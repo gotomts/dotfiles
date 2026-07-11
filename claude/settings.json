@@ -108,13 +108,20 @@
     "linear-cli@linear-cli": true,
     "rust-analyzer-lsp@claude-plugins-official": true,
     "enhance-superpowers@claude-collections": true,
-    "indie-studio@claude-collections": true
+    "indie-studio@claude-collections": true,
+    "crit@crit": true
   },
   "extraKnownMarketplaces": {
     "claude-collections": {
       "source": {
         "source": "github",
         "repo": "gotomts/claude-collections"
+      }
+    },
+    "crit": {
+      "source": {
+        "source": "github",
+        "repo": "tomasz-tomczyk/crit"
       }
     }
   },
