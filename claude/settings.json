@@ -109,7 +109,8 @@
     "rust-analyzer-lsp@claude-plugins-official": true,
     "enhance-superpowers@claude-collections": true,
     "indie-studio@claude-collections": true,
-    "crit@crit": true
+    "crit@crit": true,
+    "codex@openai-codex": true
   },
   "extraKnownMarketplaces": {
     "claude-collections": {
@@ -122,6 +123,12 @@
       "source": {
         "source": "github",
         "repo": "tomasz-tomczyk/crit"
+      }
+    },
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
       }
     }
   },
