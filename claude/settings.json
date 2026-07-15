@@ -132,6 +132,9 @@
       }
     }
   },
+  "attribution": {
+    "sessionUrl": false
+  },
   "language": "japanese",
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
