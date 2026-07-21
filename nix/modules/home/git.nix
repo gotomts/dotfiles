@@ -64,6 +64,9 @@
       # 旧 gitignore_global から移植。home.file でも ~/.gitignore_global を配置するが、
       # programs.git.ignores が正規の管理場所であるためここに宣言する。
       ".claude/settings.local.json"
+      # Serena がプロジェクト activate 時に作る tool 状態 (project.yml / memories)。
+      # serena を使う全リポで出るため global で無視する。
+      ".serena/"
     ];
   };
 

@@ -2,3 +2,7 @@
 
 # Claude Code per-project local approvals (per-machine, do not share)
 .claude/settings.local.json
+
+# Serena がプロジェクト activate 時に作る tool 状態 (project.yml / memories)。
+# serena を使う全リポで出るため global で無視する。
+.serena/
