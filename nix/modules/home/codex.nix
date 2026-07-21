@@ -23,6 +23,15 @@ in
 {
   home.file = {
     ".codex/AGENTS.md".source = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/AGENTS.md";
+
+    # ctx (ctxrs/ctx) の agent-history-search skill を Codex にも供給する。
+    # Codex は ~/.codex/skills/ 配下の SKILL.md を skill として読むが、この
+    # ディレクトリは Codex アプリ管理の他 skill と同居するため、ディレクトリ全体では
+    # なく個別 entry だけを symlink する。skill 本体は claude/skills/ 配下の vendored
+    # コピー (Claude Code 版と byte 一致) を単一ソースとして共有する。
+    # 更新は ctx 再インストールで claude/skills/ 側を上書き再生成すれば両 agent に反映される。
+    ".codex/skills/ctx-agent-history-search".source =
+      config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills/ctx-agent-history-search";
   };
 
   # config.toml の宣言的 seed。~/.codex/config.toml が不在のときだけ
