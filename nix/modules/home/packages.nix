@@ -59,6 +59,13 @@
     # 使い方は nix/README.md の「プロジェクトごとの言語バージョン管理 (devbox)」節を参照。
     devbox
 
+    # uv: 高速な Python パッケージ / プロジェクト / ツールマネージャ (Astral 製)。
+    # `uv tool install <pkg>` で PyPI ツールを ~/.local/bin に導入する。用途の一つは
+    # Serena (oraios/serena) の導入 (`uv tool install -p 3.13 serena-agent`)。Serena 本体は
+    # nixpkgs/Homebrew 未収録のため uv 経由の imperative install だが、uv 自体は nixpkgs
+    # 収録・汎用のためここで宣言する。
+    uv
+
     # -------------------------------------------------------------------------
     # Network & API
     # -------------------------------------------------------------------------
