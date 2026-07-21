@@ -1,1 +1,6 @@
 nix/modules/darwin/homebrew.local.nix
+
+# Codex / ChatGPT desktop アプリが動的に書き換える running config。
+# 静的な seed は codex/config.base.toml に置き、~/.codex/config.toml は
+# アプリ所有の実体ファイルとして追跡しない (nix/modules/home/codex.nix 参照)。
+.codex/config.toml

@@ -1,0 +1,23 @@
+# Codex CLI の宣言的ベース設定 (seed 専用)。
+#
+# ~/.codex/config.toml が存在しないときだけ activation がこのファイルを cp する
+# (nix/modules/home/codex.nix の home.activation.syncCodexConfig 参照)。
+# 一度 seed された後は Codex / ChatGPT desktop アプリが所有する running config と
+# なり、node_repl / computer-use / marketplaces / plugins / trust_level 等の
+# 動的な状態はここでは追跡しない (公開リポに絶対パスや非公開参照を流さないため)。
+#
+# ここに書くのは「新規 PC でも必ず宣言的に効かせたい静的設定」だけに限定する。
+
+[mcp_servers.github]
+command = "npx"
+args = [
+    "-y",
+    "@modelcontextprotocol/server-github",
+]
+
+[mcp_servers.linear]
+command = "npx"
+args = [
+    "-y",
+    "@tacticlaunch/mcp-linear",
+]
