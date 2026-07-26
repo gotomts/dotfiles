@@ -135,6 +135,7 @@
   "attribution": {
     "sessionUrl": false
   },
+  "model": "claude-opus-5",
   "language": "japanese",
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
