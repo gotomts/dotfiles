@@ -107,6 +107,7 @@
     "typescript-lsp@claude-plugins-official": true,
     "linear-cli@linear-cli": true,
     "rust-analyzer-lsp@claude-plugins-official": true,
+    "shared@claude-collections": true,
     "enhance-superpowers@claude-collections": true,
     "indie-studio@claude-collections": true,
     "crit@crit": true,
