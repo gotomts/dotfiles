@@ -1,6 +1,6 @@
 # dotfiles
 
-macOS の開発環境を宣言的に再現するリポジトリ。AI エージェント（Claude Code / Codex CLI）への指示ファイルを 2 層で持つため、層を区別する言葉を定義する。
+macOS の開発環境を宣言的に再現するリポジトリ。AI エージェント（Claude Code / Codex CLI）への AGENTS.md 指示を 2 層（グローバル / プロジェクト）で持ち、加えて PC 固有の上書き層 CLAUDE.local.md があるため、これらの層を区別する言葉を定義する。
 
 ## Language
 
