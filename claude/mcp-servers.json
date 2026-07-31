@@ -1,5 +1,11 @@
 {
   "mcpServers": {
+    "gsap-master": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "bruzethegreat-gsap-master-mcp-server@latest"],
+      "env": {}
+    },
     "github": {
       "type": "stdio",
       "command": "npx",
