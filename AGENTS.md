@@ -4,7 +4,6 @@
 
 - `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
-- `claude/hooks/` — Claude Code フックスクリプト群（PreCompact / SessionStart / UserPromptSubmit）
 - `claude/skills/` — Claude Code 個人スキル層（`~/.claude/skills` にシンボリックリンク）
 - `claude/mcp-servers.json` — user scope の MCP server 宣言（home-manager activation で `~/.claude.json` に merge）
 - `codex/config.base.toml` — Codex CLI の宣言的 seed 設定（`~/.codex/config.toml` 不在時のみ activation が cp する。`~/.codex/config.toml` はアプリ所有の running config なので symlink・追跡しない）
@@ -49,7 +48,6 @@
 - `claude/CLAUDE.md` は `@AGENTS.md` 1 行のみの薄い参照ファイル。プロジェクト固有のルールはここに書かない (グローバル指示は `claude/AGENTS.md` 側に集約)
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
 - `claude/skills/` は個人スキル層。`nix/modules/home/claude.nix` が `~/.claude/skills` に symlink で展開する。出所マーカー（安全ルール）として SKILL.md frontmatter の `maintainer: gotomts` ＝自作・編集可、**無印＝外部由来（vendor）・中身は編集しない**（更新は upstream の手順に従う）
-- `claude/hooks/` 配下のフックスクリプトは PreCompact で未 handover 時のコンパクトをブロックし、SessionStart / UserPromptSubmit で未消費メモを Claude に通知する
 - `claude/mcp-servers.json` は user scope の MCP server を declarative 宣言する。`darwin-rebuild switch` 時に `nix/modules/home/claude.nix` の `home.activation.syncClaudeMcpServers` が `~/.claude.json` の `mcpServers` キーに recursive merge する (add-only、claude.ai connector など宣言外エントリは保持)。`~/.claude.json` は Claude Code が動的に書き換える running config (OAuth token を含む) のため symlink 化できない事情への対応
 - `~/.codex/config.toml` は Codex / ChatGPT desktop アプリが動的に書き換える running config (絶対パス・marketplaces・plugins・trust_level 等) のため symlink・追跡しない。`codex/config.base.toml` を宣言的 seed とし、`nix/modules/home/codex.nix` の `home.activation.syncCodexConfig` が **seed-if-absent** (ファイル不在時のみ cp、既存はアプリ所有として一切触らない) で配置する。Codex の MCP server を宣言的に効かせたい場合は `config.base.toml` に書く (新規 PC のみ反映。既存機は `~/.codex/config.toml` へ手動追記)。`~/.claude.json` と同種の「symlink 化不可な running config」対応
 - 外部由来 (vendor) の skill を両 agent で共有する場合は `claude/skills/<name>/` を単一ソースとし、`~/.codex/skills/<name>` を `codex.nix` で個別 entry symlink する (Codex skills ディレクトリはアプリ管理 skill と同居するため全体 symlink はしない)。外部 skill を install すると `~/.claude/skills` 経由で dotfiles 作業ツリーに着地するので、機微情報を grep 確認のうえ vendor として commit する
@@ -124,22 +122,3 @@ triage で「無視」マークした項目は OS デフォルト値が PC 間�
 - リポジトリに新しいディレクトリやファイルを追加した場合、「リポジトリ構造」セクションを更新すること
 - 新しい運用ルールが生じた場合、該当するセクションに追記するか、新しいセクションを作成すること
 - 更新はユーザー承認後に行うこと
-
-# General Instructions
-
-- ユーザーが内容をそのまま維持する、または最小限の編集を求めた場合、指示通りに行うこと。周囲の内容を書き換えたり、補足したり、構造を変更しない
-- ユーザーがアプローチを修正した場合や仮説を却下した場合、即座に受け入れて次に進むこと。却下されたアプローチを再提案したり、ユーザーが存在しないと言ったものを探し続けない
-
-# Git Conventions
-
-- コミットは常に新規作成すること。`--amend` や squash はユーザーが明示的に指示した場合のみ使用する
-- 共有ブランチで `--amend` と `--force-push` を明示的な許可なく併用しない
-- 変更を行う前に、正しいブランチ・正しいリポジトリにいることを確認すること。推測せず `git branch` と `git remote -v` で検証する
-
-# TypeScript
-
-- このプロジェクトでは `exactOptionalPropertyTypes` を含む strict 設定の TypeScript を使用する。型エラーを修正する際は、まず `tsconfig.json` を読み、strict フラグを考慮した上で解決策を提案すること
-
-# Code Style & Conventions
-
-- コミットメッセージのプレフィックス、コードスタイル、パターンは既存のプロジェクト規約に従うこと。他で使われていないランタイム型チェック、確立されたパターンからの逸脱を確認なしに追加しない
