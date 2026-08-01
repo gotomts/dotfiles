@@ -2,6 +2,7 @@
 
 このリポジトリは macOS の開発環境を再現するための dotfiles である。
 
+- `CONTEXT.md` — AI エージェント指示の層（グローバル / プロジェクト AGENTS.md・CLAUDE.local.md）を区別する用語集
 - `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/skills/` — Claude Code 個人スキル層（`~/.claude/skills` にシンボリックリンク）
