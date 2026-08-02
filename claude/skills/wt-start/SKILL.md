@@ -26,19 +26,23 @@ worktree + ブランチを 1 アクションで用意するスキル。Linear / 
 
 ## 命名規約
 
-形式: `<type>/<linear-id-or-empty>-<kebab-slug>`
+形式: `<type>/<kebab-slug>[-issue-<ISSUE-ID>]`
 
 - **type** (Conventional Commits prefix): `feat | fix | refactor | docs | chore | test`
   - Linear / GitHub title から推測 (Add/Implement → `feat`、Fix/Bug → `fix`、Refactor → `refactor`、Doc → `docs`)
   - 推測がつかなければ `feat` を default にして確認時にユーザーに修正機会を与える
-- **linear-id** (任意): Linear ID パスなら必ず含める (`DOT-47`)。それ以外は省略
 - **kebab-slug**: lowercase、3〜5 単語目安、日本語は英訳して slug 化
+- **`-issue-<ISSUE-ID>`** (任意): issue 起点なら末尾に付ける (Linear は `SCN-147`、GitHub は番号のみ)。自由テキスト起点なら省略
+
+issue ID を末尾に置くのは、`git branch` を type + 内容の順で読めるようにするため。ID を先頭に置くと一覧が識別子の羅列になり、何のブランチか目で追えなくなる。
 
 例:
 
-- Linear `DOT-47 / Add wt-start skill` → `feat/DOT-47-add-wt-start-skill`
-- GitHub issue #123 `Fix race condition in queue` → `fix/123-fix-race-condition-in-queue` (※ GitHub ID は `gh-` prefix 不要、番号のみ)
+- Linear `SCN-147 / Fix backend observability` → `fix/backend-observability-issue-SCN-147`
+- GitHub issue #123 `Fix race condition in queue` → `fix/race-condition-in-queue-issue-123`
 - 自由テキスト「設計ドキュメントの整理」 → `docs/reorganize-design-docs`
+
+対象リポジトリに既存ブランチがあれば `git branch --list` を数本見て、そちらの規約を優先する。リポジトリ内で形が混ざるほうが害が大きい。
 
 ## 実行ステップ
 
@@ -89,11 +93,11 @@ gh issue view <N> --repo <owner/repo> --json title,labels 2>/dev/null \
 
 ### Step 4: branch 名候補を提示 (推奨1案 + 代替0〜2案)
 
-例 (Linear ID `DOT-47 / Add wt-start skill` の場合):
+例 (Linear ID `SCN-147 / Fix backend observability` の場合):
 
 ```
-推奨: feat/DOT-47-add-wt-start-skill
-代替: feat/DOT-47-wt-start (短縮版)
+推奨: fix/backend-observability-issue-SCN-147
+代替: fix/backend-obs-issue-SCN-147 (短縮版)
 base: origin/main
 ```
 
