@@ -83,4 +83,10 @@ in
 
     _run_claude_mcp_sync
   '';
+
+  # i-have-adhd プラグインの常時適用マーカー。存在すればプラグインが毎回自動発動する。
+  # touch は冪等なので switch のたびに実行しても副作用なし。
+  home.activation.enableIHaveAdhdAlways = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    $DRY_RUN_CMD ${pkgs.coreutils}/bin/touch "''${HOME}/.claude/.i-have-adhd-always"
+  '';
 }

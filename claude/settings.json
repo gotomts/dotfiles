@@ -116,13 +116,20 @@
     "indie-studio@claude-collections": true,
     "crit@crit": true,
     "codex@openai-codex": true,
-    "playwright@claude-plugins-official": true
+    "playwright@claude-plugins-official": true,
+    "i-have-adhd@i-have-adhd": true
   },
   "extraKnownMarketplaces": {
     "claude-collections": {
       "source": {
         "source": "github",
         "repo": "gotomts/claude-collections"
+      }
+    },
+    "i-have-adhd": {
+      "source": {
+        "source": "github",
+        "repo": "ayghri/i-have-adhd"
       }
     },
     "crit": {
