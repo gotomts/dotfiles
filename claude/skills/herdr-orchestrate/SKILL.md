@@ -152,15 +152,28 @@ agent 名の制約は実際にエラーで弾かれる (`invalid_agent_name`)。
 
 規約をリポジトリごとに読み直すのは、`wt-start` (手動作業用) と規約が食い違っているリポジトリが実在するため。手で作った worktree と AI が作った worktree でブランチ名の形が違うと、`git branch` を見たときにどちらの経路で作ったか分からなくなる。
 
-### Step 3: base を決める
+### Step 3: base とモデルを決める
 
-既定は `origin/main`。ローカル `main` は fetch 遅れで古いことがあるため使わない。
+**base** — 既定は `origin/main`。ローカル `main` は fetch 遅れで古いことがあるため使わない。
 
 default branch が `main` でないリポジトリを踏む可能性があるので検出する:
 
 ```sh
 git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'
 ```
+
+**モデル** — `herdr agent start` は素の `claude` を起動するので、何も渡さないとアカウント既定のモデルになる。親が `claudem` で選んだモデルは子に伝播しない。issue ごとに明示する。
+
+| モデル ID | 想定 |
+|---|---|
+| `claude-opus-5[1m]` | 既定。実装・設計・調査を伴う通常の issue |
+| `claude-fable-5` | 速度と性能のバランスを取りたいとき |
+| `claude-sonnet-5` | 文言修正・typo・docs 更新など、判断がほぼ要らない issue |
+| `claude-haiku-4-5-20251001` | 機械的な一括置換レベル |
+
+`[1m]` サフィックスは 1M context の指定。付け忘れると 200K で立つので、Opus 5 を選ぶときは必ず付ける。zsh の glob 文字なのでコマンド上は必ずシングルクォートで囲む。
+
+親は issue の重さから 1 つ推奨を決め、Step 4 の承認ブロックに載せる。ここで自動確定はしない — 重さの判断は issue 本文だけでは外れることがあり、人間が承認画面で上書きできる形にしておく。
 
 ### Step 4: 一度だけ承認を取る
 
@@ -170,13 +183,14 @@ worktree 作成・タブ生成・子セッション起動・プロンプト投�
 issue:   ABC-123 / Add push notification opt-in
 branch:  fix/push-notification-opt-in-issue-ABC-123
 base:    origin/main
+model:   claude-opus-5[1m]   (実装と設計判断を伴うため)
 グループ: v2
 タブ名 / セッション名:  v2:ABC-123   (agent 名: v2-abc-123)
 Linear:  Todo → In Progress
 初回プロンプト:
   <実際に投げる本文をそのまま>
 
-これで起動しますか? (yes / branch 名を変える / プロンプトを直す)
+これで起動しますか? (yes / モデルを変える / branch 名を変える / プロンプトを直す)
 ```
 
 ### Step 5: 実行
@@ -215,8 +229,10 @@ herdr tab rename <tab_id> <ISSUE-ID>
 **5-3. 子 Claude を起動する**
 
 ```sh
-herdr agent start <agent-name> --kind claude --pane <pane_id>
+herdr agent start <agent-name> --kind claude --pane <pane_id> -- --model '<model-id>'
 ```
+
+`--` より後ろが `claude` にそのまま渡る。承認済みのモデルをここで渡さないと、子はアカウント既定のモデルで立つ。`claude-opus-5[1m]` の `[1m]` は zsh の glob として展開されうるので、シングルクォートを外さない。
 
 agent 名を付けておくと、以降の `agent prompt` / `agent read` / `agent get` をその名前で引ける。名前なしで手動起動された agent は `pane_id` でしか指定できず、巡回時の扱いが面倒になる。
 
@@ -451,5 +467,6 @@ git -C <repo-root> worktree prune
 
 - `agent start` が `invalid_agent_name` で落ちた → 大文字か記号が混じっている。小文字化して再実行する
 - `worktree create` がブランチ重複で落ちた → 既に走っている可能性が高い。`herdr worktree list` と `herdr tab list` で既存タブを探し、あればそこに合流する案をユーザーに出す
+- 子が意図と違うモデルで立った → `-- --model` を渡し忘れている (アカウント既定が出る)。`herdr agent read` で確認し、落として起動し直す。`[1m]` がクォートなしで glob 展開されて消えている場合も同じ症状になる
 - `agent start` がタイムアウト → pane はできている。`herdr agent explain` で検出状態を見せ、手動で claude を起動する選択肢を出す
 - `gh` / `linear` が無い → 起動モードは成立しない。issue 内容を直接ユーザーから受け取る形に切り替えてよいか 1 問で確認する
