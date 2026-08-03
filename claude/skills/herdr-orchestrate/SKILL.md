@@ -1,8 +1,8 @@
 ---
 name: herdr-orchestrate
 maintainer: gotomts
-description: herdr 上で親セッションをオーケストレーターとして使い、issue (GitHub 番号 / Linear ID) から worktree + workspace + タブを作り、子 Claude セッションを起動して初回プロンプトを投入し、Linear 起点なら status を In Progress に進める。起動済みの子セッション群を巡回して blocked / done を拾い、質問に回答して差し戻すモードも持つ。「SCN-147 立ち上げて」「issue 46 を別セッションで走らせて」「並行で回したい」「子セッション起動して」「各セッションの状況どう」「blocked ないか見て」「巡回して」など、複数 issue の並行進行や起動済みセッションの様子見を示唆する文脈で必ず使う。worktree を作るだけで子セッションを起こさないなら wt-start を使う。
-argument-hint: "[<issue-id> | patrol]  # 例: SCN-147 / 46 / patrol"
+description: herdr 上で親セッションをオーケストレーターとして使い、issue (GitHub 番号 / Linear ID) から worktree + workspace + タブを作り、子 Claude セッションを起動して初回プロンプトを投入し、Linear 起点なら status を In Progress に進める。起動済みの子セッション群を巡回して blocked / done を拾い質問に回答するモードと、未コミット・未 push を数えてから worktree / タブ / ブランチをどこまで消すか確認して落とすモードも持つ。「ABC-123 立ち上げて」「issue 46 を別セッションで走らせて」「並行で回したい」「子セッション起動して」「各セッションの状況どう」「blocked ないか見て」「巡回して」「ABC-123 落として」「あのタブ閉じて」「もう要らないから片付けて」など、複数 issue の並行進行・起動済みセッションの様子見・子セッションの後片付けを示唆する文脈で必ず使う。対象は起動元セッションと同じリポジトリの workspace のみで、別リポジトリの子には触らない。worktree を作るだけで子セッションを起こさないなら wt-start を使う。
+argument-hint: "[<issue-id> | patrol]  # 例: ABC-123 / 46 / patrol"
 allowed-tools:
   - Bash
   - Read
@@ -25,9 +25,37 @@ test "${HERDR_ENV:-}" = 1
 
 親自身の位置は環境変数で分かる: `HERDR_WORKSPACE_ID` / `HERDR_TAB_ID` / `HERDR_PANE_ID`。
 
+## スコープ: 起動元リポジトリのみ
+
+**このスキルが触ってよいのは、起動元セッションと同じリポジトリの workspace だけ。** 他リポジトリの子には、起動も巡回も停止もしない。
+
+herdr は 1 つの画面に複数リポジトリの workspace を同居させる。`herdr agent list` は**全 workspace の agent を無差別に返す**ので、絞らずに使うと別プロジェクトの作業中セッションにプロンプトを投げたり、落としたりできてしまう。親は他リポの文脈を持っていないので、そこで何が起きているか判断する材料がない。
+
+### 対象 workspace の求め方
+
+```sh
+repo_root=$(git rev-parse --show-toplevel)
+herdr worktree list --cwd "$repo_root" --json
+```
+
+`--cwd` を渡すと、そのリポジトリの worktree だけが返る (渡さないと**フォーカス中の workspace のリポジトリ**が対象になり、親がどの pane に居るかで結果が変わる。必ず明示する)。
+
+返る各 worktree の `open_workspace_id` が対象の workspace ID。このフィールドが無いものは herdr で開いていない worktree (`wt` などで作ったもの) なので、対象外として扱う。
+
+これに親自身の `HERDR_WORKSPACE_ID` を加えた集合が、このスキルの守備範囲。
+
+### 絞り込みの適用
+
+- **巡回モード** — `herdr agent list` の結果を `workspace_id` が上の集合に入るものだけに絞る。範囲外の agent は状態も報告しない (「別リポで 3 つ動いています」も余計な情報)
+- **停止モード** — 対象が範囲外なら実行せず、「別リポジトリ (`<repo_name>`) の workspace なので、そちらのセッションから操作してください」と伝えて止まる
+- **起動モード** — `herdr worktree create --cwd "$(git rev-parse --show-toplevel)"` が自リポに閉じるので追加の絞りは不要
+
+ユーザーが明示的に別リポの workspace ID を指定してきた場合だけは例外だが、そのときも「別リポですが本当に操作しますか」と 1 問確認する。issue ID の取り違えで隣のプロジェクトを消すのが一番ありがちな事故。
+
 ## モード判定
 
 - 引数が `patrol` / 「状況」「巡回」「様子」「blocked」等を含む → **巡回モード**
+- 「落とす」「閉じる」「片付ける」「終わり」「もういい」等 → **停止モード**
 - 引数が issue 識別子、または「立ち上げて」「走らせて」等 → **起動モード**
 - 判断がつかない → 1 問で確認する
 
@@ -42,7 +70,7 @@ test "${HERDR_ENV:-}" = 1
 | 形 | 例 | 取得先 |
 |---|---|---|
 | `^[0-9]+$` | `46` | GitHub (`gh`) |
-| `^[A-Z]+-[0-9]+$` | `SCN-147` | Linear |
+| `^[A-Z]+-[0-9]+$` | `ABC-123` | Linear |
 | GitHub issue URL | `https://github.com/o/r/issues/123` | GitHub (`gh`) |
 
 **GitHub:**
@@ -65,9 +93,9 @@ herdr は用途ごとに別の名前空間を使うので、1 つの issue に�
 
 | 用途 | 例 | 制約 |
 |---|---|---|
-| ブランチ名 | `fix/backend-observability-issue-SCN-147` | git の制約のみ |
-| タブ label | `SCN-147` | 自由 (大文字可) |
-| agent 名 | `scn-147` | **小文字始まり、`[a-z0-9_-]` のみ、1〜32 文字** |
+| ブランチ名 | `fix/flaky-login-redirect-issue-ABC-123` | git の制約のみ |
+| タブ label | `ABC-123` | 自由 (大文字可) |
+| agent 名 | `abc-123` | **小文字始まり、`[a-z0-9_-]` のみ、1〜32 文字** |
 
 agent 名の制約は実際にエラーで弾かれる (`invalid_agent_name`)。issue ID をそのまま渡さず小文字化する。
 
@@ -79,7 +107,7 @@ agent 名の制約は実際にエラーで弾かれる (`invalid_agent_name`)。
 
 - **type**: `feat | fix | refactor | docs | chore | test` を issue タイトルから推測 (Add/Implement → `feat`、Fix/Bug → `fix`、Refactor → `refactor`、Doc → `docs`)。推測がつかなければ `feat`
 - **kebab-slug**: lowercase 3〜5 単語。日本語タイトルは英訳する
-- **ISSUE-ID**: Linear は `SCN-147`、GitHub は番号のみ (`46`)
+- **ISSUE-ID**: Linear は `ABC-123`、GitHub は番号のみ (`46`)
 
 規約をリポジトリごとに読み直すのは、`wt-start` (手動作業用) と規約が食い違っているリポジトリが実在するため。手で作った worktree と AI が作った worktree でブランチ名の形が違うと、`git branch` を見たときにどちらの経路で作ったか分からなくなる。
 
@@ -98,10 +126,10 @@ git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/orig
 worktree 作成・タブ生成・子セッション起動・プロンプト投入をまとめて 1 回で見せる。子が走り出すと止めるコストが高いので、投入する初回プロンプトの本文まで見せてから実行する。
 
 ```
-issue:   SCN-147 / Add push notification opt-in
-branch:  fix/push-notification-opt-in-issue-SCN-147
+issue:   ABC-123 / Add push notification opt-in
+branch:  fix/push-notification-opt-in-issue-ABC-123
 base:    origin/main
-タブ名 / セッション名:  SCN-147   (agent 名: scn-147)
+タブ名 / セッション名:  ABC-123   (agent 名: abc-123)
 Linear:  Todo → In Progress
 初回プロンプト:
   <実際に投げる本文をそのまま>
@@ -211,7 +239,7 @@ GitHub issue 起点の場合、issue に status の概念がないのでこの�
 作ったものを 3 行で報告して終わる。親がここで待たないことが並行数を稼ぐ前提になっている。
 
 ```
-SCN-147 起動: workspace wE / タブ SCN-147 / branch fix/...-issue-SCN-147
+ABC-123 起動: workspace wE / タブ ABC-123 / branch fix/...-issue-ABC-123
 worktree: ~/.herdr/worktrees/<repo>/<slug>
 Linear:   In Progress
 次: 続けて別の issue を起動するか、patrol で様子を見る
@@ -226,6 +254,8 @@ Linear:   In Progress
 ```sh
 herdr agent list
 ```
+
+返った agent を「スコープ」で求めた workspace 集合で絞る。このコマンドは全リポジトリの agent を返すので、絞らないと別プロジェクトの状態まで報告してしまう。
 
 返る各 agent で見るフィールド:
 
@@ -255,9 +285,9 @@ herdr agent read <agent-name-or-pane-id> --source recent-unwrapped --lines 120
 読んだ生ログをそのまま貼らない。1 件あたり 2〜3 行に落とす:
 
 ```
-SCN-147  blocked — DB マイグレーションの後方互換を壊してよいか確認待ち
-SCN-122  done    — 実装+テスト完了。PR 未作成
-SCN-139  working — 触らない
+ABC-123  blocked — DB マイグレーションの後方互換を壊してよいか確認待ち
+ABC-124  done    — 実装+テスト完了。PR 未作成
+ABC-125  working — 触らない
 ```
 
 このスキルが起動していない手動タブも `agent list` には出る。それらも状態は読めるので報告に含めてよいが、勝手にプロンプトを投げない (親が文脈を持っていないため)。
@@ -279,11 +309,90 @@ herdr agent prompt <agent-name-or-pane-id> "<回答>"
 
 ---
 
+## 停止モード
+
+子を落とすとき、消える対象は 3 段階ある。どこまで消すかは中身を見ないと決められないので、確認してから聞く。
+
+| 操作 | workspace / タブ | worktree の中身 | ブランチ |
+|---|---|---|---|
+| `herdr workspace close <ws>` | 消える | **残る** | 残る |
+| `herdr worktree remove --workspace <ws>` | 消える | 消える | **残る** |
+| 上 + `git branch -D <branch>` | 消える | 消える | 消える |
+
+コミット済みの作業はブランチに残るので、`worktree remove` までなら失われない。失われるのは `git branch -D` を足したときだけ。
+
+### Step 1: 対象を特定する
+
+issue ID で言われることが多いので、タブ label から workspace を引く:
+
+```sh
+herdr worktree list --cwd "$(git rev-parse --show-toplevel)"  # 自リポの worktree と workspace_id
+herdr tab list                                                # label (issue ID) から workspace_id を照合
+```
+
+引いた workspace が「スコープ」の集合に無ければ、そこで止めて別リポである旨を伝える。
+
+### Step 2: 失うものを数える
+
+3 点を確認する。この確認を飛ばすと、聞くべきかどうかの判断自体ができない。
+
+```sh
+herdr agent get <agent-name>                    # agent_status が working なら実行中
+git -C <checkout_path> status --short           # 未コミットの変更
+git -C <checkout_path> log --oneline @{u}..HEAD # 未 push のコミット (upstream 未設定なら origin/main..HEAD)
+```
+
+### Step 3: 状態を見せて 1 問で聞く
+
+```
+ABC-123 を落とします。現在の状態:
+  agent:     idle
+  未コミット: 2 ファイル (src/foo.ts, src/bar.ts)
+  未 push:   3 commits
+
+どこまで消しますか?
+  1. タブだけ閉じる (worktree もブランチも残る / 後で開き直せる)
+  2. worktree も消す (ブランチは残るので未 push の 3 commits は無事)
+  3. ブランチごと消す (未 push の 3 commits が失われる)
+```
+
+`working` 中なら「実行中ですが止めますか?」を先に確認する。途中で pane を閉じると、子が書きかけのファイルがそのまま残る。
+
+未コミット変更がある状態で 2 か 3 を選ばれた場合、`herdr worktree remove` は `--force` なしだと `dirty_worktree_requires_force` で拒否する。この拒否は保護なので、`--force` を機械的に付けない。拒否されたら未コミットの中身 (`git -C <path> diff`) を見せて、捨ててよいか改めて確認してから `--force` を足す。
+
+### Step 4: 実行して報告する
+
+```sh
+# 1 の場合
+herdr workspace close <ws>
+
+# 2 の場合
+herdr worktree remove --workspace <ws> [--force]
+
+# 3 の場合 (2 に続けて)
+git -C <repo-root> branch -D <branch>
+git -C <repo-root> worktree prune
+```
+
+`worktree prune` は、herdr が消した checkout の登録が git 側に残ることがあるので付けておく。
+
+### Step 5: Linear をどうするか
+
+落とし方で扱いが変わる。
+
+- **完了して片付ける** → 触らない。PR マージ時に GitHub 連携が Done へ進める
+- **中断・放棄する** → `linear issue update <ID> -s "Todo"` で戻す。In Progress のまま放置すると、Linear 上は着手中に見えて次に拾えなくなる
+
+どちらか判断がつかないときは Step 3 の確認と一緒に聞く。落とす理由は本人しか知らない。
+
+---
+
 ## やらないこと
 
 - **`--wait` で子の完了を待つ** — 親が直列化して並行数が 1 に落ちる。完了は次の巡回で拾う
-- **自分が作っていない workspace / タブを閉じる、プロンプトを投げる** — 手動で立てたタブが混在している。明示依頼がない限り触らない
-- **`herdr worktree remove` を勝手に呼ぶ** — マージ済み確認の前に消すと未 push の作業が消える。またこのコマンドは worktree を消してもブランチは残すので、後始末を頼まれたら `git branch -D` まで確認する
+- **別リポジトリの workspace に触る** — 起動も巡回の報告も停止もしない。親はそのリポの文脈を持っていない (「スコープ」参照)
+- **自分が作っていない workspace / タブを閉じる、プロンプトを投げる** — 同じリポジトリでも手動で立てたタブが混在している。明示依頼がない限り触らない
+- **停止モードの確認を飛ばして worktree を消す** — 未コミット・未 push を数える前に消すと、何を失ったのか後から誰も分からない。`--force` を確認なしに付けるのも同じ (あれは git の保護であって、邪魔な警告ではない)
 - **worktree を `wt` で作る** — herdr の workspace に紐づかず、`herdr worktree list` から辿れなくなる。手動作業の `wt` 運用とは分ける
 - **`In Progress` より先の status に進める** — `In Review` / `Done` は PR 作成・マージ時に GitHub 連携が自動で進める。親が先回りすると実態とずれる。親が手で触るのは起動時の `In Progress` だけ
 

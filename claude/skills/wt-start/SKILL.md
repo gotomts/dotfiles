@@ -16,7 +16,7 @@ worktree + ブランチを 1 アクションで用意するスキル。Linear / 
 
 並行作業を始めるとき、または「issue を起点に worktree で作業開始」と読み取れる依頼。例:
 
-- 「DOT-47 やろう」「ABC-105 着手したい」 → Linear ID パス
+- 「ABC-123 やろう」「XYZ-105 着手したい」 → Linear ID パス
 - 「github.com/.../issues/123 で worktree 作って」 → GitHub URL パス
 - 「設計ドキュメントの整理を別 worktree で始めたい」 → 自由テキストパス
 
@@ -32,13 +32,13 @@ worktree + ブランチを 1 アクションで用意するスキル。Linear / 
   - Linear / GitHub title から推測 (Add/Implement → `feat`、Fix/Bug → `fix`、Refactor → `refactor`、Doc → `docs`)
   - 推測がつかなければ `feat` を default にして確認時にユーザーに修正機会を与える
 - **kebab-slug**: lowercase、3〜5 単語目安、日本語は英訳して slug 化
-- **`-issue-<ISSUE-ID>`** (任意): issue 起点なら末尾に付ける (Linear は `SCN-147`、GitHub は番号のみ)。自由テキスト起点なら省略
+- **`-issue-<ISSUE-ID>`** (任意): issue 起点なら末尾に付ける (Linear は `ABC-123` 形式、GitHub は番号のみ)。自由テキスト起点なら省略
 
 issue ID を末尾に置くのは、`git branch` を type + 内容の順で読めるようにするため。ID を先頭に置くと一覧が識別子の羅列になり、何のブランチか目で追えなくなる。
 
 例:
 
-- Linear `SCN-147 / Fix backend observability` → `fix/backend-observability-issue-SCN-147`
+- Linear `ABC-123 / Fix flaky login redirect` → `fix/flaky-login-redirect-issue-ABC-123`
 - GitHub issue #123 `Fix race condition in queue` → `fix/race-condition-in-queue-issue-123`
 - 自由テキスト「設計ドキュメントの整理」 → `docs/reorganize-design-docs`
 
@@ -54,7 +54,7 @@ issue ID を末尾に置くのは、`git branch` を type + 内容の順で読�
 - **引数なし** → ユーザーに自由入力を求める。1問で:
 
   > 何の作業を始めますか? 次のいずれかで答えてください:
-  > - Linear ID (例: `DOT-47`)
+  > - Linear ID (例: `ABC-123`)
   > - GitHub issue/PR URL (例: `https://github.com/owner/repo/issues/123`)
   > - 自由テキスト (作業内容を一言で)
 
@@ -93,11 +93,11 @@ gh issue view <N> --repo <owner/repo> --json title,labels 2>/dev/null \
 
 ### Step 4: branch 名候補を提示 (推奨1案 + 代替0〜2案)
 
-例 (Linear ID `SCN-147 / Fix backend observability` の場合):
+例 (Linear ID `ABC-123 / Fix flaky login redirect` の場合):
 
 ```
-推奨: fix/backend-observability-issue-SCN-147
-代替: fix/backend-obs-issue-SCN-147 (短縮版)
+推奨: fix/flaky-login-redirect-issue-ABC-123
+代替: fix/flaky-login-issue-ABC-123 (短縮版)
 base: origin/main
 ```
 
