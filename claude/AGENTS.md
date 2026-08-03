@@ -49,6 +49,12 @@
 - 検証コマンドは `| head` / `| tail` 等の pipe で exit code を隠さず実行し、実際の exit code を確認してから結果を報告する
 - 既存プロジェクトの規約・パターンに従い、他で使われていないランタイム型チェックや確立されたパターンからの逸脱を確認なしに追加しない
 
+## コードコメントの書き方
+
+- コメントを書く前に、編集対象と同じディレクトリの既存ファイルのコメント密度を確認し、それに合わせること。既存コードベースの水準から乖離した密度は、内容が妥当でもレビューで過剰・過少と指摘される
+- 同じ説明を複数箇所に書かない。1 箇所に集約し、他の箇所からはそこを参照する
+- コードから設計メモ・受け入れ条件番号などの一過性文書（実装完了後にメンテナンスされない文書）へ参照を書かない。文書が役目を終えると参照が陳腐化し、追跡不能な記述として残る
+
 ## Editing Discipline
 
 - Honor 'extension only' / 'preserve existing code' constraints strictly: do not delete JSDoc, restructure tests, or change env vars unless explicitly requested.
