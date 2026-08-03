@@ -179,7 +179,7 @@ base:    origin/main
 model:   claude-opus-5[1m]   (実装と設計判断を伴うため)
 グループ: v2
 タブ名 / セッション名:  v2:ABC-123   (agent 名: v2-abc-123)
-Linear:  Todo → In Progress
+Linear:  Backlog → In Progress   (現 status は issue 取得時の実測値)
 初回プロンプト:
   <実際に投げる本文をそのまま>
 
@@ -209,7 +209,25 @@ JSON から 3 つの ID を取る。ID は不透明な文字列なので、必�
 .result.root_pane.pane_id        # 例 wE:p1
 ```
 
-**5-2. タブに issue ID を付ける**
+**5-2. Linear の status を進める**
+
+Linear 起点の issue なら、worktree ができた時点で status を更新する:
+
+```sh
+linear issue update <ISSUE-ID> -s "In Progress"
+```
+
+`--team` は不要 (issue ID から解決される)。同じ値を設定しても成功するので、既に In Progress でも気にしなくてよい。
+
+これを入れているのは、**GitHub 連携の自動遷移が push 時にしか発火しない**ため。worktree を作って子を走らせた段階では push されていないので、Linear 上は Todo のまま残る。並行で 5 本も走らせると、Linear を見ても何に着手済みか分からなくなる。後で push されたとき自動遷移が走るが、同じ状態への遷移なので競合しない。
+
+**子を起こす前に済ませる。** 起動の後ろに回すと、子が走り出した時点で「起動完了」と判断してこのステップごと落ちる。実際に worktree だけ生えて Linear が Backlog のまま残る事故が起きている。worktree が無いのに status だけ進む方が害が小さいので、順序はこちらを優先する。
+
+Backlog の issue も対象。Todo を経由せず直接 In Progress にしてよい。
+
+GitHub issue 起点の場合、issue に status の概念がないのでこのステップは飛ばす。
+
+**5-3. タブに issue ID を付ける**
 
 `worktree create --label` は workspace 名にしか効かず、タブ名は `1` のまま残る。タブ一覧で issue を見分けたいので明示的に rename する:
 
@@ -217,7 +235,7 @@ JSON から 3 つの ID を取る。ID は不透明な文字列なので、必�
 herdr tab rename <tab_id> <ISSUE-ID>
 ```
 
-**5-3. 子 Claude を起動する**
+**5-4. 子 Claude を起動する**
 
 ```sh
 herdr agent start <agent-name> --kind claude --pane <pane_id> -- --model '<model-id>'
@@ -229,7 +247,7 @@ agent 名を付けておくと、以降の `agent prompt` / `agent read` / `agen
 
 pane が対話シェルプロンプトに居ないと失敗する。作りたての worktree pane なら通常は問題ない。失敗したら `herdr agent explain` で検出状態を見る。
 
-**5-4. Claude Code のセッション名を付ける**
+**5-5. Claude Code のセッション名を付ける**
 
 ```sh
 herdr agent prompt <agent-name> "/rename <ISSUE-ID>"
@@ -239,7 +257,7 @@ herdr agent prompt <agent-name> "/rename <ISSUE-ID>"
 
 タブ label と同じ大文字表記でよい (agent 名だけが小文字制約を持つ)。反映されたかは `herdr agent get <agent-name>` の `terminal_title_stripped` で確認できるが、送信直後は 1 秒ほど古い値が返る。確認するなら一拍置くか、次のステップに進んでから見る。
 
-**5-5. 初回プロンプトを投入する**
+**5-6. 初回プロンプトを投入する**
 
 ```sh
 herdr agent prompt <agent-name> "<本文>"
@@ -268,30 +286,22 @@ herdr agent prompt <agent-name> "<本文>"
 
 **「迷ったら全部止まる」にしない**のが要点。何でも止める指示にすると `blocked` が量産され、親がそれを 1 件ずつ人間に上げることになって、並行で走らせた意味が消える。一方で「一度止まる」自体は残す — 子が黙って最後まで走ると、方針違いに気づくのが PR 段階になる。「止まらず最後までやって」と明示された issue なら、その行だけ外す。
 
-**5-6. Linear の status を進める**
-
-Linear 起点の issue なら、子が動き出した時点で status を更新する:
-
-```sh
-linear issue update <ISSUE-ID> -s "In Progress"
-```
-
-`--team` は不要 (issue ID から解決される)。同じ値を設定しても成功するので、既に In Progress でも気にしなくてよい。
-
-これを入れているのは、**GitHub 連携の自動遷移が push 時にしか発火しない**ため。worktree を作って子を走らせた段階では push されていないので、Linear 上は Todo のまま残る。並行で 5 本も走らせると、Linear を見ても何に着手済みか分からなくなる。後で push されたとき自動遷移が走るが、同じ状態への遷移なので競合しない。
-
-GitHub issue 起点の場合、issue に status の概念がないのでこのステップは飛ばす。
-
 ### Step 6: 制御を返す
 
-作ったものを 3 行で報告して終わる。
+作ったものを 3 行で報告して終わる。`Linear:` 行は書き置きではなく、実測した値を載せる:
+
+```sh
+linear issue view <ISSUE-ID> --json | jq -r '.state.name'
+```
 
 ```
 ABC-123 起動: workspace wE / タブ ABC-123 / branch fix/...-issue-ABC-123
 worktree: ~/.herdr/worktrees/<repo>/<slug>
-Linear:   In Progress
+Linear:   In Progress   ← 実測値
 次: 続けて別の issue を起動するか、patrol で様子を見る
 ```
+
+実測するのは、5-2 を飛ばしても定型文なら報告が成功に見えてしまうため。`In Progress` 以外が返ったら、その場で 5-2 をやり直してから報告する。
 
 ---
 
