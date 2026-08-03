@@ -1,9 +1,13 @@
 #!/bin/zsh
 # Claude Code のモデルを fzf で選んでからセッションを開始する。
 #
-# settings.json の "model" (既定) はセッション単位の --model で上書きされるため、
-# 既定を変えずに「今回だけ別モデル」を選ぶ用途に使う。
+# アカウント既定のモデルはセッション単位の --model で上書きされるため、
+# 「今回だけ別モデル」を選ぶ用途に使う。
 # 追加の引数はそのまま claude へ渡す (例: claudem -c / claudem --resume)。
+#
+# --model は resume 時の解決順で最優先 (transcript のモデルより上) なので、
+# 1M context を使いたいモデルには [1m] サフィックスを明示する。付け忘れると
+# claudem --resume で 1M セッションを 200K に落としてしまう。
 #
 # 使い方: claudem [claude に渡す引数...]
 
@@ -18,9 +22,9 @@ for cmd in claude fzf; do
   fi
 done
 
-# 「表示ラベル<TAB>モデル ID」の一覧。settings.json の既定 (claude-opus-5) を先頭に置く
+# 「表示ラベル<TAB>モデル ID」の一覧。アカウント既定の Opus 5 を先頭に置く
 local -a models=(
-  "Opus 5 (既定) — 最高性能\tclaude-opus-5"
+  "Opus 5 (既定) — 最高性能 / 1M context\tclaude-opus-5[1m]"
   "Fable 5 — 速度と性能のバランス\tclaude-fable-5"
   "Sonnet 5 — 日常作業向け\tclaude-sonnet-5"
   "Haiku 4.5 — 軽量・高速\tclaude-haiku-4-5-20251001"
