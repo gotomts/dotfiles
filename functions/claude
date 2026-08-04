@@ -1,0 +1,68 @@
+# Claude Code をモデル選択 (fzf) してから起動する zsh 関数。
+#
+# アカウント既定のモデルはセッション単位の --model で上書きされるため、
+# 「今回だけ別モデル」を選ぶ用途に使う。
+#
+# --model は resume 時の解決順で最優先 (transcript のモデルより上) なので、
+# 1M context を使いたいモデルには [1m] サフィックスを明示する。付け忘れると
+# claude --resume で 1M セッションを 200K に落としてしまう。
+#
+# モデル選択を挟むのは対話セッションを開くときだけ (claude / claude -c /
+# claude --resume)。明示指定・非対話・サブコマンドは素の claude へ素通しする。
+
+emulate -L zsh
+setopt no_unset
+
+local pick=1
+
+# --model 明示指定、非対話 (-p)、ヘルプ・バージョン照会は選択を挟まない
+local arg
+for arg in "$@"; do
+  case "${arg}" in
+    --model|--model=*|-p|--print|-h|--help|-v|--version) pick=0; break ;;
+  esac
+done
+
+# サブコマンド (claude mcp / claude update など) は対話セッションを開かない
+local -a subcommands=(
+  agents auth auto-mode doctor gateway install mcp plugin plugins
+  project setup-token ultrareview update upgrade
+)
+(( $# > 0 )) && (( ${subcommands[(Ie)$1]} )) && pick=0
+
+# パイプ・スクリプト経由では fzf を出せない
+[[ -t 0 && -t 1 ]] || pick=0
+
+# fzf 未導入の環境では素の claude にフォールバックする
+command -v fzf >/dev/null 2>&1 || pick=0
+
+if (( ! pick )); then
+  command claude "$@"
+  return
+fi
+
+# 「表示ラベル<TAB>モデル ID」の一覧。アカウント既定の Opus 5 を先頭に置く
+local -a models=(
+  "Opus 5 (既定) — 最高性能 / 1M context\tclaude-opus-5[1m]"
+  "Fable 5 — 速度と性能のバランス\tclaude-fable-5"
+  "Sonnet 5 — 日常作業向け\tclaude-sonnet-5"
+  "Haiku 4.5 — 軽量・高速\tclaude-haiku-4-5-20251001"
+)
+
+# --with-nth=1 でモデル ID を隠し、ラベルだけを見せて選ばせる
+local selected
+selected=$(print -l -- "${models[@]}" \
+  | fzf --prompt='model> ' --header='Claude Code のモデルを選択' \
+        --delimiter='\t' --with-nth=1) || {
+  print -u2 "claude: モデル選択をキャンセルしました"
+  return 130
+}
+
+# ラベル部を落として ID だけ取り出す
+local model=${selected#*$'\t'}
+if [[ -z "${model}" || "${model}" == "${selected}" ]]; then
+  print -u2 "claude: モデル ID を取得できませんでした (選択値: ${selected})"
+  return 1
+fi
+
+command claude --model "${model}" "$@"

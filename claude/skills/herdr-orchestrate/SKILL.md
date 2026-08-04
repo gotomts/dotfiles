@@ -155,7 +155,7 @@ default branch が `main` でないリポジトリを踏む可能性があるの
 git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'
 ```
 
-**モデル** — `herdr agent start` は素の `claude` を起動するので、何も渡さないとアカウント既定のモデルになる。親が `claudem` で選んだモデルは子に伝播しない。issue ごとに明示する。
+**モデル** — `herdr agent start` は素の `claude` を起動するので、何も渡さないとアカウント既定のモデルになる。親がシェルのモデル選択で選んだモデルは子に伝播しない。issue ごとに明示する。
 
 | モデル ID | 想定 |
 |---|---|

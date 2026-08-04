@@ -80,10 +80,6 @@
       # claude.ai のチャット / Code を独立 Chrome ウィンドウで一括起動しグリッド整列する
       # (本体は aliase/claude-board.zsh / 引数: チャット数 Code数)
       claude-board = "zsh $HOME/.aliase/claude-board.zsh";
-
-      # Claude Code をモデル選択 (fzf) してから起動する
-      # (本体は aliase/claude-model.zsh / 追加引数はそのまま claude へ渡る)
-      claudem = "zsh $HOME/.aliase/claude-model.zsh";
     };
 
     # -----------------------------------------------------------------------
@@ -110,6 +106,10 @@
 
       # worktrunk shell integration
       if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
+
+      # Claude Code — 対話起動時にモデル選択 (fzf) を挟むラッパー
+      # (本体は functions/claude / 判定と素通し条件は同ファイル冒頭のコメント参照)
+      autoload -Uz claude
 
       # fzf — カスタム履歴ウィジェット (functions/fzf-history を使用)
       autoload fzf-history
@@ -205,7 +205,7 @@
     ".aliase/get-gke-credentials.sh".source = ../../../aliase/get-gke-credentials.sh;
     # claude.ai 一括起動 + グリッド整列スクリプト (shellAliases.claude-board が参照)
     ".aliase/claude-board.zsh".source = ../../../aliase/claude-board.zsh;
-    # Claude Code モデル選択起動スクリプト (shellAliases.claudem が参照)
-    ".aliase/claude-model.zsh".source = ../../../aliase/claude-model.zsh;
+    # Claude Code モデル選択ラッパー (initExtra の `autoload -Uz claude` が参照)
+    ".functions/claude".source = ../../../functions/claude;
   };
 }
