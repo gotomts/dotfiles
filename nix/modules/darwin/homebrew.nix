@@ -58,6 +58,7 @@ let
     "imageoptim" # 一眼カメラ等の JPG/PNG 一括圧縮 GUI (MozJPEG / pngquant 等を内部で自動選択。初回は Preferences で Quality を 80〜85 に下げると削減率が上がる)
     "linear" # 旧 linear-linear、Homebrew で rename 済み
     "medis"
+    "monitorcontrol" # 外部モニターの輝度/音量/入力切替をキーボード・メニューバーから操作 (公式 homebrew-cask、GitHub: MonitorControl/MonitorControl)
     "nani" # jp.kiok.nani — 公式 cask (brew install --cask nani)
     "notion"
     "orbstack" # 軽量 Docker 代替 (docker-desktop は削除済み)
