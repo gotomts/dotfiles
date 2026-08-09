@@ -4,9 +4,9 @@
 
 ## ファイル配置
 
-- 保存先: `$TMPDIR/handoff-<repo-slug>-<branch-slug>.md`
-- repo × branch 単位で 1 ファイル、同一ブランチ内は上書き運用
-- 複数セッションを別ブランチ（別 worktree）で並行運用しても衝突しないよう、ファイル名は repo と branch の複合キーにする
+- 保存先: `$TMPDIR/handoff-<repo-slug>-<session-slug>.md`
+- 1 セッション 1 ファイル。同一セッションの再保存は上書きする
+- 命名規約に一致しないファイル（`handoff-<repo-slug>.md` など）は読まない・消さない
 
 ## `<repo-slug>` の解決
 
@@ -14,32 +14,27 @@
 - worktree からは `dirname "$(git rev-parse --git-common-dir)"` 経由で main working dir を解決し、その basename
 - git 外ならカレントディレクトリの basename
 
-## `<branch-slug>` の解決
+## `<session-slug>` の解決
 
-- 現在のブランチ名を sanitize したもの（`/` 等を `-` に置換）
-- detached HEAD や git 外などブランチを解決できない場合は `nobranch`
+主キーは herdr のタブ名。`${HERDR_TAB_ID}` が取れる場合は、そのタブの label を使う。
+
+```sh
+herdr tab list | jq -r --arg id "${HERDR_TAB_ID}" '.result.tabs[] | select(.tab_id == $id) | .label'
+```
+
+`${HERDR_TAB_ID}` が無い（herdr の外）場合は現在のブランチ名を使う。detached HEAD や git 外でブランチを解決できない場合は `nobranch` とする。
+
+いずれの場合も `:` と `/` を `-` に置換して slug 化する。
+
+例: `HERDR_TAB_ID=w27:t1` → label `v2:ops` → `handoff-socialcoffeenote-v2-ops.md`
+
+タブ名は同一リポジトリ内で一意になるよう付ける。既定のタブ名（連番）は別セッションと重複しうるため、`herdr tab rename` で担当が分かる名前にしてから handoff を保存する。
 
 ## `$TMPDIR` の OS 差分
 
 - macOS: `/var/folders/.../T/`
 - Linux: 通常 `/tmp`
 
-## 同一 repo × branch で複数セッションが動く場合
-
-repo × branch の複合キーは「別セッション＝別ブランチ（別 worktree）」を前提にしている。**メインワークスペースで複数のセッションが同じブランチに居るとファイル名が衝突する**。並行運用のオーケストレーターと、別テーマを担当するセッションが両方 default branch に居る構成で実際に起きる。
-
-このとき**上書きしない**。1 ファイルの中をセクションに分ける。
-
-- 冒頭に、どのセクションが誰の担当かを担当範囲・タブ名・pane ID・最終更新日で示す
-- 見出しは `# セクション A — <担当>` の形にし、セクション内だけを更新する旨を明記する
-- 自分の担当セクションだけを書き換える。他セクションは、内容が古くなったことを確認できた箇所に限り取り消し線と参照先を足すに留める
-
-書き込む前に既存ファイルを Read し、別セッションのセクションが無いかを確認する。
-
-## 過渡対応
-
-旧形式の `handoff-<repo-slug>.md`（repo 単位のみのファイル）が残っていても触らない。移行で消さない。
-
 ## 「ハンドオフから再開」要求への応答
 
-ユーザーが「ハンドオフから再開」と言ったら、上記の規則で `$TMPDIR/handoff-<repo-slug>-<branch-slug>.md` を Read で読んでから応答する。該当ファイルが無ければユーザーにパスを確認する。
+ユーザーが「ハンドオフから再開」と言ったら、上記の規則で `$TMPDIR/handoff-<repo-slug>-<session-slug>.md` を Read で読んでから応答する。該当ファイルが無ければユーザーにパスを確認する。
