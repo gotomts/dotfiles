@@ -90,7 +90,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$HOME/.claude/hooks/one-question-per-turn.py\""
+            "command": "H=\"$HOME/.claude/hooks/one-question-per-turn.py\"; [ -f \"$H\" ] || exit 0; python3 \"$H\""
           }
         ]
       }
