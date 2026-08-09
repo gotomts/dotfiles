@@ -69,7 +69,7 @@ ToolSearch query="select:mcp__linear__list_issues,mcp__linear__get_issue,mcp__li
 - `fields`: `projectMilestone` を**必ず含める**。他に `title` / `priority` / `url` / `gitBranchName` / `status` / `labels` / `project` / `updatedAt`
 - `limit`: 100
 
-epic 引数 (`--epic KISSA-NN`) があれば `parentId: KISSA-NN` でフィルタ。
+epic 引数 (`--epic ABC-NN`) があれば `parentId: ABC-NN` でフィルタ。
 
 **依存 relation は `list_issues` の fields に無いので、別途 raw GraphQL で取る:**
 
@@ -79,7 +79,7 @@ linear api '{ team(id:"<TEAM>") { issues(first:80, filter:{ state:{ type:{ nin:[
 
 `inverseRelations` の `type: "blocks"` が「この issue をブロックしているもの」。`relations` は逆向き (この issue がブロックしているもの) なので取り違えない。
 
-> **このクエリに `2>/dev/null` を付けないこと。** Linear の GraphQL は complexity 上限 10000 を持ち、`first` を増やしたり `description` と `relations` を同時に要求すると `Query too complex` で 400 を返す。エラーを握りつぶすと jq が空を出して「依存は 1 件も登録されていない」と読める。2026-08-04 にこれで誤報告し、既に 152 本登録済みの relation を「未使用」と伝えた。落ちたら `first` を下げるかクエリを分割する。
+> **このクエリに `2>/dev/null` を付けないこと。** Linear の GraphQL は complexity 上限 10000 を持ち、`first` を増やしたり `description` と `relations` を同時に要求すると `Query too complex` で 400 を返す。エラーを握りつぶすと jq が空を出し、relation が登録済みでも「依存は 1 件も登録されていない」と読めてしまう。落ちたら `first` を下げるかクエリを分割する。
 
 ### Step 4: 候補から落とす (ランク付けより先)
 
@@ -109,7 +109,7 @@ milestone が未設定の issue は**末尾に置く** (milestone の `sortOrder
 
 合計スコア降順で上位 5 件。タイブレークは `updatedAt` 新しい順。
 
-> **`sortOrder` を「整備された着手順」として信用しない。** Linear は新規 issue を上 (負の絶対値が大きい方) へ自動挿入するので、負値ゾーンは単なる起票順の裏返しであることが多い。人が手で並べた区間は値が連番的になる (1000 / 1100 / 1200 …)。両者が混在している場合、負値側を着手順と読むと新しく起票された issue ほど上位に見える。2026-08-04 にこれで Phase 0/1 を飛ばして Phase 2 の issue を推奨した。
+> **`sortOrder` を「整備された着手順」として信用しない。** Linear は新規 issue を上 (負の絶対値が大きい方) へ自動挿入するので、負値ゾーンは単なる起票順の裏返しであることが多い。人が手で並べた区間は値が連番的になる (1000 / 1100 / 1200 …)。両者が混在している場合、負値側を着手順と読むと新しく起票された issue ほど上位に見え、前半の Phase を飛ばして後半の issue を推奨してしまう。
 
 ### Step 5: 出力
 
@@ -118,11 +118,11 @@ milestone が未設定の issue は**末尾に置く** (milestone の `sortOrder
 ```markdown
 ## 次にやるべき issue (推奨順)
 
-### 1. KISSA-XX: <タイトル>
+### 1. ABC-XX: <タイトル>
 - 状態: <status>
 - Phase: <projectMilestone があればその名前、なければ「(milestone なし)」>
 - 理由: <なぜ今これを推奨するか — 1 行>
-- 親 epic: <親があれば KISSA-NN: title、なければ「(独立)」>
+- 親 epic: <親があれば ABC-NN: title、なければ「(独立)」>
 - URL: <issue url>
 
 ### 2. ...
