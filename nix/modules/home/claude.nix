@@ -2,8 +2,15 @@
 
 # ~/.claude/ の設定・skills を dotfiles から配置する home-manager モジュール。
 # mkOutOfStoreSymlink で working tree を直接指すため、追加・編集は git pull で即反映される。
+#
+# skills は 1 ディレクトリの symlink なので、複数リポジトリの skill を同居させるには
+# ディレクトリの中で分岐させるしかない。自作 skill は gotomts/skills を SSOT とし、
+# claude/skills/<name> を同リポへの相対 symlink にすることで、~/.claude/skills を
+# 単一 symlink のまま保っている (絶対パスにするとユーザー名が公開リポに載る)。
+# 外部由来 (vendor) の skill は従来どおり dotfiles 内の実体。
 let
   dotfiles = "${config.home.homeDirectory}/.dotfiles";
+  skillsRepo = "${config.home.homeDirectory}/ghq/github.com/gotomts/skills";
 in
 {
   home.file = {
@@ -13,6 +20,31 @@ in
     ".claude/skills".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
     ".claude/hooks".source         = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/hooks";
   };
+
+  # 自作 skill は gotomts/skills が SSOT で、claude/skills/ 配下には相対 symlink だけを
+  # 置いている。clone が無いと symlink が dangling になるので、不在のときだけ clone する。
+  # 既存の clone はユーザー所有の作業ツリーとして扱い、pull もチェックアウト変更もしない。
+  home.activation.cloneSkillsRepo = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    _run_skills_repo_clone() {
+      set +e
+
+      if [ -e "${skillsRepo}" ]; then
+        return 0
+      fi
+
+      if ! command -v git &>/dev/null; then
+        echo "[claude.nix] git 未インストール、skills repo の clone をスキップ"
+        return 0
+      fi
+
+      $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "${skillsRepo}")"
+      $DRY_RUN_CMD git clone ssh://git@github.com/gotomts/skills.git "${skillsRepo}" && \
+        echo "[claude.nix] skills repo cloned to ${skillsRepo}" || \
+        echo "[claude.nix] skills repo の clone 失敗 (SSH 鍵未設定なら手動 clone が必要)"
+    }
+
+    _run_skills_repo_clone
+  '';
 
   # claude plugin の宣言的同期。settings.json の enabledPlugins を CLI で install/update。
   home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
