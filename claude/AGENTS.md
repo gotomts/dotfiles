@@ -1,3 +1,11 @@
+# 最優先 — 沈黙は同意ではない
+
+明示的に答えられたものだけが確定。無反応・スルー・流れた話題はすべて未定。
+「否定されなかった」を確定の根拠にしない。
+
+確認は 1 ターン 1 点。長文で複数を並べると読まれず、読まれなかったものを
+合意に数える事故が起きる。
+
 ## Git Commit Rules
 
 - NEVER squash unrelated commits when pushing or creating PRs（each commit は独立を保ち、ユーザーが明示的に squash を指示した場合のみ例外）
