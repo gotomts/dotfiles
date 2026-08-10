@@ -2,8 +2,15 @@
 
 # ~/.claude/ の設定・skills を dotfiles から配置する home-manager モジュール。
 # mkOutOfStoreSymlink で working tree を直接指すため、追加・編集は git pull で即反映される。
+#
+# skills は 1 ディレクトリの symlink なので、複数リポジトリの skill を同居させるには
+# ディレクトリの中で分岐させるしかない。自作 skill は gotomts/skills を SSOT とし、
+# claude/skills/<name> を同リポへの相対 symlink にすることで、~/.claude/skills を
+# 単一 symlink のまま保っている (絶対パスにするとユーザー名が公開リポに載る)。
+# 外部由来 (vendor) の skill は従来どおり dotfiles 内の実体。
 let
   dotfiles = "${config.home.homeDirectory}/.dotfiles";
+  skillsRepo = "${config.home.homeDirectory}/ghq/github.com/gotomts/skills";
 in
 {
   home.file = {
@@ -13,6 +20,41 @@ in
     ".claude/skills".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
     ".claude/hooks".source         = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/hooks";
   };
+
+  # 自作 skill は gotomts/skills が SSOT で、claude/skills/ 配下には相対 symlink だけを
+  # 置いている。clone が無いと symlink が dangling になるので、不在のときだけ clone する。
+  # 既存の clone はユーザー所有の作業ツリーとして扱い、pull もチェックアウト変更もしない。
+  home.activation.cloneSkillsRepo = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    _run_skills_repo_clone() {
+      # 他の activation と同じく fail-open。clone に失敗しても switch は通す。
+      # SSH 鍵が未設定の新規 PC で環境構築そのものが止まる方が害が大きい。
+      set +e
+
+      if [ -e "${skillsRepo}" ]; then
+        # 実在するが git 作業ツリーでない場合、clone をスキップすると symlink が
+        # dangling のまま残る。中身を消す判断はできないので警告だけ出す。
+        if ! ${pkgs.git}/bin/git -C "${skillsRepo}" rev-parse --git-dir &>/dev/null; then
+          echo "[claude.nix] ${skillsRepo} が git 作業ツリーではない。skill の symlink が dangling のままになる"
+        fi
+        return 0
+      fi
+
+      $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "${skillsRepo}")"
+
+      # BatchMode/ConnectTimeout が無いと、host-key 確認や passphrase 入力の
+      # プロンプトで activation が無期限に止まる。
+      GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10" \
+        $DRY_RUN_CMD ${pkgs.git}/bin/git clone ssh://git@github.com/gotomts/skills.git "${skillsRepo}"
+
+      if [ $? -eq 0 ]; then
+        echo "[claude.nix] skills repo cloned to ${skillsRepo}"
+      else
+        echo "[claude.nix] skills repo の clone 失敗 (SSH 鍵未設定なら手動 clone が必要)"
+      fi
+    }
+
+    _run_skills_repo_clone
+  '';
 
   # claude plugin の宣言的同期。settings.json の enabledPlugins を CLI で install/update。
   home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
