@@ -87,6 +87,7 @@ let
   # core (両 role 共通)
   coreMasApps = {
     "Magnet" = 441258766;
+    "RunCat Neo" = 6757801838;
   };
 
   # default-only masApps (role == "default" のときだけ)
