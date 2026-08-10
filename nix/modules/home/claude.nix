@@ -26,21 +26,31 @@ in
   # 既存の clone はユーザー所有の作業ツリーとして扱い、pull もチェックアウト変更もしない。
   home.activation.cloneSkillsRepo = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     _run_skills_repo_clone() {
+      # 他の activation と同じく fail-open。clone に失敗しても switch は通す。
+      # SSH 鍵が未設定の新規 PC で環境構築そのものが止まる方が害が大きい。
       set +e
 
       if [ -e "${skillsRepo}" ]; then
-        return 0
-      fi
-
-      if ! command -v git &>/dev/null; then
-        echo "[claude.nix] git 未インストール、skills repo の clone をスキップ"
+        # 実在するが git 作業ツリーでない場合、clone をスキップすると symlink が
+        # dangling のまま残る。中身を消す判断はできないので警告だけ出す。
+        if ! ${pkgs.git}/bin/git -C "${skillsRepo}" rev-parse --git-dir &>/dev/null; then
+          echo "[claude.nix] ${skillsRepo} が git 作業ツリーではない。skill の symlink が dangling のままになる"
+        fi
         return 0
       fi
 
       $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p "$(${pkgs.coreutils}/bin/dirname "${skillsRepo}")"
-      $DRY_RUN_CMD git clone ssh://git@github.com/gotomts/skills.git "${skillsRepo}" && \
-        echo "[claude.nix] skills repo cloned to ${skillsRepo}" || \
+
+      # BatchMode/ConnectTimeout が無いと、host-key 確認や passphrase 入力の
+      # プロンプトで activation が無期限に止まる。
+      GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10" \
+        $DRY_RUN_CMD ${pkgs.git}/bin/git clone ssh://git@github.com/gotomts/skills.git "${skillsRepo}"
+
+      if [ $? -eq 0 ]; then
+        echo "[claude.nix] skills repo cloned to ${skillsRepo}"
+      else
         echo "[claude.nix] skills repo の clone 失敗 (SSH 鍵未設定なら手動 clone が必要)"
+      fi
     }
 
     _run_skills_repo_clone
