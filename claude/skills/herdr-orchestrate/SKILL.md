@@ -255,7 +255,19 @@ herdr agent prompt <agent-name> "/rename <ISSUE-ID>"
 
 これは本命のプロンプトより先に送る。Claude Code はセッション名を未設定のままだと直近の作業内容を要約したタイトルを出し続けるので、サイドバーの表示が作業のたびに変わって issue と結びつかなくなる。`/rename` を通すとタイトルがそこで固定され、issue ID のまま残る。
 
-タブ label と同じ大文字表記でよい (agent 名だけが小文字制約を持つ)。反映されたかは `herdr agent get <agent-name>` の `terminal_title_stripped` で確認できるが、送信直後は 1 秒ほど古い値が返る。確認するなら一拍置くか、次のステップに進んでから見る。
+タブ label と同じ大文字表記でよい (agent 名だけが小文字制約を持つ)。
+
+**タイトルが変わるのを確認してから 5-6 に進む。確認を飛ばさない。** `agent prompt` を連続で撃つと、1 通目が送信される前に 2 通目が入力欄へ届き、**2 つが連結したまま未送信で残る**。`agent prompt` は成功を返し `agent_status` も `idle` なので、送信結果からは気づけない。issue 本文ごと未送信で残り、起動したつもりの子が何もしていない状態になる。
+
+```sh
+for i in $(seq 1 15); do
+  t=$(herdr agent get <agent-name> | jq -r '.result.agent.terminal_title_stripped')
+  [ "$t" = "<ISSUE-ID>" ] && break
+  sleep 1
+done
+```
+
+入力欄が汚れたら `herdr agent send-keys <agent-name> esc` で消してから送り直す。
 
 **5-6. 初回プロンプトを投入する**
 
@@ -536,4 +548,5 @@ git -C <repo-root> worktree prune
 - `worktree create` がブランチ重複で落ちた → 既に走っている可能性が高い。`herdr worktree list` と `herdr tab list` で既存タブを探し、あればそこに合流する案をユーザーに出す
 - 子が意図と違うモデルで立った → `-- --model` を渡し忘れている (アカウント既定が出る)。`herdr agent read` で確認し、落として起動し直す。`[1m]` がクォートなしで glob 展開されて消えている場合も同じ症状になる
 - `agent start` がタイムアウト → pane はできている。`herdr agent explain` で検出状態を見せ、手動で claude を起動する選択肢を出す
+- 起動したのに子が何もしていない (`Ctx: 0` のまま) → 5-5 の確認を飛ばして 5-6 を撃ち、入力欄で 2 通が連結して未送信で残っている。`herdr agent send-keys <name> esc` で消し、タイトル確認を挟んで送り直す
 - `gh` / `linear` が無い → 起動モードは成立しない。issue 内容を直接ユーザーから受け取る形に切り替えてよいか 1 問で確認する
