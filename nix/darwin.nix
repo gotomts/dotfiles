@@ -13,8 +13,6 @@
   imports = [
     # cask + mas + 例外 brew (S9)
     ./modules/darwin/homebrew.nix
-    # pmset NOPASSWD (S11)
-    ./modules/darwin/sudoers.nix
     # SF Mono 等 (S11)。空リストで雛形のみ
     ./modules/darwin/fonts.nix
     # Touch ID for sudo (S11)
