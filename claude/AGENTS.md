@@ -98,6 +98,7 @@ docs / README も同様に、issue 参照・経緯・マイグレーション履
 
 - 完了タスクの要約・整理はユーザーに指摘される前に行う
 - handoff skill の保存先・命名規約は `~/.dotfiles/claude/handoff-policy.md` に従う。「ハンドオフから再開」と言われたら同ファイルの規則で Read してから応答すること
+- コンテキスト逼迫で後任セッションへ渡すときは herdr-succession skill の手順に従う。文書を書いて終わらせず、後任の起動と検証まで通す
 
 ## Resume / Handoff Protocol
 
