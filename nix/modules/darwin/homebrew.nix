@@ -38,7 +38,6 @@ let
   # core (両 role 共通)
   coreCasks = [
     "1password"
-    "alacritty" # OpenGL ベースの GPU 高速化ターミナルエミュレータ (公式 homebrew-cask)。設定は ~/.config/alacritty/alacritty.toml
     "arto" # tap: arto-app/tap。Rust 製 macOS ネイティブ Markdown リーダー (閲覧専用、`arto` CLI 同梱)
     "chatgpt" # OpenAI 公式 ChatGPT デスクトップアプリ (公式 homebrew-cask なので tap 不要)
     "claude" # Anthropic Desktop app (claude-code CLI とは別)
@@ -53,6 +52,9 @@ let
     "dropbox"
     "figma"
     "gcloud-cli"
+    # nixpkgs の ghostty は darwin で meta.available = false (Zig + Xcode ビルドが
+    # 未対応) のため Homebrew 経由。設定は ~/.config/ghostty/config
+    "ghostty"
     "google-chrome"
     "google-japanese-ime"
     "imageoptim" # 一眼カメラ等の JPG/PNG 一括圧縮 GUI (MozJPEG / pngquant 等を内部で自動選択。初回は Preferences で Quality を 80〜85 に下げると削減率が上がる)

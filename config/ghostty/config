@@ -1,0 +1,3 @@
+# フォントファミリーは ghostty デフォルト (macOS: JetBrains Mono) を使用する。
+# 既定サイズ 13 よりやや大きめに調整。
+font-size = 14
