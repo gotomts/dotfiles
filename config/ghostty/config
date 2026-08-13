@@ -10,6 +10,14 @@ window-padding-x = 8
 window-padding-y = 8
 window-padding-balance = true
 
+# ---- SSH ----
+# xterm-ghostty の terminfo は ghostty 同梱のため接続先には存在せず、
+# TERM をそのまま渡すとリモートの起動スクリプトが terminfo 参照で失敗する。
+# ssh-terminfo が初回接続時に infocmp の出力を送って相手側へ登録する。
+# この項目は加算ではなく置き換えなので、既定値 (cursor,no-sudo,title,
+# no-ssh-env,no-ssh-terminfo,path) を全部書いた上で ssh 系だけ反転させる。
+shell-integration-features = cursor,no-sudo,title,ssh-env,ssh-terminfo,path
+
 # ---- herdr 前提 ----
 # 有効なキーボードレイアウトが ABC のため macos-option-as-alt の既定は
 # false になり (true になるのは U.S. Standard / U.S. International のみ)、
