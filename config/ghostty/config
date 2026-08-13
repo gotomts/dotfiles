@@ -30,6 +30,8 @@ keybind = super+t=text:\x02c
 keybind = super+w=text:\x02X
 keybind = super+d=text:\x02v
 keybind = super+shift+d=text:\x02-
+keybind = super+x=text:\x02x
+keybind = super+shift+q=text:\x02q
 
 # タブ番号への直接ジャンプ (herdr の switch_tab = prefix+1..9)。
 # ghostty 既定は同じ操作を super+digit_N と super+N の 2 つで定義しており、
