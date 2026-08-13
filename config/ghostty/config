@@ -1,8 +1,15 @@
 # ---- 見た目 ----
 theme = Catppuccin Mocha
 
-# フォントファミリーは ghostty 同梱の JetBrains Mono をそのまま使う。
-font-size = 13
+# 欧文は JetBrains Mono、和文はグリフを持たないため 2 つ目の UDEV Gothic LG へ
+# フォールバックする (フォント導入の理由は nix/modules/darwin/fonts.nix)。
+# LG バリアントは行送りを広げた版で、既定版だと和文の行が詰まって潰れて見える。
+font-family = JetBrains Mono
+font-family = UDEV Gothic LG
+font-size = 12
+
+# macOS の CoreText はグリフを細く描くため、暗い背景では和文の画が飛ぶ。
+font-thicken = true
 
 # 既定の 2px は文字が窓枠に張り付いて見えるため広げる。balance は
 # 端数を上下左右に均等配分し、ウィンドウサイズによって余白が偏るのを防ぐ。
