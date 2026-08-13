@@ -43,7 +43,9 @@ in
 
       # BatchMode/ConnectTimeout が無いと、host-key 確認や passphrase 入力の
       # プロンプトで activation が無期限に止まる。
-      GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10" \
+      # activation の PATH に /usr/bin が無いため ssh は絶対パスで呼ぶ。nixpkgs の
+      # openssh ではなく macOS 同梱を使うのは、keychain 経由の鍵を引くため。
+      GIT_SSH_COMMAND="/usr/bin/ssh -o BatchMode=yes -o ConnectTimeout=10" \
         $DRY_RUN_CMD ${pkgs.git}/bin/git clone ssh://git@github.com/gotomts/skills.git "${skillsRepo}"
 
       if [ $? -eq 0 ]; then
@@ -61,7 +63,10 @@ in
     _run_claude_plugin_sync() {
       set +e  # 個々のプラグイン失敗で関数内処理を止めない
 
-      if ! command -v claude &>/dev/null; then
+      # activation の PATH に /opt/homebrew/bin が無いため、command -v では
+      # cask で入っている claude を見つけられない。
+      local CLAUDE="/opt/homebrew/bin/claude"
+      if [ ! -x "$CLAUDE" ]; then
         echo "[claude.nix] claude CLI 未インストール、plugin 同期をスキップ"
         return 0
       fi
@@ -72,14 +77,14 @@ in
         return 0
       fi
 
-      $DRY_RUN_CMD claude plugin marketplace update 2>/dev/null || true
+      $DRY_RUN_CMD "$CLAUDE" plugin marketplace update 2>/dev/null || true
 
       ${pkgs.jq}/bin/jq -r '.enabledPlugins // {} | keys[]' "$SETTINGS" 2>/dev/null | while IFS= read -r plugin; do
-        if claude plugin list --json 2>/dev/null | ${pkgs.jq}/bin/jq -e --arg p "$plugin" '.[] | select(.id == $p)' &>/dev/null; then
-          $DRY_RUN_CMD claude plugin update "$plugin" 2>/dev/null || \
+        if "$CLAUDE" plugin list --json 2>/dev/null | ${pkgs.jq}/bin/jq -e --arg p "$plugin" '.[] | select(.id == $p)' &>/dev/null; then
+          $DRY_RUN_CMD "$CLAUDE" plugin update "$plugin" 2>/dev/null || \
             echo "[claude.nix] plugin $plugin: update failed"
         else
-          $DRY_RUN_CMD claude plugin install "$plugin" 2>/dev/null && \
+          $DRY_RUN_CMD "$CLAUDE" plugin install "$plugin" 2>/dev/null && \
             echo "[claude.nix] plugin $plugin: installed" || \
             echo "[claude.nix] plugin $plugin: install failed"
         fi
