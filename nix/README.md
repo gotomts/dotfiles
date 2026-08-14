@@ -50,6 +50,28 @@ brew upgrade && brew cleanup
 
 この設計は `flake.lock` と同様に「明示的に更新する」哲学と整合する。
 
+## Claude plugin の定期メンテナンス
+
+`claude.nix` の `home.activation.claudePlugins` は `settings.json` の `enabledPlugins` のうち**未インストールのものだけを install** する。既存 plugin は自動更新されない (Homebrew の `upgrade = false` と同じ方針)。毎回 marketplace 更新と全 plugin 更新を走らせると、宣言数ぶんのネットワーク往復と到達できない marketplace のタイムアウト待ちで switch が数分単位で伸びるため。
+
+週次または月次で手動実行すること:
+
+```sh
+# 1. marketplace を最新化 (plugin の更新元)
+claude plugin marketplace update
+
+# 2. 全 plugin を更新
+claude plugin list --json | jq -r '.[].id' | while read -r p; do
+  claude plugin update "$p"
+done
+```
+
+- 更新は Claude Code の再起動後に反映される (`Restart to apply changes` と出る)
+- 個別に更新する場合は `claude plugin update <id>`、対話的にやる場合は Claude Code 内で `/plugin`
+- `Failed to clone marketplace repository` が出る marketplace は SSH 鍵か接続の問題。その plugin は更新されず、既存バージョンのまま残る (switch は止まらない)
+
+新しい plugin を足すときは `claude/settings.json` の `enabledPlugins` に宣言してから `darwin-switch` する。marketplace が未登録なら `extraKnownMarketplaces` にも足す。
+
 ## アプリ・パッケージの追加
 
 `brew install` を直接打つことは事実上禁止 (`homebrew.onActivation.cleanup = "zap"` により次回 `darwin-rebuild switch` で削除される)。**宣言してから入れる** 順序を強制する設計。

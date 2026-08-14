@@ -49,6 +49,7 @@
 - `claude/AGENTS.md` はグローバル指示のマスター (SSOT)。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`nix/modules/home/codex.nix`) で同じ AGENTS.md を読む
 - `claude/CLAUDE.md` は `@AGENTS.md` 1 行のみの薄い参照ファイル。プロジェクト固有のルールはここに書かない (グローバル指示は `claude/AGENTS.md` 側に集約)
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
+- `settings.json` の `enabledPlugins` は `claude.nix` の `home.activation.claudePlugins` が同期するが、**未インストールのものを install するだけ**で既存 plugin は更新しない（`homebrew.onActivation.upgrade = false` と同じ方針）。plugin の更新手順は `nix/README.md`「Claude plugin の定期メンテナンス」を参照
 - `claude/skills/` は個人スキル層。`nix/modules/home/claude.nix` が `~/.claude/skills` に symlink で展開する。中身は 2 系統に分かれ、配置で判別できる
   - **自作 skill = 相対 symlink**。別リポジトリ `gotomts/skills` が SSOT で、`claude/skills/<name>` は `../../../ghq/github.com/gotomts/skills/<name>` を指す。dotfiles 側に実体は置かない。編集は skills リポの working tree で行い、`~/.claude/skills` から 3 段の symlink を辿って即反映される（switch 不要）。絶対パスにするとユーザー名が公開リポに載るため相対で書く（参照先を固定できるのは `ghq.root = ~/ghq` のため）。clone が無いと dangling になるので、`claude.nix` の `home.activation.cloneSkillsRepo` が不在時のみ clone する（既存 clone は pull もチェックアウト変更もしない）
   - **外部由来（vendor）skill = 実体**。中身は編集しない（更新は upstream の手順に従う）。SKILL.md frontmatter の `maintainer: gotomts` は自作の出所マーカーで、skills リポ側の SKILL.md に残る
