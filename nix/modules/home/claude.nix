@@ -64,7 +64,11 @@ in
     _run_skills_repo_clone
   '';
 
-  # claude plugin の宣言的同期。settings.json の enabledPlugins を CLI で install/update。
+  # claude plugin の宣言的同期。settings.json の enabledPlugins のうち、未インストールの
+  # ものだけを install する。既存 plugin の更新は switch では行わない (homebrew.nix の
+  # upgrade = false と同じ再現性ベースの運用。更新手順は nix/README.md 参照)。
+  # marketplace update と全 plugin の update を毎回走らせると、宣言数ぶんのネットワーク
+  # 往復と、到達できない marketplace のタイムアウト待ちで switch が数分単位で伸びる。
   home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     _run_claude_plugin_sync() {
       set +e  # 個々のプラグイン失敗で関数内処理を止めない
@@ -83,17 +87,24 @@ in
         return 0
       fi
 
-      $DRY_RUN_CMD "$CLAUDE" plugin marketplace update 2>/dev/null || true
+      # plugin list は 1 回だけ呼ぶ。宣言ごとに呼ぶと CLI 起動コストが宣言数ぶん積み上がる。
+      # 取得に失敗した場合は「未インストール」と区別できず全件 install を試みてしまうため、
+      # 空配列 (新規 PC) と失敗を exit code で切り分けてスキップする。
+      local installed
+      installed=$("$CLAUDE" plugin list --json 2>/dev/null)
+      if [ $? -ne 0 ] || [ -z "$installed" ]; then
+        echo "[claude.nix] plugin list の取得に失敗、plugin 同期をスキップ"
+        return 0
+      fi
 
-      ${pkgs.jq}/bin/jq -r '.enabledPlugins // {} | keys[]' "$SETTINGS" 2>/dev/null | while IFS= read -r plugin; do
-        if "$CLAUDE" plugin list --json 2>/dev/null | ${pkgs.jq}/bin/jq -e --arg p "$plugin" '.[] | select(.id == $p)' &>/dev/null; then
-          $DRY_RUN_CMD "$CLAUDE" plugin update "$plugin" 2>/dev/null || \
-            echo "[claude.nix] plugin $plugin: update failed"
-        else
-          $DRY_RUN_CMD "$CLAUDE" plugin install "$plugin" 2>/dev/null && \
-            echo "[claude.nix] plugin $plugin: installed" || \
-            echo "[claude.nix] plugin $plugin: install failed"
-        fi
+      ${pkgs.jq}/bin/jq -r --argjson installed "$installed" '
+        ($installed | map(.id)) as $have
+        | (.enabledPlugins // {} | keys[])
+        | select(. as $p | $have | index($p) | not)
+      ' "$SETTINGS" 2>/dev/null | while IFS= read -r plugin; do
+        $DRY_RUN_CMD "$CLAUDE" plugin install "$plugin" 2>/dev/null && \
+          echo "[claude.nix] plugin $plugin: installed" || \
+          echo "[claude.nix] plugin $plugin: install failed"
       done
     }
 
