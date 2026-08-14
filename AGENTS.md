@@ -6,7 +6,7 @@
 - `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/skills/` — Claude Code 個人スキル層（`~/.claude/skills` にシンボリックリンク）。自作 skill は `gotomts/skills` が SSOT で相対 symlink だけを置き、外部由来のみ実体を持つ
-- `claude/hooks/` — Claude Code hook スクリプト（`~/.claude/hooks` にシンボリックリンク）
+- `claude/hooks/` — Claude Code hook スクリプト（`~/.claude/hooks/<name>` へファイル単位でシンボリックリンク）
 - `claude/mcp-servers.json` — user scope の MCP server 宣言（home-manager activation で `~/.claude.json` に merge）
 - `codex/config.base.toml` — Codex CLI の宣言的 seed 設定（`~/.codex/config.toml` 不在時のみ activation が cp する。`~/.codex/config.toml` はアプリ所有の running config なので symlink・追跡しない）
 - `config/` — アプリケーション設定（starship, yazi, cmux, ghostty）（`~/.config/` にシンボリックリンク）
@@ -53,6 +53,7 @@
   - **自作 skill = 相対 symlink**。別リポジトリ `gotomts/skills` が SSOT で、`claude/skills/<name>` は `../../../ghq/github.com/gotomts/skills/<name>` を指す。dotfiles 側に実体は置かない。編集は skills リポの working tree で行い、`~/.claude/skills` から 3 段の symlink を辿って即反映される（switch 不要）。絶対パスにするとユーザー名が公開リポに載るため相対で書く（参照先を固定できるのは `ghq.root = ~/ghq` のため）。clone が無いと dangling になるので、`claude.nix` の `home.activation.cloneSkillsRepo` が不在時のみ clone する（既存 clone は pull もチェックアウト変更もしない）
   - **外部由来（vendor）skill = 実体**。中身は編集しない（更新は upstream の手順に従う）。SKILL.md frontmatter の `maintainer: gotomts` は自作の出所マーカーで、skills リポ側の SKILL.md に残る
 - `claude/hooks/` は hook スクリプト置き場。`settings.json` の `hooks` から `$HOME/.claude/hooks/<name>` で参照する。ブロック目的の hook は exit code を 0（通過）か 2（ブロック）のみに限定すること。それ以外の非ゼロは Claude Code が non-blocking error として扱い、hook が素通りする
+- `claude/hooks/` の symlink は `claude.nix` でファイル単位に宣言する（ディレクトリごとの symlink にしない）。`~/.claude/hooks/` を実体ディレクトリのまま残し、公開リポジトリに載せられない PC 固有 hook を同じディレクトリに同居させるため。ディレクトリごと symlink すると実体と衝突して home-manager の activation が `checkLinkTargets` で止まり、`~/.claude` 配下だけでなく **全 symlink が張られなくなる**（system 側は成功するので気づきにくい）。dotfiles に hook を追加したら `claude.nix` の `home.file` に 1 行足すこと
 - `claude/mcp-servers.json` は user scope の MCP server を declarative 宣言する。`darwin-rebuild switch` 時に `nix/modules/home/claude.nix` の `home.activation.syncClaudeMcpServers` が `~/.claude.json` の `mcpServers` キーに recursive merge する (add-only、claude.ai connector など宣言外エントリは保持)。`~/.claude.json` は Claude Code が動的に書き換える running config (OAuth token を含む) のため symlink 化できない事情への対応
 - `~/.codex/config.toml` は Codex / ChatGPT desktop アプリが動的に書き換える running config (絶対パス・marketplaces・plugins・trust_level 等) のため symlink・追跡しない。`codex/config.base.toml` を宣言的 seed とし、`nix/modules/home/codex.nix` の `home.activation.syncCodexConfig` が **seed-if-absent** (ファイル不在時のみ cp、既存はアプリ所有として一切触らない) で配置する。Codex の MCP server を宣言的に効かせたい場合は `config.base.toml` に書く (新規 PC のみ反映。既存機は `~/.codex/config.toml` へ手動追記)。`~/.claude.json` と同種の「symlink 化不可な running config」対応
 - 外部由来 (vendor) の skill を両 agent で共有する場合は `claude/skills/<name>/` を単一ソースとし、`~/.codex/skills/<name>` を `codex.nix` で個別 entry symlink する (Codex skills ディレクトリはアプリ管理 skill と同居するため全体 symlink はしない)。外部 skill を install すると `~/.claude/skills` 経由で dotfiles 作業ツリーに着地するので、機微情報を grep 確認のうえ vendor として commit する
