@@ -1,0 +1,51 @@
+// Zed keymap — Cursor (VSCode) 寄せの差分のみを定義する
+// base_keymap: "Cursor" が settings.json で有効。ここに書いたものだけが上書きされる。
+[
+  // ── Editor: フォーマット系 ──────────────────────────────
+  {
+    "context": "Editor",
+    "bindings": {
+      "shift-alt-f": "editor::Format",
+      "cmd-shift-i": "editor::Format",
+      "cmd-k cmd-f": "editor::FormatSelections",
+
+      // 行操作 (Cursor / VSCode 準拠)
+      "alt-up": "editor::MoveLineUp",
+      "alt-down": "editor::MoveLineDown",
+      "shift-alt-up": "editor::DuplicateLineUp",
+      "shift-alt-down": "editor::DuplicateLineDown",
+      "cmd-shift-k": "editor::DeleteLine",
+      "cmd-enter": "editor::NewlineBelow",
+      "cmd-shift-enter": "editor::NewlineAbove",
+
+      // マルチカーソル
+      "cmd-alt-up": "editor::AddSelectionAbove",
+      "cmd-alt-down": "editor::AddSelectionBelow",
+      "cmd-d": "editor::SelectNext",
+      "cmd-shift-l": "editor::SelectAllMatches",
+
+      // コメント
+      "cmd-/": "editor::ToggleComments",
+      "shift-alt-a": "editor::ToggleComments"
+    }
+  },
+
+  // ── Workspace: パネル/サイドバー ────────────────────────
+  {
+    "context": "Workspace",
+    "bindings": {
+      "cmd-b": "workspace::ToggleLeftDock",
+      "cmd-j": "workspace::ToggleBottomDock",
+      "cmd-shift-e": "project_panel::ToggleFocus"
+    }
+  },
+
+  // ── Pane: タブ / ファイル間移動 ─────────────────────────
+  {
+    "context": "Pane",
+    "bindings": {
+      "cmd-w": "pane::CloseActiveItem",
+      "cmd-shift-t": "pane::ReopenClosedItem"
+    }
+  }
+]

@@ -15,6 +15,7 @@
     ./modules/home/starship.nix
     ./modules/home/yazi.nix
     ./modules/home/ghostty.nix
+    ./modules/home/zed.nix
     ./modules/home/ssh.nix
     # claude plugin sync activation (S6)
     ./modules/home/claude.nix

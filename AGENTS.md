@@ -9,7 +9,7 @@
 - `claude/hooks/` — Claude Code hook スクリプト（`~/.claude/hooks/<name>` へファイル単位でシンボリックリンク）
 - `claude/mcp-servers.json` — user scope の MCP server 宣言（home-manager activation で `~/.claude.json` に merge）
 - `codex/config.base.toml` — Codex CLI の宣言的 seed 設定（`~/.codex/config.toml` 不在時のみ activation が cp する。`~/.codex/config.toml` はアプリ所有の running config なので symlink・追跡しない）
-- `config/` — アプリケーション設定（starship, yazi, cmux, ghostty）（`~/.config/` にシンボリックリンク）
+- `config/` — アプリケーション設定（starship, yazi, cmux, ghostty, zed）（`~/.config/` にシンボリックリンク）
 - `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
 - `functions/` — zsh カスタム関数（`~/.functions/` にシンボリックリンク）
 - git 設定は nix の `programs.git`（`nix/modules/home/git.nix`）が SSOT で `~/.config/git/config` を生成する。`~/.gitconfig` は nix 非管理の実体ファイルとして `home.activation` で用意し、`git config --global` で書き込むツール（coderabbit の machineId 等）の PC 固有値を隔離する落書き帳として使う（リポジトリには格納しない）
@@ -25,6 +25,8 @@
 # シンボリックリンク管理
 
 シンボリックリンクは home-manager (`nix/modules/home/`) で管理する。新規 dotfiles は `nix/modules/home/` 以下で宣言すること。
+
+アプリが書き込む設定ファイルは `mkOutOfStoreSymlink` でリポジトリの実ファイルを指す（nix store 経由の symlink は read-only でアプリの書き込みが失敗する）。`config/zed/settings.json` がこれで、Zed で UI 操作（テーマ変更・パネル配置）をすると dotfiles に差分が出る。`claude/settings.json` と同じく、コミット時は意図した変更だけ stage すること。
 
 # Homebrew パッケージ管理
 
