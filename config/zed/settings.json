@@ -7,6 +7,20 @@
 // custom settings, run `zed: open default settings` from the
 // command palette (cmd-shift-p / ctrl-shift-p)
 {
+  "auto_install_extensions": {
+    "astro": true,
+    "catppuccin": true,
+    "catppuccin-icons": true,
+    "dart": true,
+    "dockerfile": true,
+    "git-firefly": true,
+    "html": true,
+    "make": true,
+    "material-dark": true,
+    "nix": true,
+    "sql": true,
+    "terraform": true,
+  },
   "icon_theme": "Zed (Default)",
   "base_keymap": "Cursor",
   "cli_default_open_behavior": "existing_window",
