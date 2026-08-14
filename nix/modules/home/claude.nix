@@ -18,7 +18,13 @@ in
     ".claude/CLAUDE.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/CLAUDE.md";
     ".claude/AGENTS.md".source     = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/AGENTS.md";
     ".claude/skills".source        = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/skills";
-    ".claude/hooks".source         = config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/hooks";
+
+    # hooks はディレクトリごとではなくファイル単位で symlink する。~/.claude/hooks/ を
+    # 実体ディレクトリのまま残し、公開リポジトリに載せられない PC 固有 hook を
+    # 同じディレクトリに同居させるため (settings.json の $HOME/.claude/hooks/<name>
+    # という参照形式を PC 固有側でも使える)。dotfiles に hook を足したらここに 1 行増やす。
+    ".claude/hooks/one-question-per-turn.py".source =
+      config.lib.file.mkOutOfStoreSymlink "${dotfiles}/claude/hooks/one-question-per-turn.py";
   };
 
   # 自作 skill は gotomts/skills が SSOT で、claude/skills/ 配下には相対 symlink だけを
