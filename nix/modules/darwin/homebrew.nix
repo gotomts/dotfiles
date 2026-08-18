@@ -48,6 +48,7 @@ let
     "codex-app" # OpenAI Codex デスクトップアプリ (CLI は同 casks の codex で管理)
     "contexts"
     "cursor"
+    "discord"
     "domzilla-caffeine" # Mac をスリープさせないためのメニューバー常駐アプリ (caffeine-app.net、新版でメンテ継続中)
     "dropbox"
     "figma"
@@ -79,7 +80,6 @@ let
     "amazon-photos"
     "android-studio"
     "aqua-voice" # AI 整形付き音声入力 (Claude Code への dictation 用)
-    "discord"
     "flutter"
     "obsidian"
   ];
