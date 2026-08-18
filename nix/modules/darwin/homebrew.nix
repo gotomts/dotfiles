@@ -79,6 +79,7 @@ let
     "amazon-photos"
     "android-studio"
     "aqua-voice" # AI 整形付き音声入力 (Claude Code への dictation 用)
+    "discord"
     "flutter"
     "obsidian"
   ];
