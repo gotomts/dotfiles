@@ -107,10 +107,6 @@
       # worktrunk shell integration
       if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
 
-      # Claude Code — 対話起動時にモデル選択 (fzf) を挟むラッパー
-      # (本体は functions/claude / 判定と素通し条件は同ファイル冒頭のコメント参照)
-      autoload -Uz claude
-
       # fzf — カスタム履歴ウィジェット (functions/fzf-history を使用)
       autoload fzf-history
       zle -N fzf-history
@@ -205,7 +201,5 @@
     ".aliase/get-gke-credentials.sh".source = ../../../aliase/get-gke-credentials.sh;
     # claude.ai 一括起動 + グリッド整列スクリプト (shellAliases.claude-board が参照)
     ".aliase/claude-board.zsh".source = ../../../aliase/claude-board.zsh;
-    # Claude Code モデル選択ラッパー (initExtra の `autoload -Uz claude` が参照)
-    ".functions/claude".source = ../../../functions/claude;
   };
 }
