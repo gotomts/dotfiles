@@ -222,6 +222,28 @@ setup() {
     [ ! -L "${TMP}/home/.gitconfig" ]
     [ -f "${TMP}/home/.gitconfig" ]
 }
+
+@test "fs::ensure_realfile preserves a pre-existing symlink at <path>.before-setup" {
+    mkdir -p "${TMP}/home"
+    ln -s "${TMP}/source.txt" "${TMP}/home/.gitconfig"
+    run _zsh_fs "fs::ensure_realfile '${TMP}/home/.gitconfig'"
+    [ "${status}" -eq 0 ]
+    [ ! -L "${TMP}/home/.gitconfig" ]
+    [ -f "${TMP}/home/.gitconfig" ]
+    [ -L "${TMP}/home/.gitconfig.before-setup" ]
+    [ "$(readlink "${TMP}/home/.gitconfig.before-setup")" = "${TMP}/source.txt" ]
+}
+
+@test "fs::ensure_realfile refuses to overwrite an existing .before-setup backup" {
+    mkdir -p "${TMP}/home"
+    ln -s "${TMP}/source.txt" "${TMP}/home/.gitconfig"
+    ln -s "${TMP}/other-backup-target.txt" "${TMP}/home/.gitconfig.before-setup"
+    run _zsh_fs "fs::ensure_realfile '${TMP}/home/.gitconfig'"
+    [ "${status}" -eq 1 ]
+    [ -L "${TMP}/home/.gitconfig" ]
+    [ "$(readlink "${TMP}/home/.gitconfig")" = "${TMP}/source.txt" ]
+    [ "$(readlink "${TMP}/home/.gitconfig.before-setup")" = "${TMP}/other-backup-target.txt" ]
+}
 ```
 
 - [ ] **Step 2: テストを実行し失敗を確認する**
@@ -290,8 +312,10 @@ fs::link_file() {
 #   3rd party ツール（coderabbit 等）が ~/.gitconfig に書き込む場合や、Claude Code の
 #   .i-have-adhd-always マーカーのように、dotfiles リポジトリで追跡してはいけない値/状態を
 #   安全に置くための保護策。
-#   - symlink が既にある → unlink してから空の実体ファイルを作る（中身は復元しない。
-#     PC 固有の値は各マシンでツールが再生成する前提）
+#   - symlink が既にある → ${path}.before-setup へ symlink ごと退避（mv によりリンク先情報を
+#     保ったまま移動する）してから空の実体ファイルを作る。退避先が既に存在する場合は、既存の
+#     リンクを一切変更せずエラーで停止する（無条件の unlink による情報喪失を避けるため。
+#     fs::link_file の .before-setup 退避と同じ思想）
 #   - 実体ファイルが既にある → 何もしない（中身を上書きしない）
 #   - 何もない → touch で空ファイルを作る
 fs::ensure_realfile() {
@@ -302,8 +326,13 @@ fs::ensure_realfile() {
     fs::ensure_dir "${realfile_path:h}"
 
     if [[ -L "${realfile_path}" ]]; then
-        util::warning "${realfile_path} は symlink です。unlink して実体ファイルに変換します"
-        /bin/unlink "${realfile_path}"
+        local backup="${realfile_path}.before-setup"
+        if [[ -e "${backup}" || -L "${backup}" ]]; then
+            util::error "${backup} が既に存在するため ${realfile_path} を退避できません（既存の symlink には触れていません）"
+            return 1
+        fi
+        util::warning "${realfile_path} は symlink です。${backup} へ退避してから実体ファイルに変換します"
+        /bin/mv "${realfile_path}" "${backup}"
     fi
 
     if [[ -e "${realfile_path}" ]]; then
@@ -316,10 +345,15 @@ fs::ensure_realfile() {
 }
 ```
 
+> **レビューでの発見（2026-08-22 追記）**: 独立レビューにより、既存 symlink を退避せず
+> `unlink` するだけの初版は「symlink が指す先の情報を無条件に破棄する」ため
+> no-data-loss 要件に反すると指摘された。`fs::link_file` と同じ `.before-setup` 退避方式に
+> 修正し、退避先が既に存在する場合は元の symlink に一切触れずエラーで停止するよう変更した。
+
 - [ ] **Step 4: テストを実行し成功を確認する**
 
 Run: `bats setup/tests/fs.bats`
-Expected: PASS（9 テスト全て）
+Expected: PASS（11 テスト全て。レビュー指摘対応で symlink 退避系 2 件を追加）
 
 > **実装時の発見（2026-08-22）**: 当初 `local path="${1}"` としていたが、zsh は `path` を
 > `$PATH` と束縛された特殊配列として扱うため、同一スコープ内で `mkdir`/`touch` の

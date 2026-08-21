@@ -79,3 +79,27 @@ setup() {
     [ ! -L "${TMP}/home/.gitconfig" ]
     [ -f "${TMP}/home/.gitconfig" ]
 }
+
+@test "fs::ensure_realfile preserves a pre-existing symlink at <path>.before-setup" {
+    mkdir -p "${TMP}/home"
+    ln -s "${TMP}/source.txt" "${TMP}/home/.gitconfig"
+    run _zsh_fs "fs::ensure_realfile '${TMP}/home/.gitconfig'"
+    [ "${status}" -eq 0 ]
+    [ ! -L "${TMP}/home/.gitconfig" ]
+    [ -f "${TMP}/home/.gitconfig" ]
+    [ -L "${TMP}/home/.gitconfig.before-setup" ]
+    [ "$(readlink "${TMP}/home/.gitconfig.before-setup")" = "${TMP}/source.txt" ]
+}
+
+@test "fs::ensure_realfile refuses to overwrite an existing .before-setup backup" {
+    mkdir -p "${TMP}/home"
+    ln -s "${TMP}/source.txt" "${TMP}/home/.gitconfig"
+    ln -s "${TMP}/other-backup-target.txt" "${TMP}/home/.gitconfig.before-setup"
+    run _zsh_fs "fs::ensure_realfile '${TMP}/home/.gitconfig'"
+    [ "${status}" -eq 1 ]
+    # 元の symlink は一切変更されない
+    [ -L "${TMP}/home/.gitconfig" ]
+    [ "$(readlink "${TMP}/home/.gitconfig")" = "${TMP}/source.txt" ]
+    # 既存の backup も変更されない
+    [ "$(readlink "${TMP}/home/.gitconfig.before-setup")" = "${TMP}/other-backup-target.txt" ]
+}

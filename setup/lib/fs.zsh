@@ -56,8 +56,11 @@ fs::link_file() {
 #   3rd party ツール（coderabbit 等）が ~/.gitconfig に書き込む場合や、Claude Code の
 #   .i-have-adhd-always マーカーのように、dotfiles リポジトリで追跡してはいけない値/状態を
 #   安全に置くための保護策。
-#   - symlink が既にある → unlink してから空の実体ファイルを作る（中身は復元しない。
-#     PC 固有の値は各マシンでツールが再生成する前提）
+#   - symlink が既にある → ${path}.before-setup へ symlink ごと退避（mv によりリンク先情報を
+#     保ったまま移動する。中身を読んで複製するわけではないので、リンク先が壊れていても失敗しない）
+#     してから空の実体ファイルを作る。退避先が既に存在する場合は、既存のリンクを一切変更せず
+#     エラーで停止する（無条件の unlink による情報喪失を避けるため。fs::link_file の
+#     .before-setup 退避と同じ思想）
 #   - 実体ファイルが既にある → 何もしない（中身を上書きしない）
 #   - 何もない → touch で空ファイルを作る
 fs::ensure_realfile() {
@@ -68,8 +71,13 @@ fs::ensure_realfile() {
     fs::ensure_dir "${realfile_path:h}"
 
     if [[ -L "${realfile_path}" ]]; then
-        util::warning "${realfile_path} は symlink です。unlink して実体ファイルに変換します"
-        /bin/unlink "${realfile_path}"
+        local backup="${realfile_path}.before-setup"
+        if [[ -e "${backup}" || -L "${backup}" ]]; then
+            util::error "${backup} が既に存在するため ${realfile_path} を退避できません（既存の symlink には触れていません）"
+            return 1
+        fi
+        util::warning "${realfile_path} は symlink です。${backup} へ退避してから実体ファイルに変換します"
+        /bin/mv "${realfile_path}" "${backup}"
     fi
 
     if [[ -e "${realfile_path}" ]]; then
