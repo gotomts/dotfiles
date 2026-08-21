@@ -80,6 +80,10 @@
       # claude.ai のチャット / Code を独立 Chrome ウィンドウで一括起動しグリッド整列する
       # (本体は aliase/claude-board.zsh / 引数: チャット数 Code数)
       claude-board = "zsh $HOME/.aliase/claude-board.zsh";
+
+      # claude/rules/ のフラグメントから claude/AGENTS.md と claude/hermes/SOUL.md を生成する
+      # (--check で生成物が最新か検証。生成物は working tree 直結なので switch 不要で反映される)
+      agent-rules-build = "zsh $HOME/.aliase/build-agent-rules.zsh";
     };
 
     # -----------------------------------------------------------------------

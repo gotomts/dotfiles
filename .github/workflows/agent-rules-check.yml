@@ -1,0 +1,53 @@
+# AI エージェント指示の生成物 drift 検証
+#
+# 目的:
+#   claude/AGENTS.md と claude/hermes/SOUL.md は claude/rules/ のフラグメントから
+#   生成される。フラグメントだけ編集して生成物を更新し忘れると、Claude Code /
+#   Codex / Hermes に古い規範が配られ続ける。手元で気づけないため CI で落とす。
+#
+# 設計判断:
+# - runs-on: macos-latest — 生成スクリプトが zsh (リポジトリのシェル規約) で、
+#   macOS runner は zsh を標準搭載している。nix は不要なので nix-check とは分ける
+#   (nix-check は paths: nix/** でしか起動せず、rules の変更を拾えない)。
+# - 検証は --check のみ。CI から生成物を commit し返す運用は取らない
+#   (生成物は working tree 直結で人間がレビューする対象のため)。
+#
+# セキュリティ:
+# - run: で github.event.* の自由文を一切評価しない (injection 対策)
+name: agent-rules-check
+
+on:
+  pull_request:
+    paths:
+      - 'claude/rules/**'
+      - 'claude/AGENTS.md'
+      - 'claude/hermes/**'
+      - 'aliase/build-agent-rules.zsh'
+      - '.github/workflows/agent-rules-check.yml'
+  push:
+    # feature branch への push は pull_request イベントだけで検証する
+    # (push と pull_request の重複起動を避ける)。main の直接 push のみここで拾う。
+    branches:
+      - main
+    paths:
+      - 'claude/rules/**'
+      - 'claude/AGENTS.md'
+      - 'claude/hermes/**'
+      - 'aliase/build-agent-rules.zsh'
+      - '.github/workflows/agent-rules-check.yml'
+
+concurrency:
+  group: agent-rules-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generated-files-up-to-date:
+    name: generated agent rules are up to date
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify generated files match claude/rules/
+        run: zsh aliase/build-agent-rules.zsh --check

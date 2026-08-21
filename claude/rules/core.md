@@ -1,6 +1,3 @@
-<!-- 生成物: aliase/build-agent-rules.zsh が claude/rules/ から生成する。このファイルを直接編集しない -->
-<!-- SSOT: claude/rules/core.md + claude/rules/worker.md -->
-
 # 進め方
 
 - 沈黙は同意ではない。明示的に答えられたものだけが確定で、無反応・スルー・流れた話題は未定として扱う
@@ -19,12 +16,3 @@
 # 委譲
 
 - サブエージェントの調査結果を素通しで次のエージェントへ渡さず、自分で理解・統合してから次の指示を書く
-
-# 検証
-
-- 検証コマンドは `| head` / `| tail` 等の pipe で exit code を隠さず実行し、実際の exit code を確認してから結果を報告する
-- フォーマッタ・リンタは `git diff --name-only` の対象ファイルにだけ適用する
-
-# handoff / resume
-
-- handoff の作成と「ハンドオフから再開」への応答は `~/.dotfiles/claude/handoff-policy.md` に従う

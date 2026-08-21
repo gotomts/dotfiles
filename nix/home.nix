@@ -21,6 +21,8 @@
     ./modules/home/claude.nix
     # Codex CLI 用 dotfiles symlink
     ./modules/home/codex.nix
+    # Hermes Agent 用 dotfiles symlink (SOUL.md = グローバル規範の注入口)
+    ./modules/home/hermes.nix
     # 言語ツールチェーン: mise 完全置換 (S7)
     ./modules/home/languages.nix
     # corepack によるグローバル pnpm / yarn 供給 (プロジェクト宣言優先)
