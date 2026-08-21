@@ -127,7 +127,8 @@
     "codex@openai-codex": true,
     "playwright@claude-plugins-official": true,
     "i-have-adhd@i-have-adhd": true,
-    "figma@claude-plugins-official": true
+    "figma@claude-plugins-official": true,
+    "freee-mcp@freee-mcp-marketplace": true
   },
   "extraKnownMarketplaces": {
     "claude-collections": {
@@ -164,6 +165,12 @@
       "source": {
         "source": "github",
         "repo": "schpet/linear-cli"
+      }
+    },
+    "freee-mcp-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "freee/freee-mcp"
       }
     }
   },
