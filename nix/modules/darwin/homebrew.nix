@@ -38,6 +38,10 @@ let
   # core (両 role 共通)
   coreCasks = [
     "1password"
+    # 1password-cli: 1Password CLI (`op` コマンド)。nixpkgs にも `_1password-cli` は
+    # あるが unfree ライセンス指定で allowUnfree 系ポリシー未導入のため対象外。
+    # GUI 本体 (上記 "1password") と同じく Homebrew cask (公式 homebrew-cask) で管理する。
+    "1password-cli"
     "arto" # tap: arto-app/tap。Rust 製 macOS ネイティブ Markdown リーダー (閲覧専用、`arto` CLI 同梱)
     "chatgpt" # OpenAI 公式 ChatGPT デスクトップアプリ (公式 homebrew-cask なので tap 不要)
     "claude" # Anthropic Desktop app (claude-code CLI とは別)
