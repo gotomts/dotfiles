@@ -1,4 +1,4 @@
-<!-- 生成物: aliase/build-agent-rules.zsh が claude/rules/ から生成する。このファイルを直接編集しない -->
+<!-- 生成物: scripts/build-agent-rules.zsh が claude/rules/ から生成する。このファイルを直接編集しない -->
 <!-- SSOT: claude/rules/core.md + claude/rules/worker.md -->
 
 # 進め方

@@ -5,7 +5,7 @@
 
 ## 生成と配布
 
-グローバル規範は `claude/rules/` のフラグメントが SSOT で、`aliase/build-agent-rules.zsh`
+グローバル規範は `claude/rules/` のフラグメントが SSOT で、`scripts/build-agent-rules.zsh`
 （alias: `agent-rules-build`）が 2 つの生成物を作る。
 
 | 生成物 | 構成 | 読むエージェント |

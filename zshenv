@@ -16,7 +16,13 @@ export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 export GOPATH=${HOME}/go
 export PATH=${GOPATH}/bin:${PATH}
 
-# mise
+# corepack（pnpm/yarn グローバル供給。mise 導入の node に対して corepack enable を実行する
+# Tier 2 script は別計画。ここでは env/PATH のみ用意しておく — 未 enable でも無害）
+export COREPACK_HOME="${HOME}/.local/share/corepack"
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+export PATH="${COREPACK_HOME}/bin:${PATH}"
+
+# mise（shims — non-interactive シェル向け）
 if type mise &>/dev/null; then
   eval "$(mise activate --shims)"
 fi

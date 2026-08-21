@@ -3,15 +3,18 @@
 このリポジトリは macOS の開発環境を再現するための dotfiles である。
 
 - `CONTEXT.md` — AI エージェント指示の層（規範フラグメント・グローバル / プロジェクト AGENTS.md・SOUL.md・CLAUDE.local.md・channel prompt）を区別する用語集
-- `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
+- `aliases` — alias 定義の SSOT（root 直下、`~/.aliases` にシンボリックリンク）。旧 `nix/modules/home/zsh.nix` の `shellAliases` から移行（`setup/link.zsh` が配置、Tier 1）
+- `scripts/` — 外部シェルスクリプト（`aliases` の alias から呼び出される。旧 `aliase/` から改名）
+- `setup/` — Tier 1（リアルタイム symlink）の実装。`darwin-rebuild switch` を使わず `zsh setup/link.zsh` で dotfiles を配置する。詳細は `setup/README.md` と `docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md` を参照
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
-- `claude/rules/` — 全 AI エージェント向けグローバル指示のフラグメント（SSOT）。`core` / `worker` / `orchestrator` / `hermes-identity` の 4 ファイルを `aliase/build-agent-rules.zsh` が結合して生成物を作る
+- `claude/rules/` — 全 AI エージェント向けグローバル指示のフラグメント（SSOT）。`core` / `worker` / `orchestrator` / `hermes-identity` の 4 ファイルを `scripts/build-agent-rules.zsh`（旧 `aliase/build-agent-rules.zsh`）が結合して生成物を作る
 - `claude/hermes/SOUL.md` — Hermes Agent 用グローバル指示の生成物（`~/.hermes/SOUL.md` にシンボリックリンク）。直接編集しない
 - `claude/skills/` — Claude Code 個人スキル層（`~/.claude/skills` にシンボリックリンク）。自作 skill は `gotomts/skills` が SSOT で相対 symlink だけを置き、外部由来のみ実体を持つ
 - `claude/hooks/` — Claude Code hook スクリプト（`~/.claude/hooks/<name>` へファイル単位でシンボリックリンク）
 - `claude/mcp-servers.json` — user scope の MCP server 宣言（home-manager activation で `~/.claude.json` に merge）
 - `codex/config.base.toml` — Codex CLI の宣言的 seed 設定（`~/.codex/config.toml` 不在時のみ activation が cp する。`~/.codex/config.toml` はアプリ所有の running config なので symlink・追跡しない）
 - `config/` — アプリケーション設定（starship, yazi, cmux, ghostty, zed）（`~/.config/` にシンボリックリンク）
+- `config/git/` — git 設定・ignore（`config`/`ignore`、`~/.config/git/` にシンボリックリンク）。Tier 1 移行時に新設した plain ini（旧 SSOT は `nix/modules/home/git.nix` の `programs.git`）
 - `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
 - `functions/` — zsh カスタム関数（`~/.functions/` にシンボリックリンク）
 - git 設定は nix の `programs.git`（`nix/modules/home/git.nix`）が SSOT で `~/.config/git/config` を生成する。`~/.gitconfig` は nix 非管理の実体ファイルとして `home.activation` で用意し、`git config --global` で書き込むツール（coderabbit の machineId 等）の PC 固有値を隔離する落書き帳として使う（リポジトリには格納しない）
@@ -51,7 +54,7 @@
 
 - `claude/` 配下のファイルは home-manager (`nix/modules/home/claude.nix`) により `~/.claude/` にシンボリックリンクされる
 - そのため `~/.claude/` を書き換えるツール (plugin install・skill install・settings の UI 操作) の出力は、別リポジトリで作業していてもこのリポジトリの作業ツリーに着地する。commit 前に対象リポジトリ (dotfiles か案件か) を確認し、意図した変更だけを stage すること
-- グローバル指示の SSOT は `claude/rules/` のフラグメント。`claude/AGENTS.md` と `claude/hermes/SOUL.md` は **生成物なので直接編集しない**。編集は `claude/rules/` 側で行い、`agent-rules-build` (実体は `aliase/build-agent-rules.zsh`) を実行して生成物を更新する。生成漏れは `.github/workflows/agent-rules-check.yml` の `--check` が PR で落とす
+- グローバル指示の SSOT は `claude/rules/` のフラグメント。`claude/AGENTS.md` と `claude/hermes/SOUL.md` は **生成物なので直接編集しない**。編集は `claude/rules/` 側で行い、`agent-rules-build` (実体は `scripts/build-agent-rules.zsh`) を実行して生成物を更新する。生成漏れは `.github/workflows/agent-rules-check.yml` の `--check` が PR で落とす
   - `claude/AGENTS.md` = `core` + `worker`。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`nix/modules/home/codex.nix`) で同じファイルを読む
   - `claude/hermes/SOUL.md` = `hermes-identity` + `core` + `orchestrator`。Hermes は `~/.hermes/SOUL.md` への symlink 経由 (`nix/modules/home/hermes.nix`) で読む
   - 結合が要るのは Codex CLI も Hermes も `@AGENTS.md` 形式の import を展開しないため。生成物を working tree に置くのは、symlink が `mkOutOfStoreSymlink` で working tree 直結であり、生成を nix store 経由にすると編集即反映が失われるため

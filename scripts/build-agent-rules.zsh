@@ -67,7 +67,7 @@ _build() {
 
   local tmp="${TMPDIR:-/tmp}/build-agent-rules.$$.${out_rel:t}"
   {
-    print -r -- "<!-- 生成物: aliase/build-agent-rules.zsh が claude/rules/ から生成する。このファイルを直接編集しない -->"
+    print -r -- "<!-- 生成物: scripts/build-agent-rules.zsh が claude/rules/ から生成する。このファイルを直接編集しない -->"
     print -r -- "<!-- SSOT: ${(j: + :)frag_rels} -->"
     local i
     for i in {1..${#frag_paths}}; do

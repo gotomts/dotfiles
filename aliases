@@ -1,0 +1,69 @@
+# alias 定義 SSOT — root 直下に配置し ~/.aliases として symlink する（setup/link.zsh）。
+# 由来: 旧 nix/modules/home/zsh.nix の shellAliases（Nix 移行前に廃止）+ initContent 内の
+# alias -g / tn() 関数。Nix の attrset から zsh 構文への 1:1 変換であり、ロジック変更はしていない。
+
+# general
+alias history='history 1'
+alias reload='exec $SHELL -l'
+alias datetime="date '+%Y%m%d%T' | tr -d ':'"
+
+# tmux
+alias tls='tmux ls'              # セッション一覧
+alias ta='tmux attach -t'        # ta <name> で接続
+alias tad='tmux attach -d -t'    # 他クライアントを切って接続（Mac で全画面再開時）
+alias trn='tmux rename-session'  # trn <new> で現セッション rename / trn -t <old> <new> で指定セッション rename
+
+# git
+alias gp='git push origin HEAD'
+alias gch="git branch --all | tr -d '* ' | grep -v -e '->' | fzf | sed -e 's+remotes/[^/]*/++g' | xargs git checkout"
+alias gchb='git checkout -b $1'
+alias grsh='git reset --soft HEAD^'
+alias gbclear="git branch --merged|egrep -v '\*|develop|main|master'|xargs git branch -d; git fetch -p"
+
+# fzf
+alias repo='ghq list -p | fzf'
+alias repoc='cd "$(repo)"'
+
+# gcloud
+alias gcal='gcloud auth login'
+alias gcadl='gcloud auth application-default login'
+alias gcpa='gcloud config configurations activate $(gcloud config configurations list | fzf | awk "{print \$1}")'
+alias gcps='gcloud config set project $(gcloud projects list | fzf | awk "{print \$1}")'
+alias gcgc='bash $HOME/.scripts/get-gke-credentials.sh'
+
+# vscode
+alias codeo='code $(repo)'
+
+# docker
+alias dcu='docker compose up -d $@'
+alias dcn='docker compose down $@'
+
+# nix-darwin — Homebrew（role 別 zap/none）適用のみ担当（Tier 2）。CLAUDE.md「主要コマンド」と
+# 同等。USER=$USER は sudo の env_reset 回避、--impure は username 動的解決のため必須
+alias darwin-switch='sudo USER=$USER darwin-rebuild switch --flake $HOME/.dotfiles/nix#default --impure'
+
+# claude.ai のチャット / Code を独立 Chrome ウィンドウで一括起動しグリッド整列する
+alias claude-board='zsh $HOME/.scripts/claude-board.zsh'
+
+# claude/rules/ のフラグメントから claude/AGENTS.md と claude/hermes/SOUL.md を生成する
+alias agent-rules-build='zsh $HOME/.scripts/build-agent-rules.zsh'
+
+# kubectl グローバルエイリアス（alias -g は zsh 構文上ここにまとめる）
+alias -g KP='$(kubectl get pods | fzf | awk "{print \$1}")'
+alias -g KD='$(kubectl get deploy | fzf | awk "{print \$1}")'
+alias -g KS='$(kubectl get svc | fzf | awk "{print \$1}")'
+alias -g KI='$(kubectl get ing | fzf | awk "{print \$1}")'
+alias -g KJ='$(kubectl get job | fzf | awk "{print \$1}")'
+alias -g KA='$(kubectl get all | awk "! /NAME/" | fzf | awk "{print \$1}")'
+# kubectle 系は KP/KA グローバルエイリアスを参照するため、展開順を保証するため直後に定義
+alias kubectle='kubectl exec -it KP $@'
+alias kubectll='kubectl stern $(kubectl get deploy | fzf | awk "{print \$1}")'
+alias kubectlo='kubectl get KA -o yaml'
+
+# tmux — カレント dir 名でセッション作成/接続、引数で枝番
+# 例: ~/dotfiles で `tn`     → セッション "dotfiles"
+#     ~/dotfiles で `tn dev` → セッション "dotfiles-dev"
+tn() {
+  local name="$(basename "$PWD")${1:+-$1}"
+  tmux new -A -s "$name"
+}
