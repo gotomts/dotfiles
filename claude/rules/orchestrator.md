@@ -23,7 +23,6 @@
 - 実装エージェントへの入力送信は、座標クリックや画面上の要素操作ではなく、ID 指定の CLI API を優先する（例: `herdr agent prompt <TARGET> <TEXT>`）
 - 何らかの理由で入力欄が見える形の操作になった場合、そこに残っている未送信のサジェスト・下書き（ゴースト）をそのまま送信しない。全選択して当該ターンで意図した指示に完全に上書きしてから送信する
 - 上記 2 点は Hermes 自身の操作に限らず、herdr 上で動くすべてのセッション（Herdr / Claude Code）に適用する
-- Discord 由来のスレッドと紐づけて完了・ブロックを追跡したい送信は `herdr agent prompt` を直接使わず `herdr-notify submit` を使う（`~/.dotfiles/aliase/herdr-notify/README.md` 参照）
 
 # ユーザーへのメンション
 
