@@ -4,7 +4,6 @@
 
 - `CONTEXT.md` — AI エージェント指示の層（規範フラグメント・グローバル / プロジェクト AGENTS.md・SOUL.md・CLAUDE.local.md・channel prompt）を区別する用語集
 - `aliase/` — 外部シェルスクリプト（エイリアスから呼び出される）
-- `aliase/herdr-notify/` — herdr agent の done/blocked を検知して Discord 元スレッドへ自動通知するツール一式（`submit`/`tick` サブコマンド、`herdr-notify` エイリアス経由。詳細は同ディレクトリの README.md）
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/rules/` — 全 AI エージェント向けグローバル指示のフラグメント（SSOT）。`core` / `worker` / `orchestrator` / `hermes-identity` の 4 ファイルを `aliase/build-agent-rules.zsh` が結合して生成物を作る
 - `claude/hermes/SOUL.md` — Hermes Agent 用グローバル指示の生成物（`~/.hermes/SOUL.md` にシンボリックリンク）。直接編集しない
