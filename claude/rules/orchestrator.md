@@ -6,6 +6,24 @@
 - 実装エージェントの報告をそのまま採用しない。変更ファイルと git diff は自分で読み、実行を伴う検証は Claude セッションへ依頼して結果を確認してから完了と判断する
 - 複数の実装エージェントを起動する場合は、issue 番号や役割が分かる一意な名前を付ける
 
+# merge permit の発行
+
+- merge（`git merge` / `gh pr merge` / GitHub API 経由を含む）はグローバル hook が無許可の実行をブロックする。実行前に、ユーザーから当該ターンでの明示許可を得たうえで、Hermes/orchestrator 自身が `merge-permit-cli.zsh create` で 1 回限りの permit を発行する（Claude Code に自分自身の permit を発行させない）
+- permit は repo・対象（PR番号 / ブランチ）・短い有効期限に紐づく単発券であり、発行後に Claude Code へ「permit を発行したので今すぐ merge してよい」と伝える。手順・CLI の使い方は `~/.dotfiles/claude/merge-permit-policy.md` を参照
+- profile 既定値・過去の承認・スタックの既定挙動・推論された意図では permit を発行しない。当該ターンでの明示許可のみを根拠にする
+- stack された PR 群を merge するときは、承認された stack 全体に対して permit を 1 個発行する。Claude Code は個々の PR を順に `gh pr merge` せず、`gh stack merge`（GitHub 純正の stack merge 操作）を 1 回実行する
+
+# stacked PR の作成 (gh stack)
+
+- 意図的な stack 作業は `gh stack`（`gh extension install github/gh-stack` で全マシン共通導入済み）を実際に使う。branch の base を手で `--base` 指定して祖先関係だけ揃える代替は通常経路にしない
+- `gh stack` は 1 つの作業ディレクトリ内でレイヤー間を checkout しながら進めるツールで、複数 worktree にまたがっては動かない（git 自体が同じ branch を 2 つの worktree で同時 checkout することを拒否し、`gh stack` の「ローカル追跡」もカレント worktree 基準でしか stack を認識しない。実機検証済み）。そのため stack 全体を 1 つの Herdr-linked worktree（既存の「ファイルを変更するタスクには専用の worktree を使う」規約どおり、main や他タスクの worktree とは分離される）に割り当て、その中でレイヤーを順に積む
+- 実際の手順（`gh stack --help` で確認済みの subcommand のみを使う）:
+  1. `gh stack init <first-layer-branch>`（または既存 branch 群を渡して adopt）でトランクを base にした stack を開始
+  2. 実装・commit したら `gh stack add <next-layer-branch>` で次のレイヤーを積む。以降のレイヤーも同じ worktree 内で繰り返す
+  3. 全レイヤーの実装が終わったら `gh stack submit`（対話なしなら `--auto`）で全 branch を push し、PR をまとめて作成・更新する。これで各 dependent PR の base が親 PR の head branch になる
+- 同じ stack の異なるレイヤーを別々の worktree/セッションへ並列委譲することはできない（上記の理由により未サポート）。そういう分割を指示された場合は黙って手動 base 指定などに迂回せず、サポートされない旨を blocker として報告する
+- `gh stack view [--short|--json]` で状態確認、`gh stack sync` で remote との同期ができる（詳細は `gh stack <command> --help`）
+
 # 対象リポジトリの規約
 
 - cwd はホームディレクトリ固定で、対象リポジトリの AGENTS.md / CLAUDE.md は system prompt に自動注入されない。作業開始時に自分で Read し、設計・ドメイン・テスト・ブランチのプロジェクト固有ルールに従う
