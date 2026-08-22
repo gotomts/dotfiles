@@ -1,0 +1,49 @@
+# setup/ (Tier 1 リアルタイム symlink・Tier 2 明示的スクリプト実行) の bats テスト検証
+#
+# 目的:
+#   setup/tests/*.bats は Tier 1 (PR #53) で追加されたが、これを実行する CI workflow が
+#   存在しなかった (nix-check.yml は nix/** のみ、agent-rules-check.yml は claude/rules/**
+#   のみが対象)。Tier 2 でテスト対象が増える前に、setup/** の変更を機械的に検証する。
+#
+# 設計判断:
+# - runs-on: macos-latest — テスト対象がすべて zsh script かつ macOS 前提 (defaults/pam 等)
+#   のため。bats-core は runner に無いため Homebrew で導入する。
+# - 全テストは stub 実行ファイル・サンドボックス HOME を使い、実際の defaults/pam/mise/
+#   claude/git/brew を一切呼ばない (setup/README.md 参照)。
+#
+# セキュリティ:
+# - run: で github.event.* の自由文を一切評価しない (injection 対策)
+name: setup-check
+
+on:
+  pull_request:
+    paths:
+      - 'setup/**'
+      - '.github/workflows/setup-check.yml'
+  push:
+    # feature branch への push は pull_request イベントだけで検証する
+    # (push と pull_request の重複起動を避ける)。main の直接 push のみここで拾う。
+    branches:
+      - main
+    paths:
+      - 'setup/**'
+      - '.github/workflows/setup-check.yml'
+
+concurrency:
+  group: setup-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bats:
+    name: setup/tests/*.bats
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install bats-core
+        run: brew install bats-core
+
+      - name: Run bats tests
+        run: bats setup/tests/*.bats
