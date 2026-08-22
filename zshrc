@@ -13,12 +13,18 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 
-# mise (interactive hook)
-if type mise &>/dev/null; then
-  eval "$(mise activate zsh)"
+# alias 定義 SSOT（root 直下 aliases ファイルへの symlink、setup/link.zsh が作成）
+[[ -f "${HOME}/.aliases" ]] && source "${HOME}/.aliases"
+
+# Homebrew（Apple Silicon）を PATH と env に注入
+# nix-darwin の /etc/zprofile は path_helper を呼ばないため、/etc/paths.d/homebrew が
+# 読み込まれず /opt/homebrew/bin が PATH に入らない。brew shellenv で明示的に注入する
+# （副作用なし、brew 未インストール環境では skip）。
+if [ -x /opt/homebrew/bin/brew ]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
-# gcloud (supports both legacy google-cloud-sdk and renamed gcloud-cli)
+# gcloud path — gcloud-cli（新名）と google-cloud-sdk（旧名）両対応
 for _gcloud_inc in \
     '/opt/homebrew/Caskroom/gcloud-cli/latest/google-cloud-sdk/path.zsh.inc' \
     '/opt/homebrew/Caskroom/google-cloud-sdk/latest/google-cloud-sdk/path.zsh.inc'; do
@@ -26,38 +32,35 @@ for _gcloud_inc in \
 done
 unset _gcloud_inc
 
-# worktrunk
+# worktrunk shell integration
 if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
 
-# fzf
+# fzf — カスタム履歴ウィジェット（functions/fzf-history を使用）
 autoload fzf-history
 zle -N fzf-history
 bindkey '^r' fzf-history
 
-# load aliases
-source ${HOME}/.aliases
-
-# stern
-if [ $commands[stern] ]; then
+# stern completion
+if [ ${commands[stern]} ]; then
   source <(stern --completion=zsh)
 fi
 
 # bison
 export PATH="/opt/homebrew/opt/bison/bin:$PATH"
 
-# Created by `pipx` on 2024-01-27 05:56:55
-export PATH="$PATH:/Users/goto/.local/bin"
+# pipx local bin
+export PATH="$PATH:$HOME/.local/bin"
 
-## [Completion]
-## Completion scripts setup. Remove the following line to uninstall
-[[ -f /Users/goto/.dart-cli-completion/zsh-config.zsh ]] && . /Users/goto/.dart-cli-completion/zsh-config.zsh || true
-## [/Completion]
+# dart-cli completion
+[[ -f "$HOME/.dart-cli-completion/zsh-config.zsh" ]] && . "$HOME/.dart-cli-completion/zsh-config.zsh" || true
 
-# starship
+# mise（interactive hook）— 言語ランタイムは mise 管理に移行（Tier 2。setup/languages.zsh は別計画）
+if type mise &>/dev/null; then
+  eval "$(mise activate zsh)"
+fi
+
+# starship prompt
 eval "$(starship init zsh)"
 
-
-# firebase
-export PATH="$PATH":"$HOME/.pub-cache/bin"
-
-
+# firebase / pub-cache
+export PATH="$PATH:$HOME/.pub-cache/bin"

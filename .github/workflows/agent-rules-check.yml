@@ -22,7 +22,7 @@ on:
       - 'claude/rules/**'
       - 'claude/AGENTS.md'
       - 'claude/hermes/**'
-      - 'aliase/build-agent-rules.zsh'
+      - 'scripts/build-agent-rules.zsh'
       - '.github/workflows/agent-rules-check.yml'
   push:
     # feature branch への push は pull_request イベントだけで検証する
@@ -33,7 +33,7 @@ on:
       - 'claude/rules/**'
       - 'claude/AGENTS.md'
       - 'claude/hermes/**'
-      - 'aliase/build-agent-rules.zsh'
+      - 'scripts/build-agent-rules.zsh'
       - '.github/workflows/agent-rules-check.yml'
 
 concurrency:
@@ -50,4 +50,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verify generated files match claude/rules/
-        run: zsh aliase/build-agent-rules.zsh --check
+        run: zsh scripts/build-agent-rules.zsh --check

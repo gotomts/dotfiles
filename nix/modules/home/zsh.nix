@@ -202,8 +202,10 @@
     # fzf カスタム履歴ウィジェット (initExtra の `autoload fzf-history` が参照)
     ".functions/fzf-history".source = ../../../functions/fzf-history;
     # GKE 認証情報取得スクリプト (shellAliases.gcgc が参照)
-    ".aliase/get-gke-credentials.sh".source = ../../../aliase/get-gke-credentials.sh;
+    # 実体は scripts/ (旧 aliase/、Tier 1 restore-script-management migration で改名)。
+    # $HOME 側の配置先はここでは変更しない (nix の外部観測可能な挙動を変えないための最小修正)。
+    ".aliase/get-gke-credentials.sh".source = ../../../scripts/get-gke-credentials.sh;
     # claude.ai 一括起動 + グリッド整列スクリプト (shellAliases.claude-board が参照)
-    ".aliase/claude-board.zsh".source = ../../../aliase/claude-board.zsh;
+    ".aliase/claude-board.zsh".source = ../../../scripts/claude-board.zsh;
   };
 }
