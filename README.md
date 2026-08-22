@@ -29,10 +29,24 @@ echo sub-1   | sudo tee /etc/dotfiles-role   # sub-1 で運用する場合
 
 ファイルが存在しない場合は `default` にフォールバックします。
 
-5. Install Nix and apply
+5. Install Nix and apply (Homebrew パッケージ層)
 ```terminal
 zsh ~/.dotfiles/nix/scripts/install-nix.zsh
 cd ~/.dotfiles/nix && sudo USER=$USER nix run nix-darwin -- switch --flake .#default --impure
 ```
 
 See [`nix/README.md`](nix/README.md) for details.
+
+6. Place dotfiles symlinks (Tier 1) and run explicit setup scripts (Tier 2)
+```terminal
+zsh ~/.dotfiles/setup/link.zsh
+zsh ~/.dotfiles/setup/languages.zsh
+zsh ~/.dotfiles/setup/defaults.zsh
+zsh ~/.dotfiles/setup/pam.zsh
+zsh ~/.dotfiles/setup/claude-sync.zsh
+zsh ~/.dotfiles/setup/codex-sync.zsh
+```
+
+新規マシンは home-manager 状態を持たないため `setup/cutover.zsh` は不要（既存 PC を
+home-manager 込みの旧構成から移行する場合のみ使う）。詳細は [`setup/README.md`](setup/README.md)
+を参照。
