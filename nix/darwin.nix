@@ -11,16 +11,10 @@
 
 {
   imports = [
-    # cask + mas + 例外 brew (S9)
+    # cask + mas + brew。フォント/PAM/macOS defaults/IME/CLI tool/言語ランタイム/
+    # running-config sync は Tier 3 で setup/*.zsh (Tier 1/2) へ移行済み。詳細は
+    # docs/superpowers/specs/2026-08-22-restore-script-management-tier3-cutover-design.md
     ./modules/darwin/homebrew.nix
-    # SF Mono 等 (S11)。空リストで雛形のみ
-    ./modules/darwin/fonts.nix
-    # Touch ID for sudo (S11)
-    ./modules/darwin/pam.nix
-    # macOS defaults / Dock / Finder / Trackpad / Menubar etc. (S10)
-    ./modules/darwin/defaults.nix
-    # IME / 入力ソース。HIToolbox は array of dict 構造のため defaults import 方式
-    ./modules/darwin/hitoolbox.nix
   ];
 
   # nix-darwin はデフォルトで EDITOR=nano を /etc/zshenv (set-environment) に
@@ -49,7 +43,7 @@
   #   conflicts with nix-darwin's native Nix management.
   nix.enable = false;
 
-  # ユーザー宣言（home-manager から参照される）
+  # ユーザー宣言（nix-darwin が users.users.<name> として要求する最低限の宣言）
   users.users.${username} = {
     name = username;
     home = "/Users/${username}";
