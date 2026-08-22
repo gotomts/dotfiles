@@ -11,17 +11,17 @@
 - `claude/hermes/SOUL.md` — Hermes Agent 用グローバル指示の生成物（`~/.hermes/SOUL.md` にシンボリックリンク）。直接編集しない
 - `claude/skills/` — Claude Code 個人スキル層（`~/.claude/skills` にシンボリックリンク）。自作 skill は `gotomts/skills` が SSOT で相対 symlink だけを置き、外部由来のみ実体を持つ
 - `claude/hooks/` — Claude Code hook スクリプト（`~/.claude/hooks/<name>` へファイル単位でシンボリックリンク）
-- `claude/mcp-servers.json` — user scope の MCP server 宣言（home-manager activation で `~/.claude.json` に merge）
-- `codex/config.base.toml` — Codex CLI の宣言的 seed 設定（`~/.codex/config.toml` 不在時のみ activation が cp する。`~/.codex/config.toml` はアプリ所有の running config なので symlink・追跡しない）
+- `claude/mcp-servers.json` — user scope の MCP server 宣言（`setup/claude-sync.zsh` 実行時に `~/.claude.json` に merge、Tier 2）
+- `codex/config.base.toml` — Codex CLI の宣言的 seed 設定（`~/.codex/config.toml` 不在時のみ `setup/codex-sync.zsh` が cp する、Tier 2。`~/.codex/config.toml` はアプリ所有の running config なので symlink・追跡しない）
 - `config/` — アプリケーション設定（starship, yazi, cmux, ghostty, zed）（`~/.config/` にシンボリックリンク）
 - `config/git/` — git 設定・ignore（`config`/`ignore`、`~/.config/git/` にシンボリックリンク）。Tier 1 移行時に新設した plain ini（旧 SSOT は `nix/modules/home/git.nix` の `programs.git`）
 - `docs/` — 設計ドキュメント・実装プラン（シンボリックリンク対象外）
 - `functions/` — zsh カスタム関数（`~/.functions/` にシンボリックリンク）
-- git 設定は nix の `programs.git`（`nix/modules/home/git.nix`）が SSOT で `~/.config/git/config` を生成する。`~/.gitconfig` は nix 非管理の実体ファイルとして `home.activation` で用意し、`git config --global` で書き込むツール（coderabbit の machineId 等）の PC 固有値を隔離する落書き帳として使う（リポジトリには格納しない）
+- git 設定は `config/git/config`（plain ini）が SSOT で、Tier 1 (`setup/link.zsh`) が `~/.config/git/config` へ symlink する（旧 SSOT は nix の `programs.git`、`nix/modules/home/git.nix` は Tier 3 で削除済み）。`~/.gitconfig` は `setup/link.zsh` の `fs::ensure_realfile` が書き込み可能な実体ファイルとして用意し、`git config --global` で書き込むツール（coderabbit の machineId 等）の PC 固有値を隔離する落書き帳として使う（リポジトリには格納しない）
 - `.gitignore` — リポジトリ内に偶発的に作られたローカル overlay ファイル（例: `nix/modules/darwin/homebrew.local.nix`）を保険的に除外する
 - `gitignore_global` — グローバル gitignore（`~/.gitignore_global` にシンボリックリンク）
 - `grip/` — grip 設定（`~/.grip/` にシンボリックリンク）
-- `nix/` — nix-darwin + home-manager + flakes による環境構築定義（`darwin-rebuild` から参照される。詳細は `nix/README.md`）
+- `nix/` — nix-darwin + flakes による Homebrew パッケージ管理定義（`darwin-rebuild` から参照される。home-manager は Tier 3 で廃止済み、詳細は `nix/README.md`）
 - `ssh/` — SSH 設定（`~/.ssh/` にシンボリックリンク）
 - `zsh/` — zsh 補完ファイル（`~/.zsh/` にシンボリックリンク）
 - `zshrc` — zsh 設定（`~/.zshrc` にシンボリックリンク）
@@ -29,9 +29,9 @@
 
 # シンボリックリンク管理
 
-シンボリックリンクは home-manager (`nix/modules/home/`) で管理する。新規 dotfiles は `nix/modules/home/` 以下で宣言すること。
+シンボリックリンクは Tier 1 (`setup/link.zsh`) で管理する（home-manager は Tier 3 で廃止済み）。新規 dotfiles は `setup/link.zsh` に `fs::link_file <repo path> <$HOME path>` 呼び出しを 1 行追加して宣言すること。
 
-アプリが書き込む設定ファイルは `mkOutOfStoreSymlink` でリポジトリの実ファイルを指す（nix store 経由の symlink は read-only でアプリの書き込みが失敗する）。`config/zed/settings.json` がこれで、Zed で UI 操作（テーマ変更・パネル配置）をすると dotfiles に差分が出る。`claude/settings.json` と同じく、コミット時は意図した変更だけ stage すること。
+`fs::link_file` は常にリポジトリの実ファイルを直接指す plain symlink を作る（nix store を経由しないため read-only 問題はそもそも起きない）。`config/zed/settings.json` がこの対象で、Zed で UI 操作（テーマ変更・パネル配置）をすると dotfiles に差分が出る。`claude/settings.json` と同じく、コミット時は意図した変更だけ stage すること。
 
 # Homebrew パッケージ管理
 
@@ -41,7 +41,7 @@
 - `homebrew.nix` は role 別 declarative セットの宣言。`Brewfile` は削除済み
 - 既存のパッケージのみを対象とする。ユーザーが明示的に依頼していないパッケージを追加しない
 - `taps` / `brews` / `casks` / `masApps` の区分を守る
-- nixpkgs 収録済みのパッケージは原則 `nix/modules/home/packages.nix` に置き、Homebrew は nixpkgs 未収録または macOS 特殊事情のあるものに限定する
+- CLI tool は Homebrew (`homebrew.nix` の `brews`) で管理する（Tier 3 で home-manager の `packages.nix` から完全移行済み）
 - PC ローカル専用の cask は `~/.config/dotfiles/homebrew.local.nix`（リポジトリ外配置）で declarative に宣言する。`homebrew.nix` が絶対パスで `builtins.pathExists` + `import` する。用途は「git に追跡させたくないが `default` role の zap から守りたい cask」（例: 特定アカウントの個人用ツール、業務用アプリ）。別 PC では復元されないため、再現性が必要なものは `homebrew.nix` 本体に書くこと。現状 casks のみ対応（brews / taps / masApps の overlay が必要になったら `homebrew.nix` の `local` 解決を拡張する）。nix flake は git tree のみコピーするため、`.gitignore` で除外したリポジトリ内ファイルは flake から不可視になる点に注意（リポジトリ外配置を選んでいる理由）
 
 # zsh スクリプト規約
@@ -52,32 +52,32 @@
 
 # Claude Code 設定
 
-- `claude/` 配下のファイルは home-manager (`nix/modules/home/claude.nix`) により `~/.claude/` にシンボリックリンクされる
+- `claude/` 配下の静的ファイル（settings.json/CLAUDE.md/AGENTS.md/skills/hooks）は Tier 1 (`setup/link.zsh`) により `~/.claude/` にシンボリックリンクされる
 - そのため `~/.claude/` を書き換えるツール (plugin install・skill install・settings の UI 操作) の出力は、別リポジトリで作業していてもこのリポジトリの作業ツリーに着地する。commit 前に対象リポジトリ (dotfiles か案件か) を確認し、意図した変更だけを stage すること
 - グローバル指示の SSOT は `claude/rules/` のフラグメント。`claude/AGENTS.md` と `claude/hermes/SOUL.md` は **生成物なので直接編集しない**。編集は `claude/rules/` 側で行い、`agent-rules-build` (実体は `scripts/build-agent-rules.zsh`) を実行して生成物を更新する。生成漏れは `.github/workflows/agent-rules-check.yml` の `--check` が PR で落とす
-  - `claude/AGENTS.md` = `core` + `worker`。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`nix/modules/home/codex.nix`) で同じファイルを読む
-  - `claude/hermes/SOUL.md` = `hermes-identity` + `core` + `orchestrator`。Hermes は `~/.hermes/SOUL.md` への symlink 経由 (`nix/modules/home/hermes.nix`) で読む
-  - 結合が要るのは Codex CLI も Hermes も `@AGENTS.md` 形式の import を展開しないため。生成物を working tree に置くのは、symlink が `mkOutOfStoreSymlink` で working tree 直結であり、生成を nix store 経由にすると編集即反映が失われるため
+  - `claude/AGENTS.md` = `core` + `worker`。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`setup/link.zsh`) で同じファイルを読む
+  - `claude/hermes/SOUL.md` = `hermes-identity` + `core` + `orchestrator`。Hermes は `~/.hermes/SOUL.md` への symlink 経由 (`setup/link.zsh`) で読む
+  - 結合が要るのは Codex CLI も Hermes も `@AGENTS.md` 形式の import を展開しないため。生成物を working tree に置くのは、Tier 1 の symlink が常に working tree を直接指すため、編集がそのまま即時反映されるようにするため
   - ルールを足すときの行き先: 両者共通なら `core`、実装ワーカー (Claude Code / Codex) 専用なら `worker`、オーケストレーター (Hermes) の委譲の作法なら `orchestrator`
   - **グローバルに置いてよいのは「モデルの既定挙動と異なり、かつコードや履歴から読み取れない」ものだけ**。既定でやることを書き直すと、system prompt と競合して判断を鈍らせる。特定リポジトリでしか効かないものは対象リポジトリの `AGENTS.md`、発火条件が限られるものは skill か on-demand の md (`claude/handoff-policy.md` 等) へ置き、常時ルールには 1 行のポインタだけ残す
   - 実装ワーカー側 (`worker.md`) は Claude Code の system prompt が既に持つ規範 (周辺コードに合わせる / 検証結果を忠実に報告する / メモリ管理 / スコープを勝手に広げない) を重複させない
 - `claude/CLAUDE.md` は `@AGENTS.md` 1 行のみの薄い参照ファイル。プロジェクト固有のルールはここに書かない (グローバル指示は `claude/rules/` 側に集約)
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
-- `settings.json` の `enabledPlugins` は `claude.nix` の `home.activation.claudePlugins` が同期するが、**未インストールのものを install するだけ**で既存 plugin は更新しない（`homebrew.onActivation.upgrade = false` と同じ方針）。plugin の更新手順は `nix/README.md`「Claude plugin の定期メンテナンス」を参照
-- `claude/skills/` は個人スキル層。`nix/modules/home/claude.nix` が `~/.claude/skills` に symlink で展開する。中身は 2 系統に分かれ、配置で判別できる
-  - **自作 skill = 相対 symlink**。別リポジトリ `gotomts/skills` が SSOT で、`claude/skills/<name>` は `../../../ghq/github.com/gotomts/skills/<name>` を指す。dotfiles 側に実体は置かない。編集は skills リポの working tree で行い、`~/.claude/skills` から 3 段の symlink を辿って即反映される（switch 不要）。絶対パスにするとユーザー名が公開リポに載るため相対で書く（参照先を固定できるのは `ghq.root = ~/ghq` のため）。clone が無いと dangling になるので、`claude.nix` の `home.activation.cloneSkillsRepo` が不在時のみ clone する（既存 clone は pull もチェックアウト変更もしない）
+- `settings.json` の `enabledPlugins` は `setup/claude-sync.zsh`（Tier 2）が同期するが、**未インストールのものを install するだけ**で既存 plugin は更新しない（`homebrew.onActivation.upgrade = false` と同じ方針）。plugin の更新手順は `nix/README.md`「Claude plugin の定期メンテナンス」を参照
+- `claude/skills/` は個人スキル層。`setup/link.zsh`（Tier 1）が `~/.claude/skills` に symlink で展開する。中身は 2 系統に分かれ、配置で判別できる
+  - **自作 skill = 相対 symlink**。別リポジトリ `gotomts/skills` が SSOT で、`claude/skills/<name>` は `../../../ghq/github.com/gotomts/skills/<name>` を指す。dotfiles 側に実体は置かない。編集は skills リポの working tree で行い、`~/.claude/skills` から 3 段の symlink を辿って即反映される（再実行不要）。絶対パスにするとユーザー名が公開リポに載るため相対で書く（参照先を固定できるのは `ghq.root = ~/ghq` のため）。clone が無いと dangling になるので、`setup/claude-sync.zsh`（Tier 2）が不在時のみ clone する（既存 clone は pull もチェックアウト変更もしない）
   - **外部由来（vendor）skill = 実体**。中身は編集しない（更新は upstream の手順に従う）。SKILL.md frontmatter の `maintainer: gotomts` は自作の出所マーカーで、skills リポ側の SKILL.md に残る
 - `claude/hooks/` は hook スクリプト置き場。`settings.json` の `hooks` から `$HOME/.claude/hooks/<name>` で参照する。ブロック目的の hook は exit code を 0（通過）か 2（ブロック）のみに限定すること。それ以外の非ゼロは Claude Code が non-blocking error として扱い、hook が素通りする
-- `claude/hooks/` の symlink は `claude.nix` でファイル単位に宣言する（ディレクトリごとの symlink にしない）。`~/.claude/hooks/` を実体ディレクトリのまま残し、公開リポジトリに載せられない PC 固有 hook を同じディレクトリに同居させるため。ディレクトリごと symlink すると実体と衝突して home-manager の activation が `checkLinkTargets` で止まり、`~/.claude` 配下だけでなく **全 symlink が張られなくなる**（system 側は成功するので気づきにくい）。dotfiles に hook を追加したら `claude.nix` の `home.file` に 1 行足すこと
-- `claude/mcp-servers.json` は user scope の MCP server を declarative 宣言する。`darwin-rebuild switch` 時に `nix/modules/home/claude.nix` の `home.activation.syncClaudeMcpServers` が `~/.claude.json` の `mcpServers` キーに recursive merge する (add-only、claude.ai connector など宣言外エントリは保持)。`~/.claude.json` は Claude Code が動的に書き換える running config (OAuth token を含む) のため symlink 化できない事情への対応
-- `~/.codex/config.toml` は Codex / ChatGPT desktop アプリが動的に書き換える running config (絶対パス・marketplaces・plugins・trust_level 等) のため symlink・追跡しない。`codex/config.base.toml` を宣言的 seed とし、`nix/modules/home/codex.nix` の `home.activation.syncCodexConfig` が **seed-if-absent** (ファイル不在時のみ cp、既存はアプリ所有として一切触らない) で配置する。Codex の MCP server を宣言的に効かせたい場合は `config.base.toml` に書く (新規 PC のみ反映。既存機は `~/.codex/config.toml` へ手動追記)。`~/.claude.json` と同種の「symlink 化不可な running config」対応
-- 外部由来 (vendor) の skill を両 agent で共有する場合は `claude/skills/<name>/` を単一ソースとし、`~/.codex/skills/<name>` を `codex.nix` で個別 entry symlink する (Codex skills ディレクトリはアプリ管理 skill と同居するため全体 symlink はしない)。外部 skill を install すると `~/.claude/skills` 経由で dotfiles 作業ツリーに着地するので、機微情報を grep 確認のうえ vendor として commit する
+- `claude/hooks/` の symlink は `setup/link.zsh`（Tier 1）でファイル単位に宣言する（ディレクトリごとの symlink にしない）。`~/.claude/hooks/` を実体ディレクトリのまま残し、公開リポジトリに載せられない PC 固有 hook を同じディレクトリに同居させるため。ディレクトリごと symlink すると実体と衝突する事故が旧 home-manager 運用時代に実際に起き、`~/.claude` 配下だけでなく **全 symlink が張られなくなった**（system 側は成功するので気づきにくい）。Tier 1 の `fs::link_file` でも同種の衝突は起き得るため、単一ファイル symlink の運用は維持する。dotfiles に hook を追加したら `setup/link.zsh` に `fs::link_file` 呼び出しを 1 行足すこと
+- `claude/mcp-servers.json` は user scope の MCP server を declarative 宣言する。`setup/claude-sync.zsh`（Tier 2）実行時に `~/.claude.json` の `mcpServers` キーに recursive merge する (add-only、claude.ai connector など宣言外エントリは保持)。`~/.claude.json` は Claude Code が動的に書き換える running config (OAuth token を含む) のため symlink 化できない事情への対応
+- `~/.codex/config.toml` は Codex / ChatGPT desktop アプリが動的に書き換える running config (絶対パス・marketplaces・plugins・trust_level 等) のため symlink・追跡しない。`codex/config.base.toml` を宣言的 seed とし、`setup/codex-sync.zsh`（Tier 2）が **seed-if-absent** (ファイル不在時のみ cp、既存はアプリ所有として一切触らない) で配置する。Codex の MCP server を宣言的に効かせたい場合は `config.base.toml` に書く (新規 PC のみ反映。既存機は `~/.codex/config.toml` へ手動追記)。`~/.claude.json` と同種の「symlink 化不可な running config」対応
+- 外部由来 (vendor) の skill を両 agent で共有する場合は `claude/skills/<name>/` を単一ソースとし、`~/.codex/skills/<name>` を `setup/link.zsh`（Tier 1）で個別 entry symlink する (Codex skills ディレクトリはアプリ管理 skill と同居するため全体 symlink はしない)。外部 skill を install すると `~/.claude/skills` 経由で dotfiles 作業ツリーに着地するので、機微情報を grep 確認のうえ vendor として commit する
 
 # Hermes Agent 設定
 
 Hermes はオーケストレーター役の AI エージェントで、実装は Claude Code へ委譲する。読み込み経路の詳細は `docs/memory-loading.md` を参照。
 
-- グローバル規範の注入口は `~/.hermes/SOUL.md` (`nix/modules/home/hermes.nix` が `claude/hermes/SOUL.md` へ symlink)。**cwd に依存せず必ず system prompt に入る唯一のファイル**であり、他の候補 (`~/AGENTS.md` / `~/.hermes.md`) は cwd がリポジトリへ移ると失効する
+- グローバル規範の注入口は `~/.hermes/SOUL.md` (`setup/link.zsh` が `claude/hermes/SOUL.md` へ symlink)。**cwd に依存せず必ず system prompt に入る唯一のファイル**であり、他の候補 (`~/AGENTS.md` / `~/.hermes.md`) は cwd がリポジトリへ移ると失効する
 - Hermes の context file 探索は「最初に見つかった 1 種類だけ」を読む (`.hermes.md` → `AGENTS.md` の git root→cwd チェーン → `CLAUDE.md` → `.cursorrules`)。チェーンは git root より上へ遡らない
 - gateway の cwd はホーム固定 (`terminal.cwd: .` はホームに解決される)。ホームは git リポジトリではないため、**対象リポジトリの AGENTS.md は自動注入されない**。Hermes 側は作業開始時に自分で Read する規約を `claude/rules/orchestrator.md` に持つ
 - SOUL.md は Hermes の identity 区画に載り、既定の自己紹介文を置き換える。生成物の先頭に `claude/rules/hermes-identity.md` を含めているのは、この置き換えで自己紹介が失われないようにするため
@@ -86,7 +86,7 @@ Hermes はオーケストレーター役の AI エージェントで、実装は
 
 # Nix 環境
 
-`~/.dotfiles/nix/` 配下で nix-darwin + home-manager + flakes による宣言的環境構築を行う。詳細手順は `nix/README.md` を参照。
+`~/.dotfiles/nix/` 配下で nix-darwin + flakes による Homebrew パッケージの宣言的管理を行う（home-manager は Tier 3 で廃止済み、`setup/*.zsh` に移行）。詳細手順は `nix/README.md` を参照。
 
 ## 主要コマンド
 
@@ -111,16 +111,16 @@ darwin-rebuild --list-generations
 - **`nix.enable = false`**: ローカル PC に Determinate Nix がインストールされている前提。nix-darwin の native Nix 管理は Determinate daemon と競合するため、`nix/darwin.nix` で明示的に無効化している。実験的機能 (nix-command / flakes) は Determinate がデフォルト有効化しているため別途宣言不要
 - **PC 名・ユーザー名のリポジトリ非格納**: `darwinConfigurations.default` で output 名を hostname フリーに固定し、`username = builtins.getEnv "USER"` で macOS ローカルアカウント名を実行時解決する。公開リポジトリに PC 名や個人アカウント名を晒さないための設計。`--impure` フラグが必須になる代償と引き換え (S15)
 - **`homebrew.onActivation.cleanup = "zap"`**: 宣言外パッケージは Cellar ごと削除する強い管理。宣言外のパッケージが残らないよう破壊的に同期する (`nix/modules/darwin/homebrew.nix` のコメント参照)
-- **`rtk` overlay**: `flake.nix` の `rtk-src` input から `rustPlatform.buildRustPackage` でビルド。`nix/modules/overlays/rtk.nix` で `pkgs.rtk` として供給され、`home/packages.nix` から参照される
 
 ## 棚卸 → triage → 翻訳ワークフロー (S10)
 
-macOS の `defaults` 値を `defaults.nix` に翻訳するための人間 in-the-loop プロセス:
+macOS の `defaults` 値を `setup/defaults.zsh` に翻訳するための人間 in-the-loop プロセス
+（Tier 3 で `nix/modules/darwin/defaults.nix` から移行済み）:
 
 1. `zsh nix/scripts/inventory.zsh` を実行 → `docs/inventory/<hostname>-<date>.md` 生成 (READ-ONLY)
 2. 生成された Markdown を開き、各項目に `nix化 / 無視 / 検討` をマーク
-3. triage 結果を `nix/modules/darwin/defaults.nix` に翻訳 (`nix/darwin.nix` から import)
-4. `nix build` で検証 → `darwin-rebuild switch` で適用
+3. triage 結果を `setup/defaults.zsh` に `defaults write` 行として翻訳
+4. `bats setup/tests/defaults.bats` で検証 → 対象マシンで `zsh setup/defaults.zsh` を適用
 
 triage で「無視」マークした項目は OS デフォルト値が PC 間で異なる可能性があるため、複数 PC で運用する場合は PC 別に再評価する必要がある。
 
