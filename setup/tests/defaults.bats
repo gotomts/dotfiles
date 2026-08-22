@@ -122,3 +122,32 @@ setup() {
     [[ "${output}" == *"import com.apple.HIToolbox ${REPO_ROOT}/nix/modules/darwin/hitoolbox.plist"* ]]
     [[ "${output}" == *"import com.apple.inputsources ${REPO_ROOT}/nix/modules/darwin/inputsources.plist"* ]]
 }
+
+@test "defaults.zsh backs up HIToolbox/inputsources before the destructive import (once, then skips)" {
+    DOTFILES_ROLE_FILE="${BATS_TEST_TMPDIR}/no-such-role-file" \
+        PATH="${STUB_BIN}:${PATH}" run zsh "${SETUP_DIR}/defaults.zsh"
+    [ "${status}" -eq 0 ]
+
+    run grep -c 'export com.apple.HIToolbox ' "${DEFAULTS_LOG}"
+    [ "${status}" -eq 0 ]
+    [ "${output}" -eq 1 ]
+    run grep -c 'export com.apple.inputsources ' "${DEFAULTS_LOG}"
+    [ "${status}" -eq 0 ]
+    [ "${output}" -eq 1 ]
+
+    # export must happen before import for each domain (backup before destructive write)
+    local hitoolbox_export_line hitoolbox_import_line
+    hitoolbox_export_line=$(grep -n 'export com.apple.HIToolbox ' "${DEFAULTS_LOG}" | cut -d: -f1)
+    hitoolbox_import_line=$(grep -n 'import com.apple.HIToolbox ' "${DEFAULTS_LOG}" | cut -d: -f1)
+    [ "${hitoolbox_export_line}" -lt "${hitoolbox_import_line}" ]
+
+    : > "${DEFAULTS_LOG}"
+    DOTFILES_ROLE_FILE="${BATS_TEST_TMPDIR}/no-such-role-file" \
+        PATH="${STUB_BIN}:${PATH}" run zsh "${SETUP_DIR}/defaults.zsh"
+    [ "${status}" -eq 0 ]
+
+    run grep -c 'export com.apple.HIToolbox ' "${DEFAULTS_LOG}"
+    [ "${status}" -eq 1 ]
+    run grep -c 'export com.apple.inputsources ' "${DEFAULTS_LOG}"
+    [ "${status}" -eq 1 ]
+}

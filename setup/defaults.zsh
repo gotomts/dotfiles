@@ -255,7 +255,12 @@ defaults write com.apple.controlcenter "NSStatusItem VisibleCC WiFi" -bool true
 # plist は複製せず nix/modules/darwin/ の既存ファイルを単一ソースとして参照する。
 # ---------------------------------------------------------------------------
 util::info "=== IME / 入力ソース import ==="
+# defaults import はドメイン全体を上書きする最も破壊的な操作 (write と違い、
+# import 元に無いキーも消える)。他の domain と同じく初回のみバックアップを取ってから実行する。
+defaults::backup_once "com.apple.HIToolbox"
 defaults import com.apple.HIToolbox "${DOTFILES_ROOT}/nix/modules/darwin/hitoolbox.plist"
+
+defaults::backup_once "com.apple.inputsources"
 defaults import com.apple.inputsources "${DOTFILES_ROOT}/nix/modules/darwin/inputsources.plist"
 
 util::info "=== Tier 2: macOS defaults 完了 ==="
