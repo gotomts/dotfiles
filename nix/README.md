@@ -76,6 +76,15 @@ done
 
 `brew install` を直接打つことは事実上禁止 (`homebrew.onActivation.cleanup = "zap"` により次回 `darwin-rebuild switch` で削除される)。**宣言してから入れる** 順序を強制する設計。
 
+> **Tier 2 移行メモ (2026-08-22)**: `docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md`
+> の確定判断により、`packages.nix`/`languages.nix` の CLI tool・言語ランタイム・
+> `fonts.nix` のフォントは最終的に Homebrew (`homebrew.nix`) / `setup/languages.zsh` (mise) へ
+> 移行する。本 PR 時点では `homebrew.nix` に移行後の宣言（CLI tool・`mise`・3 フォント）を
+> **追記のみ**しており、`packages.nix`/`languages.nix`/`fonts.nix` はまだ削除していない
+> （実機切替は別途判断、`setup/README.md` 参照）。そのため下表の「配置先」は実機切替が完了する
+> までの間、一時的に Homebrew と home-manager の両方に同名パッケージが宣言される状態になる
+> （実害なし、redundant なだけ）。
+
 ### 種別ごとの配置先
 
 | 種別 | 配置先 | 例 |
