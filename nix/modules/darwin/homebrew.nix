@@ -77,6 +77,15 @@ let
     "visual-studio-code"
     "zed"
     "zoom"
+
+    # ---- Tier 2 (2026-08-22): フォントを nix-darwin fonts.nix から Homebrew cask へ移行 ----
+    # (docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md 6.2/6.7 節)
+    # fonts.nix はまだ削除しない (実機切替は別途判断)。font-sf-mono は棚卸しで発見した
+    # 未宣言ギャップ (fonts.nix のコメントは「既に cask 管理」を前提にしていたが実際は
+    # どこにも宣言されていなかった) — 3 フォントとも同一経路 (Homebrew cask) に統一する。
+    "font-udev-gothic"
+    "font-jetbrains-mono"
+    "font-sf-mono"
   ];
 
   # default-only casks (role == "default" のときだけ)
@@ -129,6 +138,35 @@ let
     "oven-sh/bun/bun" # tap: oven-sh/bun。S3 で「S7 で確認」とした保守的残置
     "pipx" # nixpkgs にもあるが、Python venv 周りの ergonomics で homebrew 版を選好
     "schpet/tap/linear" # tap: schpet/tap
+
+    # ---- Tier 2 (2026-08-22): 旧 home-manager packages.nix の CLI tool を Homebrew へ移行 ----
+    # (docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md 6.2/6.3 節)
+    # packages.nix 自体はまだ削除しない (実機切替は別途判断、Tier 1 の前例と同じ方針)。
+    "jq"
+    "bats-core" # nixpkgs 側は `bats` という名前
+    "pwgen"
+    "qpdf"
+    "ffmpeg"
+    "ripgrep"
+    "fzf"
+    "gh"
+    "ghq"
+    "lazygit"
+    "lazydocker"
+    "jj" # jujutsu の formula 名 (jujutsu は alias)
+    "jjui"
+    "kubectl"
+    "kubectx"
+    "stern"
+    "sops"
+    "grpcurl"
+    "uv"
+    "agent-browser"
+
+    # ---- Tier 2 (2026-08-22): 言語ランタイム管理を mise へ移行 ----
+    # (setup/languages.zsh が mise install/use --global を実行する。S7 で一度削除した mise を
+    # Tier 2 の確定判断で再導入する)
+    "mise"
   ];
 
   # default-only brews (role == "default" のときだけ)
@@ -139,6 +177,10 @@ let
     # `sudo tailscale up` でログイン。system extension の承認は手動 (System
     # Settings → Privacy & Security) で必要。
     "tailscale"
+
+    # ---- Tier 2 (2026-08-22): packages.nix の default-only CLI tool を Homebrew へ移行 ----
+    "tmux"
+    "mosh"
   ];
 
   # ----------------------------------------------------------------
