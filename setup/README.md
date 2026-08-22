@@ -1,7 +1,8 @@
 # setup/
 
-Tier 1（リアルタイム symlink）・Tier 2（明示的スクリプト実行）の実装。`darwin-rebuild switch`
-を使わず、このディレクトリの script を直接実行して dotfiles を `$HOME` へ配置・適用する。
+Tier 1（リアルタイム symlink）・Tier 2（明示的スクリプト実行）・Tier 3（カットオーバー・
+ロールバック）の実装。`darwin-rebuild switch` を使わず、このディレクトリの script を実行して
+dotfiles を `$HOME` へ配置・適用する。
 
 設計の全体像・Tier 1/Tier 2 の境界・確定した設計判断は
 `docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md` を参照。
@@ -9,23 +10,46 @@ Tier 2 の実装計画（各スクリプトの詳細仕様・テスト戦略）�
 `docs/superpowers/plans/2026-08-22-restore-script-management-tier2.md` を参照。
 Tier 3（カットオーバー・ロールバック機構、home-manager 関連 Nix 定義の廃止）の設計は
 `docs/superpowers/specs/2026-08-22-restore-script-management-tier3-cutover-design.md` を参照。
+Tier を跨いだ実行順序・部分適用の検出/復旧を担う `setup/migrate.zsh` の設計・過去のインシデント
+分析は `docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md` を参照。
 
-## 使い方
+## 使い方（実機での唯一のエントリポイントは `setup/migrate.zsh`）
+
+Tier 1/2/3 の各スクリプト（`link.zsh`/`languages.zsh`/`defaults.zsh`/`pam.zsh`/
+`claude-sync.zsh`/`codex-sync.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
+順序管理なしに個別実行すると部分適用インシデントを再現する（過去に実際に発生した）。
+実機での実行は必ず `setup/migrate.zsh` からのみ行う:
 
 ```sh
-# Tier 1: repo → $HOME の symlink 配置 (一度実行すれば以後は symlink 越しに自動反映)
+# 現在の状態と実行計画を確認する（副作用なし。まずこれを実行する）
+zsh ${HOME}/.dotfiles/setup/migrate.zsh --dry-run
+
+# 計画を実行する。Phase 2 (cutover/pam) は root が必要なため、
+# 促されたら sudo を付けて再実行する（最大 3 回の呼び出しになりうる。詳細は
+# docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md 参照）
+zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
+sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
+zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
+
+# 失敗時のロールバック（migrate.zsh は自動では一切呼ばない。人間の判断でのみ実行する）
+sudo zsh ${HOME}/.dotfiles/setup/rollback.zsh
+```
+
+`migrate.zsh` は各ステップの実行状況を `~/.dotfiles-migrate/manifest.log` に永続化し、既に
+success したステップは再実行しない（idempotent）。全ステップが success になるまで `--apply` は
+非ゼロ終了コードを返し続ける（部分適用を健全な状態として扱わない）。
+
+個別スクリプトの直接実行はメンテナンス目的（単体テスト・特定ステップだけをデバッグしたい場合等）
+でのみ行う:
+
+```sh
 zsh ${HOME}/.dotfiles/setup/link.zsh
-
-# Tier 2: 明示的に実行したときだけ反映されればよいもの (べき等、繰り返し実行してよい)
-zsh ${HOME}/.dotfiles/setup/languages.zsh    # mise で言語ランタイム install/pin + corepack enable
-zsh ${HOME}/.dotfiles/setup/defaults.zsh     # macOS defaults / Dock / IME
-zsh ${HOME}/.dotfiles/setup/pam.zsh          # Touch ID for sudo (sudo が必要)
-zsh ${HOME}/.dotfiles/setup/claude-sync.zsh  # skills clone / plugin sync / MCP servers merge
-zsh ${HOME}/.dotfiles/setup/codex-sync.zsh   # config.toml seed-if-absent
-
-# Tier 3: home-manager を含まない flake への実機切替（既存 PC のみ、新規 PC は不要）
-sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/cutover.zsh   # 切替
-sudo zsh ${HOME}/.dotfiles/setup/rollback.zsh                # 失敗時のロールバック
+zsh ${HOME}/.dotfiles/setup/languages.zsh
+zsh ${HOME}/.dotfiles/setup/defaults.zsh
+zsh ${HOME}/.dotfiles/setup/pam.zsh
+zsh ${HOME}/.dotfiles/setup/claude-sync.zsh
+zsh ${HOME}/.dotfiles/setup/codex-sync.zsh
+sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/cutover.zsh
 ```
 
 `setup/link.zsh` は一度実行すれば、以後の repo 編集（`zshrc`/`aliases`/`claude/CLAUDE.md` 等）は
@@ -65,6 +89,18 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   `*.before-nix` 残骸を検出する。1 件でも見つかれば一覧を出して停止し、`darwin-rebuild` を
   一切呼ばない（home-manager 再活性化時の backupFileExtension 衝突を防ぐため。
   `fs::ensure_realfile` と同じ no-data-loss 方針で、自動退避はしない）。
+- `migrate.zsh`: Tier 1/2/3 を跨いだ唯一のオーケストレーター。実行順序は Phase 1
+  (`link`) → Phase 2 (`cutover`/`pam`、root 必須) → Phase 3 (`languages`/`defaults`/
+  `claude-sync`/`codex-sync`)。`languages.zsh` 自身が「mise は darwin-switch で事前導入
+  済みが前提」と明記しているため、cutover を languages より先に置く。各ステップの結果は
+  `~/.dotfiles-migrate/manifest.log` に永続化し、success 済みステップは再実行しない
+  （idempotent な部分適用検出・再開）。権限不足なステップは blocked として記録し、その
+  Phase 内の残りは試行を続けるが次の Phase へは進まない（Phase 境界は厳格）。実失敗は
+  即座に全体を停止する（fail-closed）。`rollback.zsh` は一切呼ばない（no-automatic-rollback、
+  常に人間の明示判断）。全ステップ success 後も、manifest の自己申告を信用せず各ステップの
+  実際の効果をファイルシステムから再検証する health check を通らない限り成功とみなさない。
+  設計根拠・過去のインシデント分析は
+  `docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md` を参照。
 
 ## テスト
 
@@ -73,8 +109,13 @@ bats setup/tests/*.bats
 ```
 
 `fs::link_file`/`fs::ensure_realfile` は関数単位、`link.zsh`/`languages.zsh`/`defaults.zsh`/
-`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`cutover.zsh`/`rollback.zsh` は、実コマンド
-（`defaults`/`mise`/`corepack`/`claude`/`git`/`darwin-rebuild`/`nix`）を PATH 上の stub
-実行ファイルに差し替え、`$HOME` を一時ディレクトリに差し替えたサンドボックスでの統合テスト
+`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`cutover.zsh`/`rollback.zsh`/`migrate.zsh` は、
+実コマンド（`defaults`/`mise`/`corepack`/`claude`/`git`/`darwin-rebuild`/`nix`）を PATH 上の
+stub 実行ファイルに差し替え、`$HOME` を一時ディレクトリに差し替えたサンドボックスでの統合テスト
 （実機・実ネットワーク・実パッケージマネージャ・実 `darwin-rebuild switch` には一切触れない）。
-CI は `.github/workflows/setup-check.yml` が `setup/**` の変更ごとに実行する。
+`migrate.zsh` のテストは Tier 1 が作る `~/.zshenv` symlink を経由して後続の子 `zsh` プロセスが
+実際の zshenv を re-source する（Phase を跨いだ実行を初めて連結するテストのため、単独スクリプトの
+テストでは踏まなかった経路）。stub 実行ファイルを `#!/bin/bash` にしているのはこのため
+（`#!/bin/zsh` だと stub 自身が `~/.zshenv` を再度 source し、そこでの `mise activate --shims`
+がまた `mise` を呼ぶ無限再帰になる）。CI は `.github/workflows/setup-check.yml` が `setup/**`
+の変更ごとに実行する。
