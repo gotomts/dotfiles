@@ -1,17 +1,13 @@
 {
-  description = "gotomts macOS dotfiles via nix-darwin + home-manager";
+  description = "gotomts macOS dotfiles via nix-darwin (Homebrew package management)";
 
   inputs = {
-    # Phase A は unstable を使用 (home-manager との整合性優先)。
-    # stable に切り替える場合は nixpkgs-YY.MM 形式に変更し、
-    # home.stateVersion も対応バージョンに更新すること。
+    # nixpkgs-unstable を使用（Homebrew/CLI tool の追従を優先）。
+    # stable に切り替える場合は nixpkgs-YY.MM 形式に変更すること。
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     nix-darwin.url = "github:LnL7/nix-darwin";
     nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
-
-    home-manager.url = "github:nix-community/home-manager";
-    home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -19,7 +15,6 @@
       self,
       nixpkgs,
       nix-darwin,
-      home-manager,
       ...
     }@inputs:
     let
@@ -98,17 +93,6 @@
         specialArgs = { inherit inputs username role; };
         modules = [
           ./darwin.nix
-          home-manager.darwinModules.home-manager
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            # home-manager が以前作った既存 symlink (~/.zshrc, ~/.claude/agents 等) を
-            # 重複作成しようとして clobber エラーで弾かないよう、退避拡張子を指定する。
-            # 初回 activation で既存ファイルは <file>.before-nix にリネームされる。
-            home-manager.backupFileExtension = "before-nix";
-            home-manager.users.${username} = import ./home.nix;
-            home-manager.extraSpecialArgs = { inherit inputs username role; };
-          }
         ];
       };
     };

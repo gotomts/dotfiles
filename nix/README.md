@@ -22,11 +22,13 @@ darwin-rebuild --list-generations
 sudo darwin-rebuild switch -G <generation-number>
 ```
 
-home-manager 個別のロールバック:
+Tier 3 カットオーバー（home-manager を含む flake からの移行）に失敗した場合は、
+`setup/rollback.zsh` を使う（`.before-nix` 残骸を検出したら fail-closed で停止する安全策
+付き）。詳細は `setup/README.md` および
+`docs/superpowers/specs/2026-08-22-restore-script-management-tier3-cutover-design.md` を参照。
 
 ```sh
-home-manager generations
-home-manager switch --switch-generation <id>
+sudo zsh ~/.dotfiles/setup/rollback.zsh
 ```
 
 ## flake.lock の更新運用
@@ -52,7 +54,11 @@ brew upgrade && brew cleanup
 
 ## Claude plugin の定期メンテナンス
 
-`claude.nix` の `home.activation.claudePlugins` は `settings.json` の `enabledPlugins` のうち**未インストールのものだけを install** する。既存 plugin は自動更新されない (Homebrew の `upgrade = false` と同じ方針)。毎回 marketplace 更新と全 plugin 更新を走らせると、宣言数ぶんのネットワーク往復と到達できない marketplace のタイムアウト待ちで switch が数分単位で伸びるため。
+`setup/claude-sync.zsh`（Tier 2、旧 `claude.nix` の `home.activation.claudePlugins` を移植）は
+`settings.json` の `enabledPlugins` のうち**未インストールのものだけを install** する。既存
+plugin は自動更新されない (Homebrew の `upgrade = false` と同じ方針)。毎回 marketplace 更新と
+全 plugin 更新を走らせると、宣言数ぶんのネットワーク往復と到達できない marketplace の
+タイムアウト待ちで実行が数分単位で伸びるため。
 
 週次または月次で手動実行すること:
 
@@ -70,44 +76,43 @@ done
 - 個別に更新する場合は `claude plugin update <id>`、対話的にやる場合は Claude Code 内で `/plugin`
 - `Failed to clone marketplace repository` が出る marketplace は SSH 鍵か接続の問題。その plugin は更新されず、既存バージョンのまま残る (switch は止まらない)
 
-新しい plugin を足すときは `claude/settings.json` の `enabledPlugins` に宣言してから `darwin-switch` する。marketplace が未登録なら `extraKnownMarketplaces` にも足す。
+新しい plugin を足すときは `claude/settings.json` の `enabledPlugins` に宣言してから `zsh ~/.dotfiles/setup/claude-sync.zsh` を実行する。marketplace が未登録なら `extraKnownMarketplaces` にも足す。
 
 ## アプリ・パッケージの追加
 
 `brew install` を直接打つことは事実上禁止 (`homebrew.onActivation.cleanup = "zap"` により次回 `darwin-rebuild switch` で削除される)。**宣言してから入れる** 順序を強制する設計。
 
-> **Tier 2 移行メモ (2026-08-22)**: `docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md`
-> の確定判断により、`packages.nix`/`languages.nix` の CLI tool・言語ランタイム・
-> `fonts.nix` のフォントは最終的に Homebrew (`homebrew.nix`) / `setup/languages.zsh` (mise) へ
-> 移行する。本 PR 時点では `homebrew.nix` に移行後の宣言（CLI tool・`mise`・3 フォント）を
-> **追記のみ**しており、`packages.nix`/`languages.nix`/`fonts.nix` はまだ削除していない
-> （実機切替は別途判断、`setup/README.md` 参照）。そのため下表の「配置先」は実機切替が完了する
-> までの間、一時的に Homebrew と home-manager の両方に同名パッケージが宣言される状態になる
-> （実害なし、redundant なだけ）。
+**Tier 3 完了メモ (2026-08-22)**: CLI tool・フォントは Homebrew (`homebrew.nix`) へ、
+言語ランタイムは `setup/languages.zsh`（mise）へ完全移行済み。home-manager
+(`nix/modules/home/**`) は削除済みで、Nix (nix-darwin) は Homebrew パッケージ管理のみを
+担当する。詳細は
+`docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md`（6/7 節）と
+`docs/superpowers/specs/2026-08-22-restore-script-management-tier3-cutover-design.md` を参照。
 
 ### 種別ごとの配置先
 
 | 種別 | 配置先 | 例 |
 |---|---|---|
-| CLI (nixpkgs 収録あり) | `nix/modules/home/packages.nix` の `home.packages` | `ripgrep`, `fzf`, `jq` |
-| 言語ランタイム (グローバル) | `nix/modules/home/languages.nix` | `nodejs_24`, `python3` |
-| 言語ランタイム (プロジェクトごと) | リポジトリ内の `devbox.json` | Node 18 が必要なレガシープロジェクト等 (後述) |
-| CLI (nixpkgs 未収録 / 最新版が必要) | `nix/modules/darwin/homebrew.nix` の `brews` (例外扱い) | `mas` |
+| CLI (nixpkgs 未収録 / macOS 特殊事情) | `nix/modules/darwin/homebrew.nix` の `brews` | `jq`, `gh`, `mise` |
 | GUI アプリ (.app) | `nix/modules/darwin/homebrew.nix` の `casks` | `visual-studio-code`, `slack` |
 | Mac App Store アプリ | `nix/modules/darwin/homebrew.nix` の `masApps` | `{ "Xcode" = 497799835; }` |
-| 独自ビルド (nixpkgs 外のソース) | `nix/modules/overlays/` に overlay 定義 + `home.packages` から参照 | `rtk` |
+| 言語ランタイム (グローバル) | `setup/languages.zsh`（mise、`mise::pin` 行を追加） | `node`, `go`, `ruby`, `rust`, `python`, `dart` |
 
-### 追加 → 適用の流れ
+### 追加 → 適用の流れ（Homebrew）
 
 ```sh
-# 1. 該当の .nix に 1 行追加 (例: packages.nix の home.packages に pkgs.ripgrep)
+# 1. nix/modules/darwin/homebrew.nix の該当リストに 1 行追加 (例: coreBrews に "ripgrep")
 # 2. ビルド確認 (副作用なし)
 darwin-rebuild build --flake ~/.dotfiles/nix#default --impure
 # 3. 適用 (sudo の env_reset で USER=root になるのを USER=$USER で回避)
 sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ```
 
-削除も同じ流れ (`.nix` から行を消して switch すると `zap` で消える)。
+削除も同じ流れ（リストから行を消して switch すると `zap` で消える。`sub-1` role は
+`cleanup = "none"` のため削除されない）。
+
+言語ランタイムの追加・バージョン変更は `setup/languages.zsh` の `mise::pin` 行を編集し、
+対象マシンで `zsh setup/languages.zsh` を再実行する（`darwin-rebuild switch` は不要）。
 
 ### 「お試し」のための逃げ道
 
@@ -176,128 +181,6 @@ sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ### sub-1 にだけ入れる package を追加したい
 
 現状 `sub-1` は「core のみ」のフラットな subset。将来 sub-1 専用の package が必要になったら、`nix/modules/darwin/homebrew.nix` の `let` ブロックに `sub1OnlyCasks` 等を追加し、`casks = coreCasks ++ lib.optionals (role == "sub-1") sub1OnlyCasks` で合成する (YAGNI のため現状は未追加)。
-
-## プロジェクトごとの言語バージョン管理 (devbox)
-
-`languages.nix` で宣言したグローバルランタイム (Node.js 24 / Python 3.13 / Ruby 3.4 等) と異なるバージョンを特定プロジェクトで使いたい場合は [devbox](https://www.jetify.com/devbox) を利用する。`mise` / `asdf` 相当のワンライナー UX を Nix 上で提供する wrapper で、内部で nixpkgs を参照するため再現性も担保される。
-
-devbox 自体は `nix/modules/home/packages.nix` で nix 管理しているため、`darwin-rebuild switch` 後はそのまま使える。
-
-### 役割分担
-
-| 対象 | 配置先 | 例 |
-|---|---|---|
-| **グローバル**(全プロジェクト共通の標準バージョン) | `nix/modules/home/languages.nix` | `nodejs_24`, `python313`, `ruby_3_4` |
-| **プロジェクトごと**(リポジトリ単位で固定) | リポジトリ内の `devbox.json` / `devbox.lock` | Node 18 が必要なレガシープロジェクト等 |
-
-cd でプロジェクト外に出ると、direnv が自動でグローバル環境に戻す。
-
-### 基本ワークフロー
-
-```sh
-cd path/to/project
-
-# devbox.json を生成
-devbox init
-
-# 言語ランタイムを追加 (ワンライナー)
-devbox add nodejs@18
-
-# direnv 連携を生成 — .envrc 作成 + direnv allow まで自動で実行される
-devbox generate direnv
-```
-
-生成される `.envrc` は以下:
-
-```sh
-eval "$(devbox generate direnv --print-envrc)"
-```
-
-これにより cd した瞬間に PATH が devbox 環境に切り替わり、`node --version` が `v18.x` を返すようになる。
-
-### パッケージの削除
-
-```sh
-devbox rm nodejs
-```
-
-### 利用可能なバージョンの確認
-
-```sh
-devbox search nodejs
-```
-
-### 補足
-
-- `devbox.json` と `devbox.lock` の両方をリポジトリにコミットすること(`flake.lock` 同様、再現性の根幹)
-- `devbox.json` を変更すると direnv が自動的に環境を reset する。`~/.config/direnv/direnv.toml` でホワイトリストしていない限り、変更後に再度 `direnv allow` が要求される
-- 言語ランタイム以外(`postgresql@15`, `redis@7` 等のサービス類)も `devbox add` で同じ流儀で管理可能
-
-## 既存 PC 移行手順 (dir-symlink → proper directory)
-
-旧 `setup.zsh` を使って構築した PC では、`~/.aliase` や `~/.functions` が
-dotfiles ディレクトリへのシンボリックリンク (dir-symlink) として残っている場合がある。
-home-manager が `~/.aliase/get-gke-credentials.sh` 等を nix store 経由で配置しようとすると
-dir-symlink の先 = dotfiles リポジトリ内のファイルを上書きし、
-`aliase/get-gke-credentials.sh.before-nix` がリポジトリに生まれる問題がある。
-
-以下の手順で移行すること。
-
-### ステップ 1: 現状確認 (dry-run)
-
-```sh
-zsh ~/.dotfiles/nix/scripts/migrate-symlinks.zsh --dry-run
-```
-
-削除予定のシンボリックリンクが一覧表示される。内容を確認する。
-
-### ステップ 2: シンボリックリンクの削除
-
-問題なければ実際に削除する:
-
-```sh
-zsh ~/.dotfiles/nix/scripts/migrate-symlinks.zsh
-```
-
-スクリプトが削除するシンボリックリンク:
-
-| シンボリックリンク | 種類 | 理由 |
-|---|---|---|
-| `~/.aliase` | dir-symlink | home-manager が `.aliase/get-gke-credentials.sh` を管理 |
-| `~/.functions` | dir-symlink | home-manager が `.functions/fzf-history` を管理 |
-| `~/.claude/skills` | dir-symlink | home-manager が個別 skill を管理 |
-| `~/.aliases` | file-symlink | home-manager が nix store 経由で再配置 |
-| `~/.gitignore_global` | file-symlink | home-manager が nix store 経由で再配置 |
-| `~/.grip/settings.py` | file-symlink | home-manager が nix store 経由で再配置 |
-| `~/.config/cmux/config.ghostty` | file-symlink | home-manager が nix store 経由で再配置 |
-| `~/.config/starship/starship.toml` | file-symlink | home-manager は `~/.config/starship.toml` に配置 |
-| `~/.zshrc` | file-symlink | home-manager が nix store 経由で再配置 |
-| `~/.zshenv` | file-symlink | home-manager が nix store 経由で再配置 |
-| `~/.config/yazi/keymap.toml` | file-symlink | home-manager が nix store 経由で再配置 |
-
-### ステップ 3: darwin-rebuild switch
-
-```sh
-sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
-```
-
-home-manager が proper directory と nix store 経由のシンボリックリンクを再生成する。
-
-### ステップ 4: 動作確認
-
-```sh
-# dir-symlink が解消され proper directory になっていることを確認
-file ~/.aliase ~/.functions
-# expected: directory (not symlink)
-
-# home-manager 管理の symlink が nix store を指していることを確認
-ls -la ~/.aliase/get-gke-credentials.sh ~/.functions/fzf-history
-# expected: -> /nix/store/...
-
-# .before-nix ファイルが dotfiles に生まれていないことを確認
-git -C ~/.dotfiles status
-# expected: clean (before-nix バックアップがない)
-```
 
 ## トラブルシューティング
 

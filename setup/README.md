@@ -7,6 +7,8 @@ Tier 1（リアルタイム symlink）・Tier 2（明示的スクリプト実行
 `docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md` を参照。
 Tier 2 の実装計画（各スクリプトの詳細仕様・テスト戦略）は
 `docs/superpowers/plans/2026-08-22-restore-script-management-tier2.md` を参照。
+Tier 3（カットオーバー・ロールバック機構、home-manager 関連 Nix 定義の廃止）の設計は
+`docs/superpowers/specs/2026-08-22-restore-script-management-tier3-cutover-design.md` を参照。
 
 ## 使い方
 
@@ -20,6 +22,10 @@ zsh ${HOME}/.dotfiles/setup/defaults.zsh     # macOS defaults / Dock / IME
 zsh ${HOME}/.dotfiles/setup/pam.zsh          # Touch ID for sudo (sudo が必要)
 zsh ${HOME}/.dotfiles/setup/claude-sync.zsh  # skills clone / plugin sync / MCP servers merge
 zsh ${HOME}/.dotfiles/setup/codex-sync.zsh   # config.toml seed-if-absent
+
+# Tier 3: home-manager を含まない flake への実機切替（既存 PC のみ、新規 PC は不要）
+sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/cutover.zsh   # 切替
+sudo zsh ${HOME}/.dotfiles/setup/rollback.zsh                # 失敗時のロールバック
 ```
 
 `setup/link.zsh` は一度実行すれば、以後の repo 編集（`zshrc`/`aliases`/`claude/CLAUDE.md` 等）は
@@ -51,6 +57,14 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   解決し、テストでは `DOTFILES_ROLE_FILE` で上書きできる。
 - `claude-sync.zsh`/`codex-sync.zsh`: 破壊的な操作を行わない（MCP merge は add-only、
   config.toml は seed-if-absent、skills repo clone は既存ディレクトリを一切変更しない）。
+- `cutover.zsh`: 実行前に `darwin-rebuild --list-generations` の出力を
+  `~/.dotfiles-cutover-backup/pre-cutover-generations-<timestamp>.txt` へ記録してから
+  `nix build`（副作用なし）で pre-flight 確認し、成功したときだけ `darwin-rebuild switch`
+  を実行する。build 失敗時は switch を実行しない。
+- `rollback.zsh`: `darwin-rebuild switch --rollback` を実行する前に `$HOME` 配下の
+  `*.before-nix` 残骸を検出する。1 件でも見つかれば一覧を出して停止し、`darwin-rebuild` を
+  一切呼ばない（home-manager 再活性化時の backupFileExtension 衝突を防ぐため。
+  `fs::ensure_realfile` と同じ no-data-loss 方針で、自動退避はしない）。
 
 ## テスト
 
@@ -59,7 +73,8 @@ bats setup/tests/*.bats
 ```
 
 `fs::link_file`/`fs::ensure_realfile` は関数単位、`link.zsh`/`languages.zsh`/`defaults.zsh`/
-`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh` は、実コマンド（`defaults`/`mise`/`corepack`/
-`claude`/`git`）を PATH 上の stub 実行ファイルに差し替え、`$HOME` を一時ディレクトリに
-差し替えたサンドボックスでの統合テスト（実機・実ネットワーク・実パッケージマネージャには
-一切触れない）。CI は `.github/workflows/setup-check.yml` が `setup/**` の変更ごとに実行する。
+`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`cutover.zsh`/`rollback.zsh` は、実コマンド
+（`defaults`/`mise`/`corepack`/`claude`/`git`/`darwin-rebuild`/`nix`）を PATH 上の stub
+実行ファイルに差し替え、`$HOME` を一時ディレクトリに差し替えたサンドボックスでの統合テスト
+（実機・実ネットワーク・実パッケージマネージャ・実 `darwin-rebuild switch` には一切触れない）。
+CI は `.github/workflows/setup-check.yml` が `setup/**` の変更ごとに実行する。
