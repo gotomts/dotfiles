@@ -4,6 +4,13 @@
 **スコープ境界**: 本 PR はサンドボックス検証のみ。実機（sudo/darwin-rebuild/brew/defaults/PAM/mise の
 実行）には一切触れない。
 
+**追記（single-command-migration ブランチ）**: §3.1〜§4.2 が前提としていた「root/非 root で
+2〜3 回に分けて呼び出す」運用は、`sudo` が自動設定する `SUDO_USER` から元ユーザーを特定し、
+非 root ステップ（Phase 1/3）を `sudo -u <元ユーザー> -H` で委譲実行する方式に置き換えた。
+実機での呼び出しは `sudo zsh setup/migrate.zsh --apply` の単一起動のみで完結する
+（`setup/migrate.zsh` 冒頭コメントと `setup/README.md` が現行の正）。本ドキュメントの
+§3.1〜§4.2 は設計に至った経緯の記録として残す。
+
 関連ドキュメント:
 - `docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md`
 - `docs/superpowers/specs/2026-08-22-restore-script-management-tier3-cutover-design.md`

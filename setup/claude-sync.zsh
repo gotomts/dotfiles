@@ -21,6 +21,13 @@ SETUP_DIR="${0:A:h}"
 DOTFILES_ROOT="${SETUP_DIR:h}"
 source "${SETUP_DIR}/lib/util.zsh"
 
+# 呼び出し元 (migrate.zsh の委譲実行など) の PATH を信用しない。claude CLI は
+# Homebrew 経由でインストールされる前提のため、languages.zsh (mise/corepack) と同じ
+# 理由でここでも必要。詳細は util::ensure_homebrew_path のコメント参照。
+# (実機インシデント: claude-sync.zsh は元々このガードが無く、command -v claude が
+# 委譲実行の PATH では見つからず plugin 同期が黙ってスキップされていた。2026-08-23)
+util::ensure_homebrew_path
+
 util::info "=== Tier 2: Claude Code sync ==="
 
 # ---------------------------------------------------------------------------

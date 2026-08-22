@@ -40,6 +40,11 @@ setup() {
     _install_mise_stub "${STUB_BIN}" "${NODE_BIN_DIR}"
     export HOME="${BATS_TEST_TMPDIR}/home"
     mkdir -p "${HOME}"
+    # languages.zsh now calls util::ensure_homebrew_path, which hardcodes the
+    # real /opt/homebrew and /usr/local paths unless overridden. Point it at
+    # the stub dir so these tests never resolve this machine's real Homebrew
+    # mise (if installed) regardless of what PATH is set to per-test below.
+    export HOMEBREW_PATH_PREFIX_OVERRIDE="${STUB_BIN}"
 }
 
 @test "zsh -n syntax check passes" {
@@ -80,6 +85,23 @@ setup() {
 }
 
 @test "languages.zsh fails clearly when mise is not on PATH" {
-    PATH="/usr/bin:/bin" run zsh "${SETUP_DIR}/languages.zsh"
+    HOMEBREW_PATH_PREFIX_OVERRIDE="${BATS_TEST_TMPDIR}/no-mise-here" PATH="/usr/bin:/bin" \
+        run zsh "${SETUP_DIR}/languages.zsh"
     [ "${status}" -eq 1 ]
+}
+
+@test "languages.zsh resolves mise via util::ensure_homebrew_path even when the ambient PATH excludes it (models /etc/zshenv clobbering the delegated PATH, real-machine incident 2026-08-22)" {
+    # Real incident: nix-darwin's system-wide /etc/zshenv unconditionally
+    # overwrites PATH on every zsh startup with a fixed list that excludes
+    # Homebrew's bin dirs, before this script's own code (or whatever PATH
+    # migrate.zsh's delegation passed in) ever gets a say. Model that here
+    # by handing languages.zsh a PATH that deliberately excludes the mise
+    # stub entirely; only util::ensure_homebrew_path's override should be
+    # able to find it.
+    HOMEBREW_PATH_PREFIX_OVERRIDE="${STUB_BIN}" PATH="/usr/bin:/bin" \
+        run zsh "${SETUP_DIR}/languages.zsh"
+    [ "${status}" -eq 0 ]
+
+    run cat "${MISE_LOG}"
+    [[ "${output}" == *"install node@lts"* ]]
 }

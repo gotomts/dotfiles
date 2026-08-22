@@ -23,6 +23,10 @@ set -eu
 SETUP_DIR="${0:A:h}"
 source "${SETUP_DIR}/lib/util.zsh"
 
+# 呼び出し元 (migrate.zsh の委譲実行など) の PATH を信用しない。詳細は
+# util::ensure_homebrew_path のコメント参照。
+util::ensure_homebrew_path
+
 if ! command -v mise &>/dev/null; then
     util::error "mise が見つかりません。'darwin-switch' で Homebrew 経由の導入を先に済ませてください"
     exit 1

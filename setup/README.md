@@ -24,12 +24,11 @@ Tier 1/2/3 の各スクリプト（`link.zsh`/`languages.zsh`/`defaults.zsh`/`pa
 # 現在の状態と実行計画を確認する（副作用なし。まずこれを実行する）
 zsh ${HOME}/.dotfiles/setup/migrate.zsh --dry-run
 
-# 計画を実行する。Phase 2 (cutover/pam) は root が必要なため、
-# 促されたら sudo を付けて再実行する（最大 3 回の呼び出しになりうる。詳細は
+# 計画を実行する。単一の root 起動で全 Phase (link -> cutover/pam -> languages/defaults/
+# claude-sync/codex-sync) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
+# 特定し、非 root ステップは元ユーザーへ委譲実行する（詳細は
 # docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md 参照）
-zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
-sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
-zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
+sudo zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
 
 # 失敗時のロールバック（migrate.zsh は自動では一切呼ばない。人間の判断でのみ実行する）
 sudo zsh ${HOME}/.dotfiles/setup/rollback.zsh
@@ -37,7 +36,8 @@ sudo zsh ${HOME}/.dotfiles/setup/rollback.zsh
 
 `migrate.zsh` は各ステップの実行状況を `~/.dotfiles-migrate/manifest.log` に永続化し、既に
 success したステップは再実行しない（idempotent）。全ステップが success になるまで `--apply` は
-非ゼロ終了コードを返し続ける（部分適用を健全な状態として扱わない）。
+非ゼロ終了コードを返し続ける（部分適用を健全な状態として扱わない）。`SUDO_USER` が特定できない
+環境（sudo を介さない直接 root ログイン等）では非 root ステップは blocked のまま止まる。
 
 個別スクリプトの直接実行はメンテナンス目的（単体テスト・特定ステップだけをデバッグしたい場合等）
 でのみ行う:

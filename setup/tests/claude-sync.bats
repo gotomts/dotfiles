@@ -49,6 +49,11 @@ setup() {
     export GIT_LOG CLAUDE_LOG
     export HOME="${BATS_TEST_TMPDIR}/home"
     mkdir -p "${HOME}/.claude"
+    # claude-sync.zsh now calls util::ensure_homebrew_path, which hardcodes the
+    # real /opt/homebrew and /usr/local paths unless overridden. Point it at
+    # the stub dir so these tests never resolve this machine's real Homebrew
+    # claude CLI (which exists here) instead of the stub.
+    export HOMEBREW_PATH_PREFIX_OVERRIDE="${STUB_BIN}"
 }
 
 @test "zsh -n syntax check passes" {
@@ -130,6 +135,39 @@ JSON
     [ "${status}" -eq 0 ]
     run grep -c '^plugin install superpowers@claude-plugins-official$' "${CLAUDE_LOG}"
     [ "${status}" -eq 1 ]
+}
+
+@test "plugin sync finds claude via util::ensure_homebrew_path even when the ambient PATH excludes it (models /etc/zshenv clobbering the delegated PATH, real-machine incident 2026-08-23)" {
+    # Real incident: nix-darwin's system-wide /etc/zshenv unconditionally
+    # overwrites PATH on every zsh startup with a fixed list that excludes
+    # Homebrew's bin dirs, before this script's own code (or whatever PATH
+    # migrate.zsh's delegation passed in) ever gets a say. claude-sync.zsh
+    # originally had no defense against this (unlike languages.zsh, fixed
+    # earlier), so its `command -v claude` silently failed and the fail-open
+    # design (exit 0 always) let it report manifest "success" while plugin
+    # sync never ran. Model that here with a PATH that deliberately excludes
+    # the claude stub entirely; only util::ensure_homebrew_path's override
+    # should be able to find it.
+    _install_git_clone_stub "${STUB_BIN}"
+    mkdir -p "${HOME}/ghq/github.com/gotomts/skills"
+    (cd "${HOME}/ghq/github.com/gotomts/skills" && /usr/bin/git init -q)
+
+    cat > "${HOME}/.claude/settings.json" <<'JSON'
+{
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true
+  }
+}
+JSON
+
+    _install_claude_stub "${STUB_BIN}" '[]'
+
+    HOMEBREW_PATH_PREFIX_OVERRIDE="${STUB_BIN}" PATH="/usr/bin:/bin" \
+        run zsh "${SETUP_DIR}/claude-sync.zsh"
+    [ "${status}" -eq 0 ]
+
+    run grep -c '^plugin install context7@claude-plugins-official$' "${CLAUDE_LOG}"
+    [ "${status}" -eq 0 ]
 }
 
 @test "plugin sync is skipped (exit 0) when settings.json is absent" {

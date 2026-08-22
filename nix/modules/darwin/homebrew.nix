@@ -167,6 +167,14 @@ let
     # (setup/languages.zsh が mise install/use --global を実行する。S7 で一度削除した mise を
     # Tier 2 の確定判断で再導入する)
     "mise"
+
+    # ---- Tier 3 (2026-08-22): home-manager 撤去で漏れていたバイナリの復元 ----
+    # 旧 home-manager の programs.starship (nix/home.nix、削除済み) がバイナリ本体も
+    # 供給していた。設定ファイル自体は config/starship/starship.toml として Tier 1
+    # (setup/link.zsh) が symlink 済みだが、バイナリの Homebrew 側移植が漏れており、
+    # home-manager 撤去後の cutover で ~/.zshrc の `eval "$(starship init zsh)"` が
+    # 失敗する形で発覚した（実機インシデント、2026-08-22）。
+    "starship"
   ];
 
   # default-only brews (role == "default" のときだけ)

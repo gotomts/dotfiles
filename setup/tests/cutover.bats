@@ -66,6 +66,24 @@ setup() {
     [[ "${output}" == *"build ${REPO_ROOT}/nix#darwinConfigurations.default.system --no-link --impure"* ]]
 }
 
+@test "cutover.zsh's pre-flight nix build explicitly enables nix-command/flakes" {
+    # Regression test: on a machine where nix-command/flakes isn't enabled by
+    # default (e.g. a plain Nix install rather than Determinate Nix, or a
+    # host nix.conf without the experimental-features line), a bare `nix
+    # build` on this direct (non darwin-rebuild-wrapped) invocation fails
+    # with "experimental Nix feature 'nix-command' is disabled" before ever
+    # reaching darwin-rebuild switch. Reproduced and confirmed fixed against
+    # the real flake on 2026-08-22 (see migrate.zsh single-invocation
+    # recovery incident). darwin-rebuild itself already bakes this flag in,
+    # so only this standalone call needs it.
+    _install_stubs "${STUB_BIN}" 0
+    PATH="${STUB_BIN}:${PATH}" run zsh "${SETUP_DIR}/cutover.zsh"
+    [ "${status}" -eq 0 ]
+
+    run cat "${NIX_LOG}"
+    [[ "${output}" == *"--extra-experimental-features nix-command flakes"* ]]
+}
+
 @test "cutover.zsh calls darwin-rebuild switch with the flake path and --impure" {
     _install_stubs "${STUB_BIN}" 0
     PATH="${STUB_BIN}:${PATH}" run zsh "${SETUP_DIR}/cutover.zsh"
