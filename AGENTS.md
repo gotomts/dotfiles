@@ -11,6 +11,8 @@
 - `claude/hermes/SOUL.md` — Hermes Agent 用グローバル指示の生成物（`~/.hermes/SOUL.md` にシンボリックリンク）。直接編集しない
 - `claude/skills/` — Claude Code 個人スキル層（`~/.claude/skills` にシンボリックリンク）。自作 skill は `gotomts/skills` が SSOT で相対 symlink だけを置き、外部由来のみ実体を持つ
 - `claude/hooks/` — Claude Code hook スクリプト（`~/.claude/hooks/<name>` へファイル単位でシンボリックリンク）
+- `claude/hooks/merge-permit/` — merge（`git merge` / `gh pr merge` / GitHub API 経由 / `mcp__github__merge_pull_request`）を無許可実行からブロックする PreToolUse hook (`guard.py`) と、Hermes 向け permit 発行 CLI (`merge-permit-cli.zsh` → `cli.py`)、検出・permit ストア共通ロジック (`lib.py`)。他の hook は `setup/link.zsh`（Tier 1）がファイル単位で symlink するが、この hook は `settings.json` から `$HOME/.dotfiles/claude/hooks/merge-permit/guard.py` を直接参照する（`setup/link.zsh` に新規 symlink 宣言を増やさない設計判断）。運用は `claude/merge-permit-policy.md` 参照
+- `claude/merge-permit-policy.md` — merge-permit の発行・確認・取り消し CLI 操作手順と既知の限界（`~/.claude/` へのシンボリックリンク対象外、dotfiles パスを直接参照するドキュメント）
 - `claude/mcp-servers.json` — user scope の MCP server 宣言（`setup/claude-sync.zsh` 実行時に `~/.claude.json` に merge、Tier 2）
 - `codex/config.base.toml` — Codex CLI の宣言的 seed 設定（`~/.codex/config.toml` 不在時のみ `setup/codex-sync.zsh` が cp する、Tier 2。`~/.codex/config.toml` はアプリ所有の running config なので symlink・追跡しない）
 - `config/` — アプリケーション設定（starship, yazi, cmux, ghostty, zed）（`~/.config/` にシンボリックリンク）
