@@ -4,3 +4,7 @@ nix/modules/darwin/homebrew.local.nix
 # 静的な seed は codex/config.base.toml に置き、~/.codex/config.toml は
 # アプリ所有の実体ファイルとして追跡しない (nix/modules/home/codex.nix 参照)。
 .codex/config.toml
+
+# merge-permit hook (guard.py) が lib.py を import するたびに生成される
+# Python バイトコードキャッシュ。実行のたび mtime が変わり作業ツリーを汚す。
+claude/hooks/merge-permit/__pycache__/
