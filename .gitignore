@@ -5,6 +5,6 @@ nix/modules/darwin/homebrew.local.nix
 # アプリ所有の実体ファイルとして追跡しない (nix/modules/home/codex.nix 参照)。
 .codex/config.toml
 
-# merge-permit hook (guard.py) が lib.py を import するたびに生成される
-# Python バイトコードキャッシュ。実行のたび mtime が変わり作業ツリーを汚す。
-claude/hooks/merge-permit/__pycache__/
+# merge-permit hook の実行やテスト時に生成される Python バイトコードキャッシュ。
+# 実行のたび mtime が変わり作業ツリーを汚すため、hook 直下と tests 配下を除外する。
+claude/hooks/merge-permit/**/__pycache__/
