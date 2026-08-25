@@ -116,18 +116,24 @@ sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 
 ### Mac App Store アプリの導入判定
 
-MAS アプリは `homebrew.masApps` (nix-darwin ネイティブ) を使わず、生成 Brewfile の末尾に
-`nix/modules/darwin/mas-guard.rb` を連結して「未導入のときだけ `mas` を呼ぶ」形で扱う。
+MAS アプリは `homebrew.masApps` で宣言し、生成 Brewfile には宣言した全アプリの
+`mas "<name>", id: <id>` 行が常に出る。そのうえで Brewfile 末尾に
+`nix/modules/darwin/mas-guard.rb` を連結し、既に入っているアプリの **install だけ** を
+`HOMEBREW_BUNDLE_MAS_SKIP` (`Homebrew::Bundle::Skipper` が空白区切りで読み、entry の
+name か id と照合する) で飛ばす。
 
 - 導入済みの判定は **同じ `CFBundleIdentifier` の `.app` が `/Applications` か
   `~/Applications` にあるか** だけ。バージョン比較・修復・削除・アップグレードはしない
-- Spotlight (`mdfind` / `mdls`) は使わない。索引が欠けた端末で「未導入」と誤判定し、
-  既存アプリへの再インストールを PackageKit が拒否して activation ごと落ちるため
-  (初回 `setup/migrate.zsh` で TestFlight が該当した実機事故がある)
-- そのため新しい MAS アプリを追加するときは `id` に加えて `bundleId` も宣言する。値は
+- `mas` 行を落とさないのは、`brew bundle cleanup` (`default` role の zap) が Brewfile に
+  載っていない MAS アプリを `mas uninstall` の候補にするため
+  (`Homebrew::Bundle::MacAppStore.cleanup_items`)。導入済みの行だけ落とすと削除される
+- 判定に Spotlight (`mdfind` / `mdls`) を使わないのは、`mas` 側の App Store アプリ検出が
+  Spotlight の索引に依存しているため。索引が欠けた端末で導入済みの TestFlight が「未導入」と
+  判定され、再インストールを試みた結果 PackageKit が既存 app への上書きを拒否して
+  初回 `setup/migrate.zsh` が失敗した実機事故がある
+- 新しい MAS アプリを追加するときは `id` に加えて `bundleId` も宣言する。値は
   `/usr/bin/plutil -extract CFBundleIdentifier raw -o - "/Applications/<App>.app/Contents/Info.plist"`
-- `brew bundle cleanup` は MAS アプリを対象にしないので、`mas` 行が出ない = 削除ではない
-- 検証は `bats nix/tests/mas-guard.bats`
+- 検証は `bats nix/tests/mas-guard.bats` (PR では `nix-check` workflow が実行する)
 
 ### 「お試し」のための逃げ道
 

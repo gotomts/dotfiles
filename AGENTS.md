@@ -21,7 +21,7 @@
 - `.gitignore` — リポジトリ内に偶発的に作られたローカル overlay ファイル（例: `nix/modules/darwin/homebrew.local.nix`）を保険的に除外する
 - `gitignore_global` — グローバル gitignore（`~/.gitignore_global` にシンボリックリンク）
 - `grip/` — grip 設定（`~/.grip/` にシンボリックリンク）
-- `nix/` — nix-darwin + flakes による Homebrew パッケージ管理定義（`darwin-rebuild` から参照される。home-manager は Tier 3 で廃止済み、詳細は `nix/README.md`）
+- `nix/` — nix-darwin + flakes による Homebrew パッケージ管理定義（`darwin-rebuild` から参照される。home-manager は Tier 3 で廃止済み、詳細は `nix/README.md`。`nix/lib/` は Brewfile 生成用の小さな Nix ヘルパー、`nix/tests/` は生成 Brewfile 側ロジックの bats テストで、`nix-check` workflow が実行する）
 - `ssh/` — SSH 設定（`~/.ssh/` にシンボリックリンク）
 - `zsh/` — zsh 補完ファイル（`~/.zsh/` にシンボリックリンク）
 - `zshrc` — zsh 設定（`~/.zshrc` にシンボリックリンク）

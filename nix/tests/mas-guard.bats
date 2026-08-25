@@ -190,10 +190,14 @@ assert_skip_list() {
     [[ "${brewfile}" == *'HOMEBREW_BUNDLE_MAS_SKIP'* ]]
 
     # 宣言数と mas 行の本数が一致すること (行が落ちると cleanup の uninstall 候補になる)。
-    local mas_lines declared
-    mas_lines="$(grep -c '^mas "' <<< "${brewfile}")"
-    declared="$(grep -m1 '^mas_apps = ' <<< "${brewfile}" | sed 's/^mas_apps = //' \
-        | ruby -e 'puts eval(STDIN.read).length')"
+    local mas_lines grep_status=0 prelude declared
+    mas_lines="$(grep -c '^mas "' <<< "${brewfile}")" || grep_status=$?
+    # grep は no-match で 1、読み取り失敗等のエラーで 2 以上を返す。no-match は 0 本。
+    [ "${grep_status}" -le 1 ]
+
+    prelude="$(grep -m1 '^mas_apps = ' <<< "${brewfile}")" || grep_status=$?
+    [ "${grep_status}" -eq 0 ]
+    declared="$(sed 's/^mas_apps = //' <<< "${prelude}" | ruby -e 'puts eval(STDIN.read).length')"
     [ "${mas_lines}" -eq "${declared}" ]
 }
 
