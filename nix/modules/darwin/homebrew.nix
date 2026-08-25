@@ -102,20 +102,68 @@ let
   # ----------------------------------------------------------------
   # masApps: Mac App Store アプリ
   # ----------------------------------------------------------------
+  # アプリ名 / App Store ID / CFBundleIdentifier の対応をここで一元管理する。
+  # bundleId は「導入済みか」の判定に使う (下記 masGuard)。値の調べ方:
+  #   /usr/bin/plutil -extract CFBundleIdentifier raw -o - "/Applications/<App>.app/Contents/Info.plist"
+  #
   # core (両 role 共通)
   coreMasApps = {
-    "Magnet" = 441258766;
-    "RunCat Neo" = 6757801838;
+    "Magnet" = {
+      id = 441258766;
+      bundleId = "com.crowdcafe.windowmagnet";
+    };
+    "RunCat Neo" = {
+      id = 6757801838;
+      bundleId = "com.kyome.Neo.RunCat";
+    };
   };
 
   # default-only masApps (role == "default" のときだけ)
   defaultOnlyMasApps = {
-    "LINE" = 539883307;
-    "TestFlight" = 899247664;
-    "Apple Developer" = 640199958;
-    "Transporter" = 1450874784;
-    "Xcode" = 497799835;
+    "LINE" = {
+      id = 539883307;
+      bundleId = "jp.naver.line.mac";
+    };
+    "TestFlight" = {
+      id = 899247664;
+      bundleId = "com.apple.TestFlight";
+    };
+    "Apple Developer" = {
+      id = 640199958;
+      bundleId = "developer.apple.wwdc-Release";
+    };
+    "Transporter" = {
+      id = 1450874784;
+      bundleId = "com.apple.TransporterApp";
+    };
+    "Xcode" = {
+      id = 497799835;
+      bundleId = "com.apple.dt.Xcode";
+    };
   };
+
+  masApps = coreMasApps // lib.optionalAttrs (role == "default") defaultOnlyMasApps;
+
+  # Brewfile は Ruby として instance_eval される。JSON は Ruby のリテラルとしても
+  # 妥当なので、アプリ名に空白や引用符が入っても toJSON の escape がそのまま効く。
+  # "#" だけは Ruby の式展開 #{...} を招くため潰す (この JSON 中の "#" は必ず
+  # 文字列リテラルの内側にしか現れないので、一律 escape して安全)。
+  toRubyLiteral = value: lib.replaceStrings [ "#" ] [ "\\#" ] (builtins.toJSON value);
+
+  masEntries = lib.mapAttrsToList (name: app: [
+    name
+    app.id
+    app.bundleId
+  ]) masApps;
+
+  # 生成 Brewfile の末尾に置く MAS 導入ガード。判定ロジックは mas-guard.rb 側にあり、
+  # ここではデータだけを注入する。走査対象ディレクトリも注入するのは、テストが
+  # サンドボックスのディレクトリを指せるようにするため。
+  masGuard = ''
+    mas_apps = ${toRubyLiteral masEntries}
+    mas_app_dirs = ["/Applications", File.join(Dir.home, "Applications")]
+    ${builtins.readFile ./mas-guard.rb}
+  '';
 
   # ----------------------------------------------------------------
   # brews: CLI (nixpkgs 未収録 / macOS 特殊事情)
@@ -243,7 +291,15 @@ in
 
     casks = coreCasks ++ lib.optionals (role == "default") defaultOnlyCasks ++ local.casks;
 
-    masApps = coreMasApps // lib.optionalAttrs (role == "default") defaultOnlyMasApps;
+    # native masApps は空にする。ここに書くと生成 Brewfile に無条件の
+    # `mas "<name>", id: <id>` 行が出て、既に手動導入済みのアプリでも mas が
+    # 再インストールを試みる (実機で PackageKit が既存 app への上書きを拒否し、
+    # activation ごと失敗した)。代わりに extraConfig で「未導入のときだけ mas を
+    # 呼ぶ」Ruby を出す。pkgs.mas は masApps の中身に関係なく activation の PATH に
+    # 入る (nix-darwin modules/homebrew.nix) ので、mas を常設導入する必要はない。
+    masApps = { };
+
+    extraConfig = masGuard;
   };
 
   # Homebrew tap trust を bundle 実行前に配置する。
