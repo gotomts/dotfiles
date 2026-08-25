@@ -21,6 +21,7 @@ let
   # SSOT。homebrew.taps と trust.json (下記 extraActivation) の両方がこれを参照する。
   taps = [
     "arto-app/tap"
+    "beadbox/cask"
     "leoafarias/fvm"
     "manaflow-ai/cmux"
     "oven-sh/bun"
@@ -43,6 +44,7 @@ let
     # GUI 本体 (上記 "1password") と同じく Homebrew cask (公式 homebrew-cask) で管理する。
     "1password-cli"
     "arto" # tap: arto-app/tap。Rust 製 macOS ネイティブ Markdown リーダー (閲覧専用、`arto` CLI 同梱)
+    "beadbox" # tap: beadbox/cask。beads issue tracker の macOS GUI (arm64 のみ・macOS Ventura 以降)。CLI は brews の "beads"
     "chatgpt" # OpenAI 公式 ChatGPT デスクトップアプリ (公式 homebrew-cask なので tap 不要)
     "claude" # Anthropic Desktop app (claude-code CLI とは別)
     "claude-code"
@@ -135,6 +137,7 @@ let
     "herdr" # ターミナル多重化 CLI (tmux 代替; herdr.dev)。nixpkgs 未収録のため Homebrew 経由
     "hunk" # review-first ターミナル diff ビューア (hunk.dev、公式 homebrew-core)。nixpkgs 未収録のため Homebrew 経由
     "crit" # agent feedback ループ用のローカル review UI (crit.md、公式 homebrew-core)。plan/diff/実行中アプリをブラウザでレビュー。nixpkgs 未収録のため Homebrew 経由
+    "beads" # コーディングエージェント向け issue tracker の CLI (`bd`、公式 homebrew-core)。GUI は casks の "beadbox"。nixpkgs 未収録のため Homebrew 経由
     "oven-sh/bun/bun" # tap: oven-sh/bun。S3 で「S7 で確認」とした保守的残置
     "pipx" # nixpkgs にもあるが、Python venv 周りの ergonomics で homebrew 版を選好
     "schpet/tap/linear" # tap: schpet/tap
