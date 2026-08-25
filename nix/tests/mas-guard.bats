@@ -1,9 +1,10 @@
 #!/usr/bin/env bats
 # nix/tests/mas-guard.bats
 #
-# 生成 Brewfile の MAS 導入ガード (nix/modules/darwin/mas-guard.rb) の契約テスト。
-# 実 Brewfile と同じく「prelude (homebrew.nix が生成) + mas-guard.rb」を 1 つの
-# 文字列として instance_eval し、mas 呼び出しを記録するスタブで検証する。
+# 生成 Brewfile の MAS install スキップ判定 (nix/modules/darwin/mas-guard.rb) の契約テスト。
+# 実 Brewfile と同じ並び (nix-darwin が出す mas 行 → homebrew.nix が出す prelude →
+# mas-guard.rb) を 1 つの文字列として instance_eval し、DSL に渡った mas エントリと
+# 組み上がった HOMEBREW_BUNDLE_MAS_SKIP を検証する。
 
 NIX_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 GUARD_RB="${NIX_DIR}/modules/darwin/mas-guard.rb"
@@ -17,7 +18,7 @@ setup() {
     APPS_B="${BATS_TEST_TMPDIR}/home/Applications"
     mkdir -p "${APPS_A}" "${APPS_B}"
 
-    # Brewfile DSL の代わりに mas 呼び出しを記録するドライバ。
+    # Brewfile DSL の代わりに mas エントリを記録するドライバ。
     # 実装は method_missing 経由で mas を受けるため、キーワード引数で受け取る。
     cat > "${BATS_TEST_TMPDIR}/driver.rb" <<'RUBY'
 calls = []
@@ -27,7 +28,8 @@ dsl.define_singleton_method(:mas) do |name, **options|
 end
 source = ARGV.map { |path| File.read(path) }.join("\n")
 dsl.instance_eval(source, "Brewfile")
-calls.each { |name, id| puts "#{name}\t#{id}" }
+calls.each { |name, id| puts "mas\t#{name}\t#{id}" }
+puts "skip\t#{ENV.fetch("HOMEBREW_BUNDLE_MAS_SKIP", "")}"
 RUBY
 }
 
@@ -47,16 +49,32 @@ make_app() {
 PLIST
 }
 
-# homebrew.nix が生成する prelude 相当 (走査対象はサンドボックスに差し替える)。
-write_prelude() {
-    cat > "${BATS_TEST_TMPDIR}/prelude.rb" <<PRELUDE
-mas_apps = $1
+# 実 Brewfile 相当を組み立てる。引数は mas_apps の Ruby リテラル。
+# 前半は nix-darwin の masApps が出す mas 行、後半は homebrew.nix が出す prelude。
+write_brewfile() {
+    local literal="$1"
+    ruby -e 'eval(ARGV[0]).each { |name, id, _| puts format("mas %p, id: %d", name, id) }' \
+        "${literal}" > "${BATS_TEST_TMPDIR}/brewfile.rb"
+    cat >> "${BATS_TEST_TMPDIR}/brewfile.rb" <<PRELUDE
+mas_apps = ${literal}
 mas_app_dirs = ["${APPS_A}", "${APPS_B}"]
 PRELUDE
 }
 
 run_guard() {
-    run ruby "${BATS_TEST_TMPDIR}/driver.rb" "${BATS_TEST_TMPDIR}/prelude.rb" "${GUARD_RB}"
+    run ruby "${BATS_TEST_TMPDIR}/driver.rb" "${BATS_TEST_TMPDIR}/brewfile.rb" "${GUARD_RB}"
+}
+
+# DSL に渡った mas エントリ (name / id)。
+assert_mas_entry() {
+    printf '%s\n' "${output}" | grep -qxF "$(printf 'mas\t%s\t%s' "$1" "$2")"
+}
+
+# 組み上がった HOMEBREW_BUNDLE_MAS_SKIP の全文 (空なら空文字)。
+assert_skip_list() {
+    local actual
+    actual="$(printf '%s\n' "${output}" | grep '^skip' | cut -f2-)"
+    [ "${actual}" = "$1" ]
 }
 
 @test "ruby syntax check passes" {
@@ -64,70 +82,96 @@ run_guard() {
     [ "${status}" -eq 0 ]
 }
 
-@test "skips mas when the bundle ID is already present in /Applications" {
+@test "keeps every declared mas entry in the DSL even when already installed" {
     make_app "${APPS_A}/TestFlight.app" "com.apple.TestFlight"
-    write_prelude '[["TestFlight",899247664,"com.apple.TestFlight"]]'
+    write_brewfile '[["TestFlight",899247664,"com.apple.TestFlight"],["Magnet",441258766,"com.crowdcafe.windowmagnet"]]'
     run_guard
     [ "${status}" -eq 0 ]
-    [ "${output}" = "" ]
+    assert_mas_entry "TestFlight" 899247664
+    assert_mas_entry "Magnet" 441258766
 }
 
-@test "skips mas when the bundle ID is present in the user Applications directory" {
-    make_app "${APPS_B}/TestFlight.app" "com.apple.TestFlight"
-    write_prelude '[["TestFlight",899247664,"com.apple.TestFlight"]]'
+@test "skips only the App Store ID whose bundle ID was detected" {
+    make_app "${APPS_A}/TestFlight.app" "com.apple.TestFlight"
+    write_brewfile '[["TestFlight",899247664,"com.apple.TestFlight"],["Magnet",441258766,"com.crowdcafe.windowmagnet"]]'
     run_guard
     [ "${status}" -eq 0 ]
-    [ "${output}" = "" ]
+    # 検出したのは TestFlight だけ。未導入の Magnet の ID は skip に載らない。
+    assert_skip_list "899247664"
 }
 
-@test "skips mas when the app sits one directory below (e.g. Utilities)" {
-    make_app "${APPS_A}/Utilities/Transporter.app" "com.apple.TransporterApp"
-    write_prelude '[["Transporter",1450874784,"com.apple.TransporterApp"]]'
-    run_guard
-    [ "${status}" -eq 0 ]
-    [ "${output}" = "" ]
-}
-
-@test "installs via mas when the bundle ID is absent" {
+@test "leaves the skip list empty when no bundle ID is present" {
     make_app "${APPS_A}/Something Else.app" "com.example.other"
-    write_prelude '[["TestFlight",899247664,"com.apple.TestFlight"]]'
+    write_brewfile '[["TestFlight",899247664,"com.apple.TestFlight"]]'
     run_guard
     [ "${status}" -eq 0 ]
-    [ "${output}" = "$(printf 'TestFlight\t899247664')" ]
+    assert_mas_entry "TestFlight" 899247664
+    assert_skip_list ""
+}
+
+@test "detects an app in the user Applications directory" {
+    make_app "${APPS_B}/TestFlight.app" "com.apple.TestFlight"
+    write_brewfile '[["TestFlight",899247664,"com.apple.TestFlight"]]'
+    run_guard
+    [ "${status}" -eq 0 ]
+    assert_skip_list "899247664"
+}
+
+@test "detects an app one directory below (e.g. Utilities)" {
+    make_app "${APPS_A}/Utilities/Transporter.app" "com.apple.TransporterApp"
+    write_brewfile '[["Transporter",1450874784,"com.apple.TransporterApp"]]'
+    run_guard
+    [ "${status}" -eq 0 ]
+    assert_skip_list "1450874784"
 }
 
 @test "matches on bundle ID, not on the app file name" {
     make_app "${APPS_A}/RunCatNeo.app" "com.kyome.Neo.RunCat"
-    write_prelude '[["RunCat Neo",6757801838,"com.kyome.Neo.RunCat"],["Magnet",441258766,"com.crowdcafe.windowmagnet"]]'
+    write_brewfile '[["RunCat Neo",6757801838,"com.kyome.Neo.RunCat"],["Magnet",441258766,"com.crowdcafe.windowmagnet"]]'
     run_guard
     [ "${status}" -eq 0 ]
-    [ "${output}" = "$(printf 'Magnet\t441258766')" ]
+    assert_mas_entry "RunCat Neo" 6757801838
+    assert_mas_entry "Magnet" 441258766
+    # ファイル名は RunCatNeo.app だが bundle ID で一致する。Magnet は不在。
+    assert_skip_list "6757801838"
 }
 
 @test "handles names with spaces and quotes without breaking the Brewfile" {
-    write_prelude '[["Weird \"App\" Name",1234567890,"com.example.weird"]]'
+    make_app "${APPS_A}/Weird.app" "com.example.weird"
+    write_brewfile '[["Weird \"App\" Name",1234567890,"com.example.weird"]]'
     run_guard
     [ "${status}" -eq 0 ]
-    [ "${output}" = "$(printf 'Weird "App" Name\t1234567890')" ]
+    assert_mas_entry 'Weird "App" Name' 1234567890
+    assert_skip_list "1234567890"
+}
+
+@test "keeps an already exported skip list" {
+    make_app "${APPS_A}/TestFlight.app" "com.apple.TestFlight"
+    write_brewfile '[["TestFlight",899247664,"com.apple.TestFlight"]]'
+    HOMEBREW_BUNDLE_MAS_SKIP="123456789" run_guard
+    [ "${status}" -eq 0 ]
+    assert_skip_list "123456789 899247664"
 }
 
 @test "tolerates a missing Applications directory" {
     rmdir "${APPS_B}"
-    write_prelude '[["Magnet",441258766,"com.crowdcafe.windowmagnet"]]'
+    write_brewfile '[["Magnet",441258766,"com.crowdcafe.windowmagnet"]]'
     run_guard
     [ "${status}" -eq 0 ]
-    [ "${output}" = "$(printf 'Magnet\t441258766')" ]
+    assert_mas_entry "Magnet" 441258766
+    assert_skip_list ""
 }
 
 @test "ignores a bundle without Info.plist" {
     mkdir -p "${APPS_A}/Broken.app/Contents"
-    write_prelude '[["Magnet",441258766,"com.crowdcafe.windowmagnet"]]'
+    write_brewfile '[["Magnet",441258766,"com.crowdcafe.windowmagnet"]]'
     run_guard
     [ "${status}" -eq 0 ]
-    [ "${output}" = "$(printf 'Magnet\t441258766')" ]
+    assert_mas_entry "Magnet" 441258766
+    assert_skip_list ""
 }
 
-@test "generated Brewfile carries the declared entries and no unconditional mas line" {
+@test "generated Brewfile keeps a mas line for every declared app" {
     if ! command -v nix > /dev/null 2>&1; then
         skip "nix not available"
     fi
@@ -139,9 +183,16 @@ run_guard() {
     local brewfile="${output}"
 
     # 両 role 共通の app は role に関係なく載る (default-only は /etc/dotfiles-role 依存)。
+    [[ "${brewfile}" == *'mas "Magnet", id: 441258766'* ]]
+    [[ "${brewfile}" == *'mas "RunCat Neo", id: 6757801838'* ]]
     [[ "${brewfile}" == *'["Magnet",441258766,"com.crowdcafe.windowmagnet"]'* ]]
     [[ "${brewfile}" == *'["RunCat Neo",6757801838,"com.kyome.Neo.RunCat"]'* ]]
-    # 無条件の mas 行 (行頭 mas ") が出ていないこと。
-    run grep -c '^mas "' <<< "${brewfile}"
-    [ "${status}" -ne 0 ]
+    [[ "${brewfile}" == *'HOMEBREW_BUNDLE_MAS_SKIP'* ]]
+
+    # 宣言数と mas 行の本数が一致すること (行が落ちると cleanup の uninstall 候補になる)。
+    local mas_lines declared
+    mas_lines="$(grep -c '^mas "' <<< "${brewfile}")"
+    declared="$(grep -m1 '^mas_apps = ' <<< "${brewfile}" | sed 's/^mas_apps = //' \
+        | ruby -e 'puts eval(STDIN.read).length')"
+    [ "${mas_lines}" -eq "${declared}" ]
 }

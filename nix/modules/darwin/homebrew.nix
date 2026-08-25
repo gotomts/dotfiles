@@ -142,7 +142,7 @@ let
     };
   };
 
-  masApps = coreMasApps // lib.optionalAttrs (role == "default") defaultOnlyMasApps;
+  masAppDeclarations = coreMasApps // lib.optionalAttrs (role == "default") defaultOnlyMasApps;
 
   # Brewfile は Ruby として instance_eval される。JSON は Ruby のリテラルとしても
   # 妥当なので、アプリ名に空白や引用符が入っても toJSON の escape がそのまま効く。
@@ -154,10 +154,10 @@ let
     name
     app.id
     app.bundleId
-  ]) masApps;
+  ]) masAppDeclarations;
 
-  # 生成 Brewfile の末尾に置く MAS 導入ガード。判定ロジックは mas-guard.rb 側にあり、
-  # ここではデータだけを注入する。走査対象ディレクトリも注入するのは、テストが
+  # 生成 Brewfile の末尾に置く MAS install スキップ判定。ロジックは mas-guard.rb 側に
+  # あり、ここではデータだけを注入する。走査対象ディレクトリも注入するのは、テストが
   # サンドボックスのディレクトリを指せるようにするため。
   masGuard = ''
     mas_apps = ${toRubyLiteral masEntries}
@@ -291,14 +291,14 @@ in
 
     casks = coreCasks ++ lib.optionals (role == "default") defaultOnlyCasks ++ local.casks;
 
-    # native masApps は空にする。ここに書くと生成 Brewfile に無条件の
-    # `mas "<name>", id: <id>` 行が出て、既に手動導入済みのアプリでも mas が
-    # 再インストールを試みる (実機で PackageKit が既存 app への上書きを拒否し、
-    # activation ごと失敗した)。代わりに extraConfig で「未導入のときだけ mas を
-    # 呼ぶ」Ruby を出す。pkgs.mas は masApps の中身に関係なく activation の PATH に
-    # 入る (nix-darwin modules/homebrew.nix) ので、mas を常設導入する必要はない。
-    masApps = { };
+    # 宣言したアプリの `mas "<name>", id: <id>` 行は常に生成する
+    # (`brew bundle cleanup` は Brewfile に載っていない mas エントリを uninstall
+    # 候補にするため、行を落とすと導入済みアプリが消える)。
+    # 既に導入済みのアプリを install しない制御は extraConfig 側で行う。
+    masApps = lib.mapAttrs (_name: app: app.id) masAppDeclarations;
 
+    # 生成 Brewfile 末尾で HOMEBREW_BUNDLE_MAS_SKIP を組み立て、bundle ID を検出した
+    # アプリの install だけを飛ばす (詳細は mas-guard.rb)。
     extraConfig = masGuard;
   };
 
