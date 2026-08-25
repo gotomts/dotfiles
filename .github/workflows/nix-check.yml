@@ -69,3 +69,14 @@ jobs:
         run: |
           nix build .#darwinConfigurations.default.system \
             --no-link --impure --print-build-logs
+
+      # 生成 Brewfile の MAS install スキップ判定 (nix/modules/darwin/mas-guard.rb) の
+      # 契約テスト。bats-core は runner に無いため setup-check.yml と同じく Homebrew で
+      # 導入する。ruby は runner の preinstall を使う (テストは実際の brew を呼ばない)。
+      - name: Install bats-core
+        run: brew install bats-core
+
+      - name: Run bats tests
+        env:
+          USER: ciuser
+        run: bats nix/tests/*.bats
