@@ -196,3 +196,53 @@ assert_skip_list() {
         | ruby -e 'puts eval(STDIN.read).length')"
     [ "${mas_lines}" -eq "${declared}" ]
 }
+
+@test "toRubyLiteral emits a Ruby literal that neither interpolates nor evaluates" {
+    if ! command -v nix > /dev/null 2>&1; then
+        skip "nix not available"
+    fi
+
+    cat > "${BATS_TEST_TMPDIR}/expr.nix" <<NIXEXPR
+import ${NIX_DIR}/lib/to-ruby-literal.nix [
+  "plain"
+  "with space"
+  ''He said "hi"''
+  "#{1 + 1}"
+  "#{Kernel.exit 99}"
+  "back\\\\slash"
+  "日本語 アプリ"
+  [ "nested" 12345 ]
+]
+NIXEXPR
+
+    run nix --extra-experimental-features 'nix-command flakes' eval --raw \
+        --file "${BATS_TEST_TMPDIR}/expr.nix"
+    [ "${status}" -eq 0 ]
+    printf '%s' "${output}" > "${BATS_TEST_TMPDIR}/literal.rb"
+
+    # "#" は必ず escape されている (escape 漏れは式展開になる)。
+    [[ "${output}" == *'\#{1 + 1}'* ]]
+    [[ "${output}" != *'"#{'* ]]
+
+    cat > "${BATS_TEST_TMPDIR}/verify.rb" <<'RUBY'
+# 式展開が起きていれば Kernel.exit 99 が走り、この eval は戻ってこない。
+values = eval(File.read(ARGV[0]))
+expected = [
+  "plain",
+  "with space",
+  'He said "hi"',
+  '#{1 + 1}',
+  '#{Kernel.exit 99}',
+  'back\slash',
+  "日本語 アプリ",
+  ["nested", 12345]
+]
+if values != expected
+  warn "mismatch: #{values.inspect}"
+  exit 1
+end
+RUBY
+
+    run ruby "${BATS_TEST_TMPDIR}/verify.rb" "${BATS_TEST_TMPDIR}/literal.rb"
+    [ "${status}" -eq 0 ]
+}

@@ -144,11 +144,7 @@ let
 
   masAppDeclarations = coreMasApps // lib.optionalAttrs (role == "default") defaultOnlyMasApps;
 
-  # Brewfile は Ruby として instance_eval される。JSON は Ruby のリテラルとしても
-  # 妥当なので、アプリ名に空白や引用符が入っても toJSON の escape がそのまま効く。
-  # "#" だけは Ruby の式展開 #{...} を招くため潰す (この JSON 中の "#" は必ず
-  # 文字列リテラルの内側にしか現れないので、一律 escape して安全)。
-  toRubyLiteral = value: lib.replaceStrings [ "#" ] [ "\\#" ] (builtins.toJSON value);
+  toRubyLiteral = import ../../lib/to-ruby-literal.nix;
 
   masEntries = lib.mapAttrsToList (name: app: [
     name
