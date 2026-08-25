@@ -136,7 +136,7 @@ assert_skip_list() {
     assert_skip_list "6757801838"
 }
 
-@test "handles names with spaces and quotes without breaking the Brewfile" {
+@test "prelude and guard keep a name with spaces and quotes intact" {
     make_app "${APPS_A}/Weird.app" "com.example.weird"
     write_brewfile '[["Weird \"App\" Name",1234567890,"com.example.weird"]]'
     run_guard
