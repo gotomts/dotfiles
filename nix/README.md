@@ -95,7 +95,7 @@ done
 |---|---|---|
 | CLI (nixpkgs 未収録 / macOS 特殊事情) | `nix/modules/darwin/homebrew.nix` の `brews` | `jq`, `gh`, `mise` |
 | GUI アプリ (.app) | `nix/modules/darwin/homebrew.nix` の `casks` | `visual-studio-code`, `slack` |
-| Mac App Store アプリ | `nix/modules/darwin/homebrew.nix` の `masApps` | `{ "Xcode" = 497799835; }` |
+| Mac App Store アプリ | `nix/modules/darwin/homebrew.nix` の `coreMasApps` / `defaultOnlyMasApps` | `{ "Xcode" = { id = 497799835; bundleId = "com.apple.dt.Xcode"; }; }` |
 | 言語ランタイム (グローバル) | `setup/languages.zsh`（mise、`mise::pin` 行を追加） | `node`, `go`, `ruby`, `rust`, `python`, `dart` |
 
 ### 追加 → 適用の流れ（Homebrew）
@@ -113,6 +113,27 @@ sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 
 言語ランタイムの追加・バージョン変更は `setup/languages.zsh` の `mise::pin` 行を編集し、
 対象マシンで `zsh setup/languages.zsh` を再実行する（`darwin-rebuild switch` は不要）。
+
+### Mac App Store アプリの導入判定
+
+MAS アプリは `homebrew.masApps` で宣言し、生成 Brewfile には宣言した全アプリの
+`mas "<name>", id: <id>` 行が常に出る。そのうえで Brewfile 末尾に
+`nix/modules/darwin/mas-guard.rb` を連結し、既に入っているアプリの **install だけ** を
+`HOMEBREW_BUNDLE_MAS_SKIP` (`Homebrew::Bundle::Skipper` が空白区切りで読み、entry の
+name か id と照合する) で飛ばす。
+
+- 導入済みの判定は **同じ `CFBundleIdentifier` の `.app` が `/Applications` か
+  `~/Applications` にあるか** だけ。バージョン比較・修復・削除・アップグレードはしない
+- `mas` 行を落とさないのは、`brew bundle cleanup` (`default` role の zap) が Brewfile に
+  載っていない MAS アプリを `mas uninstall` の候補にするため
+  (`Homebrew::Bundle::MacAppStore.cleanup_items`)。導入済みの行だけ落とすと削除される
+- 判定に Spotlight (`mdfind` / `mdls`) を使わないのは、`mas` 側の App Store アプリ検出が
+  Spotlight の索引に依存しているため。索引が欠けた端末で導入済みの TestFlight が「未導入」と
+  判定され、再インストールを試みた結果 PackageKit が既存 app への上書きを拒否して
+  初回 `setup/migrate.zsh` が失敗した実機事故がある
+- 新しい MAS アプリを追加するときは `id` に加えて `bundleId` も宣言する。値は
+  `/usr/bin/plutil -extract CFBundleIdentifier raw -o - "/Applications/<App>.app/Contents/Info.plist"`
+- 検証は `bats nix/tests/mas-guard.bats` (PR では `nix-check` workflow が実行する)
 
 ### 「お試し」のための逃げ道
 

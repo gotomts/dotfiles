@@ -102,20 +102,64 @@ let
   # ----------------------------------------------------------------
   # masApps: Mac App Store アプリ
   # ----------------------------------------------------------------
+  # アプリ名 / App Store ID / CFBundleIdentifier の対応をここで一元管理する。
+  # bundleId は「導入済みか」の判定に使う (下記 masGuard)。値の調べ方:
+  #   /usr/bin/plutil -extract CFBundleIdentifier raw -o - "/Applications/<App>.app/Contents/Info.plist"
+  #
   # core (両 role 共通)
   coreMasApps = {
-    "Magnet" = 441258766;
-    "RunCat Neo" = 6757801838;
+    "Magnet" = {
+      id = 441258766;
+      bundleId = "com.crowdcafe.windowmagnet";
+    };
+    "RunCat Neo" = {
+      id = 6757801838;
+      bundleId = "com.kyome.Neo.RunCat";
+    };
   };
 
   # default-only masApps (role == "default" のときだけ)
   defaultOnlyMasApps = {
-    "LINE" = 539883307;
-    "TestFlight" = 899247664;
-    "Apple Developer" = 640199958;
-    "Transporter" = 1450874784;
-    "Xcode" = 497799835;
+    "LINE" = {
+      id = 539883307;
+      bundleId = "jp.naver.line.mac";
+    };
+    "TestFlight" = {
+      id = 899247664;
+      bundleId = "com.apple.TestFlight";
+    };
+    "Apple Developer" = {
+      id = 640199958;
+      bundleId = "developer.apple.wwdc-Release";
+    };
+    "Transporter" = {
+      id = 1450874784;
+      bundleId = "com.apple.TransporterApp";
+    };
+    "Xcode" = {
+      id = 497799835;
+      bundleId = "com.apple.dt.Xcode";
+    };
   };
+
+  masAppDeclarations = coreMasApps // lib.optionalAttrs (role == "default") defaultOnlyMasApps;
+
+  toRubyLiteral = import ../../lib/to-ruby-literal.nix;
+
+  masEntries = lib.mapAttrsToList (name: app: [
+    name
+    app.id
+    app.bundleId
+  ]) masAppDeclarations;
+
+  # 生成 Brewfile の末尾に置く MAS install スキップ判定。ロジックは mas-guard.rb 側に
+  # あり、ここではデータだけを注入する。走査対象ディレクトリも注入するのは、テストが
+  # サンドボックスのディレクトリを指せるようにするため。
+  masGuard = ''
+    mas_apps = ${toRubyLiteral masEntries}
+    mas_app_dirs = ["/Applications", File.join(Dir.home, "Applications")]
+    ${builtins.readFile ./mas-guard.rb}
+  '';
 
   # ----------------------------------------------------------------
   # brews: CLI (nixpkgs 未収録 / macOS 特殊事情)
@@ -243,7 +287,15 @@ in
 
     casks = coreCasks ++ lib.optionals (role == "default") defaultOnlyCasks ++ local.casks;
 
-    masApps = coreMasApps // lib.optionalAttrs (role == "default") defaultOnlyMasApps;
+    # 宣言したアプリの `mas "<name>", id: <id>` 行は常に生成する
+    # (`brew bundle cleanup` は Brewfile に載っていない mas エントリを uninstall
+    # 候補にするため、行を落とすと導入済みアプリが消える)。
+    # 既に導入済みのアプリを install しない制御は extraConfig 側で行う。
+    masApps = lib.mapAttrs (_name: app: app.id) masAppDeclarations;
+
+    # 生成 Brewfile 末尾で HOMEBREW_BUNDLE_MAS_SKIP を組み立て、bundle ID を検出した
+    # アプリの install だけを飛ばす (詳細は mas-guard.rb)。
+    extraConfig = masGuard;
   };
 
   # Homebrew tap trust を bundle 実行前に配置する。
