@@ -80,7 +80,7 @@ done
 
 ## アプリ・パッケージの追加
 
-`brew install` を直接打つことは事実上禁止 (`homebrew.onActivation.cleanup = "zap"` により次回 `darwin-rebuild switch` で削除される)。**宣言してから入れる** 順序を強制する設計。
+`brew install` を直接打たず、**宣言してから入れる** 順序で運用する。`homebrew.onActivation.cleanup = "none"` のため宣言外パッケージが switch で消えることはないが、別 PC で復元されないので再現性は宣言でしか担保できない。
 
 **Tier 3 完了メモ (2026-08-22)**: CLI tool・フォントは Homebrew (`homebrew.nix`) へ、
 言語ランタイムは `setup/languages.zsh`（mise）へ完全移行済み。home-manager
@@ -108,8 +108,9 @@ darwin-rebuild build --flake ~/.dotfiles/nix#default --impure
 sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ```
 
-削除も同じ流れ（リストから行を消して switch すると `zap` で消える。`sub-1` role は
-`cleanup = "none"` のため削除されない）。
+削除はリストから行を消したうえで、対象マシンで `brew uninstall <formula>` /
+`brew uninstall --cask --zap <cask>` を手動実行する（`cleanup = "none"` のため
+switch では削除されない）。
 
 言語ランタイムの追加・バージョン変更は `setup/languages.zsh` の `mise::pin` 行を編集し、
 対象マシンで `zsh setup/languages.zsh` を再実行する（`darwin-rebuild switch` は不要）。
@@ -124,9 +125,9 @@ name か id と照合する) で飛ばす。
 
 - 導入済みの判定は **同じ `CFBundleIdentifier` の `.app` が `/Applications` か
   `~/Applications` にあるか** だけ。バージョン比較・修復・削除・アップグレードはしない
-- `mas` 行を落とさないのは、`brew bundle cleanup` (`default` role の zap) が Brewfile に
-  載っていない MAS アプリを `mas uninstall` の候補にするため
-  (`Homebrew::Bundle::MacAppStore.cleanup_items`)。導入済みの行だけ落とすと削除される
+- `mas` 行を落とさないのは、`brew bundle cleanup` が Brewfile に載っていない MAS アプリを
+  `mas uninstall` の候補にするため (`Homebrew::Bundle::MacAppStore.cleanup_items`)。
+  `cleanup = "none"` の現状は発火しないが、cleanup を再有効化しても壊れない形を保つ
 - 判定に Spotlight (`mdfind` / `mdls`) を使わないのは、`mas` 側の App Store アプリ検出が
   Spotlight の索引に依存しているため。索引が欠けた端末で導入済みの TestFlight が「未導入」と
   判定され、再インストールを試みた結果 PackageKit が既存 app への上書きを拒否して
@@ -146,7 +147,7 @@ name か id と照合する) で飛ばす。
 | 1 回だけ実行 | `nix run nixpkgs#foo -- --args` |
 | nixpkgs に無い GUI を試す | 現実的には手動 `brew install` → 気に入ったら `casks` に追加 → switch / 気に入らなければ `brew uninstall` |
 
-`nix shell` / `nix run` は永続インストールしないので、`zap` の影響を受けない。お試しは基本これに倒すこと。
+`nix shell` / `nix run` は永続インストールしないので、後片付けが要らない。お試しは基本これに倒すこと。
 
 ## Per-host 構成 (/etc/dotfiles-role)
 
@@ -197,7 +198,7 @@ echo default | sudo tee /etc/dotfiles-role   # sub-1 → default に切り替え
 sudo USER=$USER darwin-rebuild switch --flake ~/.dotfiles/nix#default --impure
 ```
 
-`homebrew.onActivation.cleanup = "zap"` (default) により、role 切り替え時に不要になったアプリは自動で Cellar ごと削除される (`sub-1` は `cleanup = "none"` のため切り替え時の削除はなし)。
+`homebrew.onActivation.cleanup = "none"` のため、role 切り替えで不要になったアプリは自動削除されず残る。落としたい場合は `brew uninstall` / `brew uninstall --cask --zap` を手動実行する。
 
 ### sub-1 にだけ入れる package を追加したい
 
@@ -270,6 +271,11 @@ cd ~/.dotfiles/nix
 nix run nix-darwin -- switch --flake .#default --impure
 ```
 
-### Homebrew パッケージが消えた
+### 宣言から外した Homebrew パッケージが残る
 
-`homebrew.onActivation.cleanup = "zap"` 設定により、`nix/modules/darwin/homebrew.nix` に宣言されていない Homebrew パッケージは初回 switch で削除される。残したいパッケージは `nix/modules/darwin/homebrew.nix` に追加してから switch すること。
+`homebrew.onActivation.cleanup = "none"` のため、activation では何も削除しない。
+`nix/modules/darwin/homebrew.nix` から行を消しても実体は残るので、`brew uninstall <formula>` /
+`brew uninstall --cask --zap <cask>` を手動で実行して落とす。
+
+activation の `brew bundle --cleanup --zap` が出力なしの exit 1 を返して
+`darwin-rebuild switch` ごと落ちる実機事象への対処として、自動削除を止めている。

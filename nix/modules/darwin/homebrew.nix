@@ -241,7 +241,7 @@ let
   # ----------------------------------------------------------------
   # local overlay: PC ローカル専用拡張 (リポジトリ外配置)
   # ----------------------------------------------------------------
-  # 「git に追跡させずに zap から守りたい」cask を宣言する逃がし口。
+  # 「git に追跡させたくないが declarative に宣言したい」cask の逃がし口。
   # 配置先は ~/.config/dotfiles/homebrew.local.nix。リポジトリ内に
   # 置くと nix flake (git tree のみコピー) から不可視になるため、
   # 絶対パスで参照する (--impure は flake.nix で既に有効)。
@@ -267,18 +267,16 @@ in
       # darwin-rebuild switch のたびに全パッケージが更新される状態を避け、
       # flake.lock 哲学と整合する再現性ベースの運用に切り替える。
       upgrade = false;
-      # role 別 cleanup ポリシー:
-      #   default: "zap" — 宣言外パッケージを Cellar ごと削除。declarative 厳格運用
-      #   sub-1:   "none" — 何も削除しない。手動 brew install / 手動 MAS app 等を保護
-      # sub-1 で手動 install したものは別 PC では復元されないため、再現性が必要なら
+      # cleanup ポリシー: 全 role で "none" (何も削除しない)。
+      # activation 中の `brew bundle --cleanup --zap` が出力なしの exit 1 を返して
+      # darwin-rebuild switch ごと落ちる事象が実機で発生したため、cleanup を
+      # activation から外して switch を通す方を選んでいる。
+      # トレードオフ: 宣言から外したパッケージ / 手動 brew install したパッケージは
+      # 自動削除されず残る。不要になったものは `brew uninstall` / `brew uninstall
+      # --cask --zap` を手動で実行して落とすこと。
+      # 手動 install したものは別 PC では復元されないため、再現性が必要なら
       # homebrew.nix に追記する運用 (AGENTS.md「Homebrew パッケージ管理」参照)。
-      cleanup = if role == "sub-1" then "none" else "zap";
-      # Homebrew 5.x 以降、`brew bundle --cleanup` は確認を要求するようになり
-      # (--force / --force-cleanup / $HOMEBREW_ASK のいずれか必須)、非対話の
-      # darwin-rebuild switch では activation が失敗する。zap (default role) の
-      # 非対話 cleanup を維持するため --force-cleanup を付与する。cleanup="none" の
-      # sub-1 では --cleanup 自体が出ないため付与しない。
-      extraFlags = lib.optionals (role != "sub-1") [ "--force-cleanup" ];
+      cleanup = "none";
     };
 
     inherit taps;
@@ -289,7 +287,8 @@ in
 
     # 宣言したアプリの `mas "<name>", id: <id>` 行は常に生成する
     # (`brew bundle cleanup` は Brewfile に載っていない mas エントリを uninstall
-    # 候補にするため、行を落とすと導入済みアプリが消える)。
+    # 候補にするため、行を落とすと導入済みアプリが消える。cleanup = "none" の現状は
+    # 発火しないが、cleanup を再有効化したときに壊れない形を保つ)。
     # 既に導入済みのアプリを install しない制御は extraConfig 側で行う。
     masApps = lib.mapAttrs (_name: app: app.id) masAppDeclarations;
 
