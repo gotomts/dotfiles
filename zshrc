@@ -64,3 +64,8 @@ eval "$(starship init zsh)"
 
 # firebase / pub-cache
 export PATH="$PATH:$HOME/.pub-cache/bin"
+
+# Beads: machine-local override。shared profileには値を書かず、母艦など必要な端末だけ ~/.zshrc.local で設定する。
+if [[ -r "${HOME}/.zshrc.local" ]]; then
+  source "${HOME}/.zshrc.local"
+fi
