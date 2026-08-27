@@ -1,4 +1,5 @@
-# setup/ (Tier 1 リアルタイム symlink・Tier 2 明示的スクリプト実行) の bats テスト検証
+# setup/ (Tier 1 リアルタイム symlink・Tier 2 明示的スクリプト実行) の bats テストと
+# Claude Code hook スクリプトの unit test 検証
 #
 # 目的:
 #   setup/tests/*.bats は Tier 1 (PR #53) で追加されたが、これを実行する CI workflow が
@@ -19,6 +20,8 @@ on:
   pull_request:
     paths:
       - 'setup/**'
+      - 'claude/hooks/**'
+      - 'claude/settings.json'
       - '.github/workflows/setup-check.yml'
   push:
     # feature branch への push は pull_request イベントだけで検証する
@@ -27,6 +30,8 @@ on:
       - main
     paths:
       - 'setup/**'
+      - 'claude/hooks/**'
+      - 'claude/settings.json'
       - '.github/workflows/setup-check.yml'
 
 concurrency:
@@ -35,7 +40,7 @@ concurrency:
 
 jobs:
   bats:
-    name: setup/tests/*.bats
+    name: setup/tests/*.bats + hook unit test
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
@@ -47,3 +52,8 @@ jobs:
 
       - name: Run bats tests
         run: bats setup/tests/*.bats
+
+      # settings.json の PreToolUse hook が呼ぶ破壊的コマンド判定パーサ。
+      # 標準ライブラリのみで動くので runner の python3 をそのまま使う。
+      - name: Run Claude Code hook unit tests
+        run: python3 claude/hooks/destructive-command-guard.test.py

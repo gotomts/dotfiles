@@ -79,6 +79,8 @@ fs::link_file "${DOTFILES_ROOT}/claude/skills" "${HOME}/.claude/skills"
 # 載せられない PC 固有 hook と同居できるようにするため。
 fs::link_file "${DOTFILES_ROOT}/claude/hooks/one-question-per-turn.py" \
     "${HOME}/.claude/hooks/one-question-per-turn.py"
+fs::link_file "${DOTFILES_ROOT}/claude/hooks/destructive-command-guard.py" \
+    "${HOME}/.claude/hooks/destructive-command-guard.py"
 # i-have-adhd プラグインの常時適用マーカー
 fs::ensure_realfile "${HOME}/.claude/.i-have-adhd-always"
 
