@@ -42,6 +42,9 @@ SETUP_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     [ -L "${tmp_home}/.claude/skills" ]
     [ -d "${tmp_home}/.claude/hooks" ]
     [ -L "${tmp_home}/.claude/hooks/one-question-per-turn.py" ]
+    [ -L "${tmp_home}/.claude/hooks/destructive-command-guard.py" ]
+    # -f は symlink を辿るので、リンク先を消したときの dangling も検出する
+    [ -f "${tmp_home}/.claude/hooks/destructive-command-guard.py" ]
     [ -f "${tmp_home}/.claude/.i-have-adhd-always" ]
     [ -L "${tmp_home}/.codex/AGENTS.md" ]
     [ -L "${tmp_home}/.codex/skills/ctx-agent-history-search" ]
