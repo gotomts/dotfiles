@@ -8,6 +8,13 @@ stdin の PreToolUse JSON から `.tool_input.command` を取り、shell の字�
 コマンドとしては解釈しない。ただし単一引用符の外にある `$(...)` と `` `...` ``
 は shell が実際に実行するので、中身を独立した断片として取り出して再帰的に見る。
 
+heredoc の本文も shell はデータとしてコマンドへ渡すだけなので、字句解析の前に
+取り除く。区切り語が quote されていない heredoc だけは本文中の `$(...)` が
+展開されて実行されるため、置換部分だけを取り出して再帰的に見る。本文を落とすのは
+判定対象を減らす操作なので、`<<` を heredoc と確定できたときだけに限る
+(herestring `<<<`・コメント・算術式の `<<` は heredoc ではない。区切り語で閉じずに
+入力が尽きた場合も誤認とみなして本文をコマンドとして読み直す)。
+
 `git push --force-with-lease` は上流の巻き戻しを検出して中断するため通す。
 オプション境界を見ずに `--force` を部分一致させると、これも巻き添えで落ちる。
 
@@ -42,6 +49,9 @@ TARGETS = {"git", "rm", "dd"}
 
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
+# 直前の語を切り出すための区切り (空白と制御演算子)。
+WORD_SEPARATOR = re.compile(r"[\s;&|()]")
+
 # 値を 1 つ取る git のグローバルオプション (サブコマンド探索でスキップする)。
 GIT_GLOBAL_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
 
@@ -50,8 +60,14 @@ RM_DANGEROUS_PREFIXES = ("/", "~", "$HOME", "${HOME}")
 
 BLOCK_DEVICE_PREFIX = "/dev/sd"
 
+# heredoc の区切り語を終わらせる文字 (空白と制御・リダイレクト演算子)。
+HEREDOC_DELIMITER_STOP = set(" \t\n;|&()<>")
+
 # 置換の入れ子は現実的な深さで打ち切る。
 MAX_DEPTH = 8
+
+# 位置判定に使う出力末尾の窓。最長の予約語 ("function") より十分長ければよい。
+TAIL_WINDOW = 64
 
 
 def read_balanced(source, start, opener, closer):
@@ -73,8 +89,12 @@ def read_balanced(source, start, opener, closer):
     return source[start:], len(source)
 
 
-def substitutions(source):
-    """single quote の外にある `$(...)` / `` `...` `` の中身を返す。"""
+def substitutions(source, quotes_protect=True):
+    """single quote の外にある `$(...)` / `` `...` `` の中身を返す。
+
+    `quotes_protect=False` は quote が展開を止めない文脈 (区切り語を quote して
+    いない heredoc の本文) 用で、引用符を無視して置換だけを拾う。
+    """
     found = []
     quote = None
     i = 0
@@ -93,7 +113,7 @@ def substitutions(source):
                 quote = None
                 i += 1
                 continue
-        elif ch in "'\"":
+        elif quotes_protect and ch in "'\"":
             quote = ch
             i += 1
             continue
@@ -111,6 +131,187 @@ def substitutions(source):
             continue
         i += 1
     return found
+
+
+def read_heredoc_delimiter(source, start):
+    """`<<` の直後から区切り語を読み、(区切り語, quote されていたか, 次の位置)。"""
+    parts = []
+    quoted = False
+    i = start
+    while i < len(source):
+        ch = source[i]
+        if ch in HEREDOC_DELIMITER_STOP:
+            break
+        if ch == "\\":
+            quoted = True
+            parts.append(source[i + 1 : i + 2])
+            i += 2
+            continue
+        if ch in "'\"":
+            quoted = True
+            closer = ch
+            i += 1
+            while i < len(source) and source[i] != closer:
+                if source[i] == "\\" and closer == '"':
+                    parts.append(source[i + 1 : i + 2])
+                    i += 2
+                    continue
+                parts.append(source[i])
+                i += 1
+            i += 1
+            continue
+        parts.append(ch)
+        i += 1
+    return "".join(parts), quoted, i
+
+
+def skip_arithmetic(source, start):
+    """`((` の内側を読み飛ばし、閉じ `))` の次の位置を返す。
+
+    算術式の左シフト (`$((1 << 3))`) は heredoc ではないため、`<<` を見る前に
+    ここで丸ごと読み飛ばす。heredoc と誤認すると、以降のコマンド行を本文として
+    捨ててしまう。
+    """
+    depth = 2
+    i = start
+    while i < len(source):
+        ch = source[i]
+        if ch == "\\":
+            i += 2
+            continue
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return len(source)
+
+
+def skip_heredoc_body(source, start, delimiter, strip_tabs):
+    """本文を読み飛ばし (本文, 次の位置, 終端に達したか) を返す。"""
+    body = []
+    i = start
+    while i < len(source):
+        end = source.find("\n", i)
+        line = source[i:] if end == -1 else source[i:end]
+        i = len(source) if end == -1 else end + 1
+        # 終端行は区切り語と完全一致でなければならない (`<<-` のときだけ先頭タブを剥がす)。
+        if (line.lstrip("\t") if strip_tabs else line) == delimiter:
+            return "\n".join(body), i, True
+        body.append(line)
+    return "\n".join(body), i, False
+
+
+def at_word_start(text):
+    """`text` の直後が新しい語の先頭か (`#` をコメントと見なす条件)。"""
+    return not text or text[-1] in " \t\n;&|()<>"
+
+
+def at_command_start(text):
+    """`text` の直後がコマンドの開始位置か (`((` を算術評価と見なす条件)。"""
+    stripped = text.rstrip(" \t")
+    if not stripped:
+        return True
+    if stripped[-1] in ";&|(\n":
+        return True
+    # `if (( ... ))` / `while (( ... ))` のように予約語の直後もコマンド位置。
+    return WORD_SEPARATOR.split(stripped)[-1] in SHELL_KEYWORDS
+
+
+def strip_heredocs(source):
+    """heredoc 本文を除いたソースと、展開が起きる本文のリストを返す。
+
+    1 行に複数の heredoc を書けるので、開始は改行まで溜めてから宣言順に消費する。
+
+    終端行が見つからないまま入力が尽きたときは `<<` の誤認を疑い、本文を捨てずに
+    コマンドとして読み直す。本文を落とす判断は「区切り語で閉じた」ことを確認できた
+    ときだけに限り、構文を読み違えたまま実コマンドを見落とす方向には倒さない。
+    """
+    out = []
+    expandable = []
+    pending = []
+    quote = None
+    # 出力済みの末尾。`#` と `((` の位置判定にだけ使うので窓は固定長で足りる
+    # (毎回 out を連結すると入力長に対して二次オーダーになる)。
+    tail = ""
+
+    def emit(text):
+        nonlocal tail
+        out.append(text)
+        tail = (tail + text)[-TAIL_WINDOW:]
+
+    i = 0
+    while i < len(source):
+        ch = source[i]
+        if ch == "\\" and quote != "'":
+            emit(source[i : i + 2])
+            i += 2
+            continue
+        if quote:
+            emit(ch)
+            if ch == quote:
+                quote = None
+            i += 1
+            continue
+        if ch in "'\"":
+            quote = ch
+            emit(ch)
+            i += 1
+            continue
+        # 語頭の `#` から行末まではコメント。shell は読まないのでコマンドでもない。
+        if ch == "#" and at_word_start(tail):
+            end = source.find("\n", i)
+            i = len(source) if end == -1 else end
+            continue
+        if ch == "$" and source[i + 1 : i + 3] == "((":
+            j = skip_arithmetic(source, i + 3)
+            emit(source[i:j])
+            i = j
+            continue
+        # コマンド位置の `((` は算術評価 (途中に現れる `((` は入れ子の subshell)。
+        if ch == "(" and source[i + 1 : i + 2] == "(" and at_command_start(tail):
+            j = skip_arithmetic(source, i + 2)
+            emit(source[i:j])
+            i = j
+            continue
+        # `<<<` は herestring。3 文字まとめて消費しないと、2 文字目からの `<<` が
+        # heredoc に見えて後続行を本文として飲み込む。
+        if ch == "<" and source[i + 1 : i + 3] == "<<":
+            emit(source[i : i + 3])
+            i += 3
+            continue
+        if ch == "<" and source[i + 1 : i + 2] == "<":
+            j = i + 2
+            strip_tabs = source[j : j + 1] == "-"
+            if strip_tabs:
+                j += 1
+            while source[j : j + 1] in (" ", "\t"):
+                j += 1
+            delimiter, quoted, j = read_heredoc_delimiter(source, j)
+            if not delimiter:
+                emit(ch)
+                i += 1
+                continue
+            pending.append((delimiter, strip_tabs, quoted))
+            i = j
+            continue
+        if ch == "\n":
+            emit(ch)
+            i += 1
+            for delimiter, strip_tabs, quoted in pending:
+                body, i, terminated = skip_heredoc_body(source, i, delimiter, strip_tabs)
+                if not terminated:
+                    emit(body)
+                    break
+                if not quoted:
+                    expandable.append(body)
+            pending = []
+            continue
+        emit(ch)
+        i += 1
+    return "".join(out), expandable
 
 
 def logical_lines(source):
@@ -309,6 +510,7 @@ def check_segment(seg):
 def inspect(source, depth=0):
     if depth > MAX_DEPTH:
         return None
+    source, expandable_bodies = strip_heredocs(source)
     for line in logical_lines(source):
         if not line.strip():
             continue
@@ -329,6 +531,13 @@ def inspect(source, depth=0):
         reason = inspect(body, depth + 1)
         if reason:
             return reason
+    for body in expandable_bodies:
+        # 本文そのものは実行されないが、置換だけは shell が評価する。
+        # 本文の引用符は展開を止めないので quote を無視して拾う。
+        for fragment in substitutions(body, quotes_protect=False):
+            reason = inspect(fragment, depth + 1)
+            if reason:
+                return reason
     return None
 
 
