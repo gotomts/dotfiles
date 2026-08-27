@@ -86,6 +86,37 @@ BLOCKED = [
     "env FOO=bar git push --force origin HEAD",
     "nice -n 10 git clean -fd",
     "xargs -0 git push --force origin HEAD",
+    # heredoc の開始行に同居する実コマンド。
+    "cat <<'EOF' > note.md; rm -rf /usr/local\nsafe\nEOF\n",
+    # heredoc の終端より後ろは通常のコマンド行に戻る。
+    "cat <<'EOF' > note.md\nsafe\nEOF\ngit push --force origin HEAD\n",
+    "cat <<'EOF'\nsafe\nEOF\nsudo rm -rf /\n",
+    "cat <<-'EOF'\n\tsafe\n\tEOF\n\tgit clean -fd\n",
+    # heredoc より前で既に実行されている。
+    "git reset --hard HEAD~1 && cat <<'EOF' > note.md\nsafe\nEOF\n",
+    # 区切り語を quote していない heredoc の本文では置換が展開・実行される。
+    "cat <<EOF > note.md\n$(git push --force origin HEAD)\nEOF\n",
+    "cat <<EOF > note.md\n`git reset --hard HEAD~1`\nEOF\n",
+    # 本文の引用符は展開を止めない。
+    "cat <<EOF > note.md\n'$(git clean -fd)'\nEOF\n",
+    # 算術式の左シフトは heredoc ではないので、後続行を本文として飲み込まない。
+    "x=$((1 << 3))\ngit push --force origin HEAD\n",
+    "(( i << 2 ))\ngit reset --hard HEAD~1\n",
+    # 制御構文の直後も算術評価コマンドの位置。
+    "if (( i << 2 )); then echo ok; fi\ngit push --force origin HEAD\n",
+    "while (( n << 1 )); do break; done\ngit reset --hard HEAD~1\n",
+    "until (( n << 1 )); do break; done\ngit clean -fd\n",
+    "! (( n << 1 ))\nrm -rf /usr/local\n",
+    "for ((i = 0; i < 3; i++)); do echo $i; done\nrm -rf /usr/local\n",
+    # herestring も heredoc ではない。
+    "grep force <<< 'git push --force origin HEAD'\ngit push --force origin HEAD\n",
+    "cat <<<\"$note\"\ngit reset --hard HEAD~1\n",
+    # コメント中の `<<` も heredoc ではない。
+    "# 例: cat <<EOF ... EOF\ngit push --force origin HEAD\n",
+    "echo hi # cat <<EOF\ngit reset --hard HEAD~1\n",
+    # 区切り語で閉じない heredoc は誤認の疑いがあるため、本文を捨てずに読み直す。
+    "cat <<'EOF'\ngit push --force origin HEAD\n",
+    "cat <<EOF\nrm -rf /usr/local\n",
 ]
 
 ALLOWED = [
@@ -140,6 +171,45 @@ DESCRIPTIVE_TEXT = [
     'while true; do echo "git clean -fd wipes untracked files"; break; done',
 ]
 
+# heredoc の本文は shell がコマンドへ渡すデータで、実行されない。
+HEREDOC_BODY_TEXT = [
+    # quote した区切り語。本文は展開すらされない。
+    "cat > docs/note.md <<'EOF'\n"
+    "禁止: git push --force を使わない\n"
+    "rm -rf / も実行しない\n"
+    "EOF\n",
+    'cat > docs/note.md <<"EOF"\ngit reset --hard は作業ツリーを破棄する\nEOF\n',
+    "cat <<'EOF'\n$(git push --force origin HEAD)\nEOF\n",
+    # quote していない区切り語でも、置換でない本文は素通しする。
+    "cat > note.md <<EOF\ngit clean -fd wipes untracked files\nEOF\n",
+    # 本文中の閉じない引用符で行の切り出しが壊れないこと。
+    "cat <<'EOF'\ndon't run git clean -fd\nEOF\ngit status\n",
+    # `<<-` は終端行の先頭タブを剥がして一致させる。
+    "cat <<-'EOF'\n\tgit push --force origin HEAD\n\tEOF\n",
+    # 1 行に複数の heredoc。宣言順に本文が続く。
+    "cat <<'A' <<'B'\nrm -rf /\nA\ngit push --force origin HEAD\nB\n",
+    # herestring は本文を持たない別物 (引用符付きのデータのまま)。
+    "grep force <<< 'git push --force origin HEAD'",
+    "grep force <<<'git push --force origin HEAD'\ngit status\n",
+    # 区切り語で閉じない heredoc は本文を読み直すが、危険操作が無ければ通る。
+    "cat <<'EOF'\nhello world\n",
+    # 実運用の形: スクリプトを heredoc で流し込む。
+    "python3 - <<'PY'\nprint('git push --force origin HEAD')\nPY\n",
+    "ssh host bash -s <<'EOF'\nrm -rf /var/tmp/cache\nEOF\n",
+]
+
+# 語頭の `#` から行末まではコメントで、shell は読まない。
+COMMENT_TEXT = [
+    "echo ok # git push --force origin HEAD",
+    "# rm -rf / と書いてあるだけの行\ngit status\n",
+    "git status  # git reset --hard は使わない\n",
+    # コメントは制御演算子より優先される (`;` の後ろまでコメント)。
+    "echo ok # 補足; rm -rf /usr/local\n",
+    # 語中の `#` はコメントではない (URL のフラグメント)。
+    "curl -sS 'https://example.com/docs#git-push-force'",
+    "curl -sS https://example.com/docs#git-push-force",
+]
+
 DEGENERATE = [
     ("", "stdin が空"),
     ("{}", "tool_input なし"),
@@ -169,6 +239,16 @@ class InspectTest(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertIsNone(guard.inspect(command), "説明文なので通すべき: %r" % command)
 
+    def test_heredoc_body_is_not_a_command(self):
+        for command in HEREDOC_BODY_TEXT:
+            with self.subTest(command=command):
+                self.assertIsNone(guard.inspect(command), "heredoc 本文なので通すべき: %r" % command)
+
+    def test_comment_is_not_a_command(self):
+        for command in COMMENT_TEXT:
+            with self.subTest(command=command):
+                self.assertIsNone(guard.inspect(command), "コメントなので通すべき: %r" % command)
+
     def test_unbalanced_quote_does_not_crash(self):
         self.assertIsNone(guard.inspect('echo "unterminated'))
 
@@ -184,7 +264,7 @@ class HookProcessTest(unittest.TestCase):
                 self.assertIn("BLOCK:", stderr)
 
     def test_allowed_exits_0(self):
-        for command in ALLOWED + DESCRIPTIVE_TEXT:
+        for command in ALLOWED + DESCRIPTIVE_TEXT + HEREDOC_BODY_TEXT + COMMENT_TEXT:
             with self.subTest(command=command):
                 code, stderr = run_hook(payload(command))
                 self.assertEqual(code, 0, "通すべき: %r (%s)" % (command, stderr))
