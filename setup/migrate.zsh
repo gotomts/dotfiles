@@ -31,7 +31,8 @@
 #                                         ため、Phase 3 より前に置く。pam は cutover と同じく
 #                                         root 必須なので同じ Phase にまとめ、sudo プロンプトを
 #                                         1 回にまとめる)
-#   Phase 3: languages, defaults, claude-sync, codex-sync  (root 起動時は元ユーザーへ委譲。
+#   Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync  (root 起動時は元ユーザーへ
+#                                         委譲。
 #                                         mise は Phase 2 で導入済み)
 #
 # 安全設計:
@@ -81,13 +82,14 @@ set -eu
 
 SETUP_DIR="${0:A:h}"
 source "${SETUP_DIR}/lib/util.zsh"
+source "${SETUP_DIR}/lib/herdr.zsh"
 
 # ---------------------------------------------------------------------------
 # ステップ定義（配列内の並び = 実行順序。Phase 番号が依存順序を表す）
 # ---------------------------------------------------------------------------
 PHASE1_STEPS=(link)
 PHASE2_STEPS=(cutover pam)
-PHASE3_STEPS=(languages defaults claude-sync codex-sync)
+PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync)
 
 migrate::script_for() {
     echo "${SETUP_DIR}/${1}.zsh"
@@ -553,6 +555,22 @@ migrate::health_check() {
 
     [[ -f "${home_dir}/.codex/config.toml" ]] || failures+=("codex-sync: ${home_dir}/.codex/config.toml がありません")
 
+    # herdr plugin の allowlist。パスは herdr-sync.zsh と同じ setup/lib/herdr.zsh の
+    # 解決関数から引く（配置する側と確認する側で別々にパスを組み立てると、Herdr が
+    # 設定ディレクトリの位置を変えたときに health check だけが古い場所を見に行く）。
+    #
+    # 要求する条件も herdr-sync.zsh と揃える。何も配置しないのは「primary チェックアウト
+    # 以外からの実行」のときだけで、そこで symlink を要求すると manifest の success と
+    # health check が食い違う。herdr の有無では gate しない — herdr が無くても
+    # herdr-sync.zsh は既定パスへ allowlist を配置して成功するので、そこを飛ばすと
+    # 「配置されているのに検証しない」死角になる。
+    local dotfiles_root="${SETUP_DIR:h}"
+    if herdr::is_primary_root "${dotfiles_root}" "${home_dir}"; then
+        local swt_config
+        swt_config="$(herdr::allowlist_link "${home_dir}")"
+        [[ -L "${swt_config}" ]] || failures+=("herdr-sync: ${swt_config} が symlink ではありません")
+    fi
+
     if (( ${#failures[@]} > 0 )); then
         util::error "=== health check 失敗: manifest 上は success でも実状態が伴っていません ==="
         local f
@@ -665,7 +683,7 @@ migrate::usage() {
 
 Phase 1: link (root 起動時は元ユーザーへ委譲)
 Phase 2: cutover, pam (root 必須)
-Phase 3: languages, defaults, claude-sync, codex-sync (root 起動時は元ユーザーへ委譲)
+Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync (root 起動時は元ユーザーへ委譲)
 
 個別スクリプト（link.zsh 等）は内部実装です。実機での実行はこのスクリプトからのみ
 行ってください。詳細は setup/README.md を参照。

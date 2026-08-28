@@ -1,0 +1,41 @@
+# Herdr local plugin: safe-worktree
+#
+# Herdr 標準の worktree 作成は base として渡した ref をローカルのまま解決する。
+# `--base main` はローカルの main（fetch していなければ数日前の SHA）を、
+# `--base HEAD` は現在チェックアウト中のコミットを黙って使う。
+# このプラグインは base をリモートの実 SHA に固定してから作成し、
+# 併せて allowlist 外リポジトリでの作成を拒否する。
+#
+# 設定 SSOT: <dotfiles>/herdr/plugins/safe-worktree/config/repos.json
+#            → setup/herdr-sync.zsh が HERDR_PLUGIN_CONFIG_DIR/repos.json へ symlink する
+
+id = "dotfiles.safe-worktree"
+name = "Safe Worktree"
+version = "0.1.0"
+min_herdr_version = "0.8.0"
+description = "allowlist 済みリポジトリで、リモート既定ブランチの最新 SHA を base に linked worktree を作る"
+platforms = ["macos"]
+
+# 対話用の popup。ブランチ名の入力と最終確認を人間から取る。
+[[panes]]
+id = "create"
+title = "Safe worktree: create"
+placement = "popup"
+width = "80%"
+height = "60%"
+command = ["/bin/zsh", "bin/create.zsh"]
+
+# キーバインド可能なアクション。popup を開くだけの薄い入口。
+# （アクションコマンドは TTY を持たないため、対話は popup 側で行う）
+[[actions]]
+id = "create"
+title = "Safe worktree: create"
+description = "リモート既定ブランチの最新 SHA を base に linked worktree を作る"
+contexts = ["global", "workspace"]
+command = ["/bin/zsh", "bin/open-create-pane.zsh"]
+
+# Herdr 標準経路での作成（TUI キーバインド等）も含め、全ての worktree 作成を監査する。
+# 監査のみ。worktree の削除・base の付け替えなど修復操作は一切行わない。
+[[events]]
+on = "worktree.created"
+command = ["/bin/zsh", "bin/audit-created.zsh"]

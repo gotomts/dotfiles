@@ -4,3 +4,8 @@ nix/modules/darwin/homebrew.local.nix
 # 静的な seed は codex/config.base.toml に置き、~/.codex/config.toml は
 # アプリ所有の実体ファイルとして追跡しない (nix/modules/home/codex.nix 参照)。
 .codex/config.toml
+
+# Herdr プラグインのマシンローカル allowlist。本来は Herdr のプラグイン設定ディレクトリ
+# (~/.config/herdr/plugins/config/<id>/repos.local.json) に置くものだが、リポジトリ内に
+# 誤って作られた場合の保険。非公開リポジトリの origin URL を含みうるため追跡しない。
+herdr/plugins/*/config/repos.local.json
