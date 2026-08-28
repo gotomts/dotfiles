@@ -16,7 +16,7 @@ Tier を跨いだ実行順序・部分適用の検出/復旧を担う `setup/mig
 ## 使い方（実機での唯一のエントリポイントは `setup/migrate.zsh`）
 
 Tier 1/2/3 の各スクリプト（`link.zsh`/`languages.zsh`/`defaults.zsh`/`pam.zsh`/
-`claude-sync.zsh`/`codex-sync.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
+`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
 順序管理なしに個別実行すると部分適用インシデントを再現する（過去に実際に発生した）。
 実機での実行は必ず `setup/migrate.zsh` からのみ行う:
 
@@ -25,7 +25,7 @@ Tier 1/2/3 の各スクリプト（`link.zsh`/`languages.zsh`/`defaults.zsh`/`pa
 zsh ${HOME}/.dotfiles/setup/migrate.zsh --dry-run
 
 # 計画を実行する。単一の root 起動で全 Phase (link -> cutover/pam -> languages/defaults/
-# claude-sync/codex-sync) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
+# claude-sync/codex-sync/herdr-sync) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
 # 特定し、非 root ステップは元ユーザーへ委譲実行する（詳細は
 # docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md 参照）
 sudo zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
@@ -49,6 +49,7 @@ zsh ${HOME}/.dotfiles/setup/defaults.zsh
 zsh ${HOME}/.dotfiles/setup/pam.zsh
 zsh ${HOME}/.dotfiles/setup/claude-sync.zsh
 zsh ${HOME}/.dotfiles/setup/codex-sync.zsh
+zsh ${HOME}/.dotfiles/setup/herdr-sync.zsh
 sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/cutover.zsh
 ```
 
@@ -79,8 +80,14 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   （2 回目以降はスキップ）。IME/入力ソースの plist は複製せず `nix/modules/darwin/` を
   単一ソースとして参照する。role は `/etc/dotfiles-role`（`nix/flake.nix` と同じ規約）から
   解決し、テストでは `DOTFILES_ROLE_FILE` で上書きできる。
-- `claude-sync.zsh`/`codex-sync.zsh`: 破壊的な操作を行わない（MCP merge は add-only、
-  config.toml は seed-if-absent、skills repo clone は既存ディレクトリを一切変更しない）。
+- `claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`: 破壊的な操作を行わない（MCP merge は
+  add-only、config.toml は seed-if-absent、skills repo clone は既存ディレクトリを一切変更しない）。
+  `herdr-sync.zsh` は primary チェックアウト（`~/.dotfiles`）から実行されたときだけ
+  plugin link と設定配置を行う。`herdr plugin link` は渡されたパスをそのまま登録先に
+  するため、使い捨ての worktree を登録すると削除時にプラグインと allowlist が同時に壊れる。
+  primary 以外から実行された場合は両方まとめてスキップする。登録先パスが既に一致して
+  いれば何もせず、`repos.local.json`（マシンローカルの allowlist）は seed-if-absent で
+  既存の中身に触れない。
 - `cutover.zsh`: 実行前に `darwin-rebuild --list-generations` の出力を
   `~/.dotfiles-cutover-backup/pre-cutover-generations-<timestamp>.txt` へ記録してから
   `nix build`（副作用なし）で pre-flight 確認し、成功したときだけ `darwin-rebuild switch`
@@ -91,7 +98,7 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   `fs::ensure_realfile` と同じ no-data-loss 方針で、自動退避はしない）。
 - `migrate.zsh`: Tier 1/2/3 を跨いだ唯一のオーケストレーター。実行順序は Phase 1
   (`link`) → Phase 2 (`cutover`/`pam`、root 必須) → Phase 3 (`languages`/`defaults`/
-  `claude-sync`/`codex-sync`)。`languages.zsh` 自身が「mise は darwin-switch で事前導入
+  `claude-sync`/`codex-sync`/`herdr-sync`)。`languages.zsh` 自身が「mise は darwin-switch で事前導入
   済みが前提」と明記しているため、cutover を languages より先に置く。各ステップの結果は
   `~/.dotfiles-migrate/manifest.log` に永続化し、success 済みステップは再実行しない
   （idempotent な部分適用検出・再開）。権限不足なステップは blocked として記録し、その
@@ -106,11 +113,35 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
 
 ```sh
 bats setup/tests/*.bats
+bats herdr/plugins/*/tests/*.bats
 ```
 
+`setup/lib/herdr.zsh` は Herdr プラグインの識別子とパス解決だけを持つ共有ライブラリ。
+配置する側（`herdr-sync.zsh`）と確認する側（`migrate.zsh` の health check）が別々に
+パスを組み立てると、Herdr が設定ディレクトリの位置を変えたときに health check だけが
+古い場所を見に行くため、解決ロジックを 1 箇所に寄せている。
+
+配置する条件も両者で揃える。何も配置しないのは **primary チェックアウト
+（`~/.dotfiles`）以外からの実行** のときだけなので、health check もその条件でだけ
+検証を飛ばす。`herdr` の有無では飛ばさない — herdr が無くても `herdr-sync.zsh` は
+既定パスへ allowlist を配置して成功するため、そこを飛ばすと「配置されているのに
+検証しない」死角になる。
+
+`herdr::plugin_config_dir` の既知の制約: `herdr plugin config-dir` に問い合わせるのは
+**呼び出し元自身のホームを対象にするときだけ**。`migrate.zsh` の health check は root で
+走りつつ元ユーザーのホームを検査するため、そこで herdr を呼ぶと root 自身の設定
+ディレクトリを答えてしまい、存在しないパスを検査して必ず失敗する。よって別ユーザーの
+ホームが対象のとき（および herdr 不在時）は既定パス
+`<home>/.config/herdr/plugins/config/<plugin_id>` の組み立てだけを使う。
+**この経路は Herdr がレイアウトを変えても追従しない。** 変わった場合は health check が
+先に落ちるので、`setup/lib/herdr.zsh` のフォールバックを更新すること
+（root から元ユーザー文脈で herdr を呼び直す作りにはしていない。sudo 越しの
+委譲実行を health check にまで広げるほどの利得が無いため）。
+
 `fs::link_file`/`fs::ensure_realfile` は関数単位、`link.zsh`/`languages.zsh`/`defaults.zsh`/
-`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`cutover.zsh`/`rollback.zsh`/`migrate.zsh` は、
-実コマンド（`defaults`/`mise`/`corepack`/`claude`/`git`/`darwin-rebuild`/`nix`）を PATH 上の
+`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`cutover.zsh`/`rollback.zsh`/
+`migrate.zsh` は、
+実コマンド（`defaults`/`mise`/`corepack`/`claude`/`herdr`/`git`/`darwin-rebuild`/`nix`）を PATH 上の
 stub 実行ファイルに差し替え、`$HOME` を一時ディレクトリに差し替えたサンドボックスでの統合テスト
 （実機・実ネットワーク・実パッケージマネージャ・実 `darwin-rebuild switch` には一切触れない）。
 `migrate.zsh` のテストは Tier 1 が作る `~/.zshenv` symlink を経由して後続の子 `zsh` プロセスが
@@ -118,4 +149,9 @@ stub 実行ファイルに差し替え、`$HOME` を一時ディレクトリに�
 テストでは踏まなかった経路）。stub 実行ファイルを `#!/bin/bash` にしているのはこのため
 （`#!/bin/zsh` だと stub 自身が `~/.zshenv` を再度 source し、そこでの `mise activate --shims`
 がまた `mise` を呼ぶ無限再帰になる）。CI は `.github/workflows/setup-check.yml` が `setup/**`
-の変更ごとに実行する。
+と `herdr/**` の変更ごとに両方の bats スイートを実行する。
+
+`herdr/plugins/*/tests/*.bats`（Herdr ローカルプラグイン）も同じ workflow が実行する。
+`herdr` はスタブに差し替えるが、`git` はサンドボックス内に作った使い捨てリポジトリに対して
+実際に実行する（allowlist 判定・base 解決・監査の判定はいずれも git の実挙動が対象のため、
+stub では検証にならない）。

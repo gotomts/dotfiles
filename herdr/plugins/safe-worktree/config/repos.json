@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "defaults": {
+    "remote": "origin"
+  },
+  "repos": [
+    {
+      "label": "dotfiles",
+      "origin": "https://github.com/gotomts/dotfiles.git",
+      "root": "~/.dotfiles"
+    }
+  ]
+}
