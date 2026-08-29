@@ -39,6 +39,15 @@ success したステップは再実行しない（idempotent）。全ステッ�
 非ゼロ終了コードを返し続ける（部分適用を健全な状態として扱わない）。`SUDO_USER` が特定できない
 環境（sudo を介さない直接 root ログイン等）では非 root ステップは blocked のまま止まる。
 
+例外は `cutover`（`darwin-rebuild switch`）で、manifest の success だけでは skip しない。
+必須 Homebrew バイナリ（mise/starship）の実在に加え、直近 success 時に記録した
+desired-input fingerprint — `nix/` 配下の構成と `flake.lock`、`/etc/dotfiles-role`、
+`~/.config/dotfiles/homebrew.local.nix` — が現在値と一致するかを毎回検証し、変わっていれば
+同じ `--apply` の中で再実行する。`git pull` で Homebrew 宣言が変わった端末で `--apply` が
+「全部 success 済み」と判断して何も適用しない、という取りこぼしを防ぐため。fingerprint の記録が
+無い古い manifest は安全側に 1 度だけ再実行する（その実行で記録され、以降は通常どおり skip
+に戻る）。何が再実行されるかは `--dry-run` で事前に確認できる。
+
 個別スクリプトの直接実行はメンテナンス目的（単体テスト・特定ステップだけをデバッグしたい場合等）
 でのみ行う:
 
@@ -101,7 +110,8 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   `claude-sync`/`codex-sync`/`herdr-sync`)。`languages.zsh` 自身が「mise は darwin-switch で事前導入
   済みが前提」と明記しているため、cutover を languages より先に置く。各ステップの結果は
   `~/.dotfiles-migrate/manifest.log` に永続化し、success 済みステップは再実行しない
-  （idempotent な部分適用検出・再開）。権限不足なステップは blocked として記録し、その
+  （idempotent な部分適用検出・再開）。ただし `cutover` だけは、必須バイナリの実在と
+  desired-input fingerprint の一致（宣言側が変わっていないこと）も満たすときにのみ skip する。権限不足なステップは blocked として記録し、その
   Phase 内の残りは試行を続けるが次の Phase へは進まない（Phase 境界は厳格）。実失敗は
   即座に全体を停止する（fail-closed）。`rollback.zsh` は一切呼ばない（no-automatic-rollback、
   常に人間の明示判断）。全ステップ success 後も、manifest の自己申告を信用せず各ステップの
