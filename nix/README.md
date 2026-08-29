@@ -7,6 +7,36 @@
 - spec: `docs/superpowers/specs/2026-05-02-nix-migration-design.md`
 - plan: `docs/superpowers/plans/2026-05-02-nix-migration.md`
 
+## 前提: experimental-features は用途単位で明示する
+
+このリポジトリは Nix 本体の設定 (`/etc/nix/nix.conf`) を所有しない。`nix/darwin.nix` の
+`nix.enable = false` により nix-darwin は nix.conf を生成せず（nix-darwin 側で
+`mkIf nix.enable` に括られている）、`nix.settings.experimental-features` を書いても効かない。
+nix-command / flakes を有効にするかどうかは Determinate Nix 側の設定とホストの実測次第で、
+**Determinate を入れてあっても無効なホストは実在する**。
+
+そのため、このドキュメントの `nix` コマンド例はすべて用途単位でフラグを明示する:
+
+```sh
+nix --extra-experimental-features "nix-command flakes" <subcommand> ...
+```
+
+- `darwin-rebuild` は nix-command / flakes を自前で有効化して呼ぶ生成物なので明示不要
+- `setup/cutover.zsh` の pre-flight build と `nix/tests/*.bats` も同じ契約で書かれている
+  (回帰テスト: `setup/tests/cutover.bats`)
+- 恒久的に有効化したい場合は Determinate 公式の管理経路で行う。dotfiles 側では宣言しない
+- 手元のホストの直接の設定は以下で見られる。ファイル不在は「設定が無い」という正常な観測なので、
+  stderr を捨てて非ゼロ終了を握り潰す
+
+  ```sh
+  grep -H experimental-features /etc/nix/nix.conf ~/.config/nix/nix.conf 2>/dev/null || true
+  ```
+
+  この 2 ファイルに直接の設定が見つからなくても「無効」と断定はできない。`include` / `!include`
+  で読み込まれる別ファイルや `NIX_CONFIG` 環境変数など間接的な設定経路まではここでは診断しない。
+  結論としてホストの状態に賭けず、常に用途単位でフラグを付ける。フラグ付きで `nix config show`
+  を叩くとフラグ自身の効果を読んでしまい判定にならない
+
 ## ロールバック
 
 直前世代に戻す:
@@ -33,8 +63,8 @@ sudo zsh ~/.dotfiles/setup/rollback.zsh
 
 ## flake.lock の更新運用
 
-- `nix flake update` で全 input を最新に更新できる
-- 特定 input だけ更新する場合: `nix flake lock --update-input nixpkgs`
+- 全 input を最新に更新: `nix --extra-experimental-features "nix-command flakes" flake update`
+- 特定 input だけ更新: `nix --extra-experimental-features "nix-command flakes" flake lock --update-input nixpkgs`
 - 更新後は必ず `darwin-rebuild build --flake .#default --impure` で検証してからコミット
 - `flake.lock` は必ずコミットする（再現性確保のため）
 - 更新頻度の方針: **必要時のみ**（依存ライブラリの脆弱性 / nixpkgs に必要なパッケージが入ったタイミング等）
@@ -140,14 +170,25 @@ name か id と照合する) で飛ばす。
 
 `brew install` 即試用の代替手段:
 
-| やりたいこと | コマンド |
-|---|---|
-| nixpkgs にある CLI を一時的に試す | `nix shell nixpkgs#ripgrep`（その shell セッション限定 / `exit` で消える） |
-| nixpkgs 最新で試す | `nix run nixpkgs/master#foo` |
-| 1 回だけ実行 | `nix run nixpkgs#foo -- --args` |
-| nixpkgs に無い GUI を試す | 現実的には手動 `brew install` → 気に入ったら `casks` に追加 → switch / 気に入らなければ `brew uninstall` |
+```sh
+# nixpkgs にある CLI を一時的に試す (その shell セッション限定 / exit で消える)
+nix --extra-experimental-features "nix-command flakes" shell nixpkgs#ripgrep
+
+# nixpkgs 最新で試す
+nix --extra-experimental-features "nix-command flakes" run nixpkgs/master#foo
+
+# 1 回だけ実行
+nix --extra-experimental-features "nix-command flakes" run nixpkgs#foo -- --args
+```
+
+nixpkgs に無い GUI は、現実的には手動 `brew install` → 気に入ったら `casks` に追加 → switch /
+気に入らなければ `brew uninstall`。
 
 `nix shell` / `nix run` は永続インストールしないので、後片付けが要らない。お試しは基本これに倒すこと。
+
+`--extra-experimental-features` を落とすと `experimental Nix feature 'nix-command' is disabled`
+で即座に失敗する。理由は冒頭の「前提」を参照。他リポジトリの Makefile 等から `nix shell` で
+ツールチェインを固定する場合も、同じ理由で呼び出し側にフラグを持たせる。
 
 ## Per-host 構成 (/etc/dotfiles-role)
 
@@ -183,10 +224,12 @@ echo sub-1 | sudo tee /etc/dotfiles-role
 
 # 3. ビルド確認 (副作用なし)
 cd ~/.dotfiles/nix
-nix build .#darwinConfigurations.default.system --no-link --impure
+nix --extra-experimental-features "nix-command flakes" \
+  build .#darwinConfigurations.default.system --no-link --impure
 
 # 4. 初回ブートストラップ + 実機適用
-sudo USER=$USER nix run nix-darwin -- switch --flake .#default --impure
+sudo USER=$USER nix --extra-experimental-features "nix-command flakes" \
+  run nix-darwin -- switch --flake .#default --impure
 ```
 
 ### role の切り替え
@@ -245,7 +288,7 @@ sudo USER=$USER darwin-rebuild switch --flake .#default --impure
 
 ```sh
 git restore nix/flake.lock
-nix flake update
+nix --extra-experimental-features "nix-command flakes" flake update
 ```
 
 ### `darwin-rebuild` がビルドエラーで失敗する
@@ -268,7 +311,8 @@ nix-darwin が未インストールの状態で初めて適用する場合:
 
 ```sh
 cd ~/.dotfiles/nix
-nix run nix-darwin -- switch --flake .#default --impure
+nix --extra-experimental-features "nix-command flakes" \
+  run nix-darwin -- switch --flake .#default --impure
 ```
 
 ### 宣言から外した Homebrew パッケージが残る

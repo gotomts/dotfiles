@@ -96,7 +96,10 @@ Hermes はオーケストレーター役の AI エージェントで、実装は
 cd ~/.dotfiles/nix
 
 # 副作用なしビルド確認 (CI と同じ検証を手元で)
-USER=ciuser nix build .#darwinConfigurations.default.system --no-link --impure
+# --extra-experimental-features: このリポジトリは nix.conf を所有しないため、
+# bare な nix サブコマンドには用途単位で明示する (nix/README.md の「前提」を参照)
+USER=ciuser nix --extra-experimental-features "nix-command flakes" \
+  build .#darwinConfigurations.default.system --no-link --impure
 
 # 適用 (sudo 必須、USER=$USER は sudo の env_reset で USER=root になるのを回避、--impure は username 動的解決のため必須)
 sudo USER=$USER darwin-rebuild switch --flake .#default --impure
@@ -110,7 +113,11 @@ darwin-rebuild --list-generations
 
 ## 重要な設計判断
 
-- **`nix.enable = false`**: ローカル PC に Determinate Nix がインストールされている前提。nix-darwin の native Nix 管理は Determinate daemon と競合するため、`nix/darwin.nix` で明示的に無効化している。実験的機能 (nix-command / flakes) は Determinate がデフォルト有効化しているため別途宣言不要
+- **`nix.enable = false`**: ローカル PC に Determinate Nix がインストールされている前提。nix-darwin の native Nix 管理は Determinate daemon と競合するため、`nix/darwin.nix` で明示的に無効化している
+- **experimental-features はこのリポジトリの所有物ではない**: `nix.enable = false` により nix-darwin は `/etc/nix/nix.conf` を生成しないため、nix-command / flakes の有効・無効はホスト任せ（Determinate Nix を入れてあっても無効なホストは実在する）。恒久的に有効化したい場合は Determinate 公式の管理経路で行い、dotfiles / nix-darwin では宣言しない
+  - 実行契約: bare な `nix` サブコマンドを呼ぶ側が用途単位で `--extra-experimental-features "nix-command flakes"` を明示する。`darwin-rebuild` は自前で有効化して呼ぶ生成物なので明示不要
+  - CI 例外: `nix-check` workflow は installer action が有効化するため、workflow 内は bare のままでよい
+  - 診断手順と背景は `nix/README.md` の「前提: experimental-features は用途単位で明示する」を参照
 - **PC 名・ユーザー名のリポジトリ非格納**: `darwinConfigurations.default` で output 名を hostname フリーに固定し、`username = builtins.getEnv "USER"` で macOS ローカルアカウント名を実行時解決する。公開リポジトリに PC 名や個人アカウント名を晒さないための設計。`--impure` フラグが必須になる代償と引き換え (S15)
 - **`homebrew.onActivation.cleanup = "zap"`**: 宣言外パッケージは Cellar ごと削除する強い管理。宣言外のパッケージが残らないよう破壊的に同期する (`nix/modules/darwin/homebrew.nix` のコメント参照)
 
@@ -132,6 +139,8 @@ triage で「無視」マークした項目は OS デフォルト値が PC 間�
 
 - `nix flake check` (構文・型・依存解決)
 - `USER=ciuser nix build .#darwinConfigurations.default.system --no-link --impure` (closure ビルド)
+
+workflow 内が bare な `nix` なのは、`DeterminateSystems/nix-installer-action` が nix-command / flakes を有効化するため。ローカルで同じ検証を回すときはホスト任せになるので `--extra-experimental-features "nix-command flakes"` を明示する（「主要コマンド」節の形が対応する）。
 
 `darwin-rebuild switch` の activation 自体は CI 範囲外 (環境差で消耗するため)。実機での `darwin-rebuild build` → `switch` で検証する方針。
 
