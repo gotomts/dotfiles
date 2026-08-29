@@ -69,8 +69,11 @@ util::info "Full Disk Access is granted."
 # ---- 3. Determinate Nix インストーラ --------------------------------------
 
 # Determinate Nix は nix-darwin の native Nix 管理 (nix.enable) と競合するため、
-# nix-darwin 側で `nix.enable = false` を宣言している (nix/darwin.nix)。
-# experimental-features (nix-command / flakes) は Determinate がデフォルト有効化済み。
+# nix-darwin 側で `nix.enable = false` を宣言している (nix/darwin.nix)。その帰結として
+# experimental-features (nix-command / flakes) は Determinate 側の所有物になり、
+# このリポジトリは値を宣言も保証もしない。インストール直後に有効とは限らないため、
+# bare な `nix` サブコマンドを呼ぶ側が用途単位で
+# `--extra-experimental-features "nix-command flakes"` を明示する (nix/README.md の「前提」)。
 util::info "Installing Determinate Nix..."
 
 if ! curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
@@ -85,5 +88,5 @@ util::info ""
 util::info "NEXT STEPS:"
 util::info "  1. Restart your terminal (or run: source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh)"
 util::info "  2. cd ${HOME}/.dotfiles/nix"
-util::info "  3. nix build .#darwinConfigurations.default.system --no-link --impure  # 副作用なし closure 確認"
-util::info "  4. sudo USER=\$USER nix run nix-darwin -- switch --flake .#default --impure  # 初回ブートストラップ + 実機適用"
+util::info "  3. nix --extra-experimental-features \"nix-command flakes\" build .#darwinConfigurations.default.system --no-link --impure  # 副作用なし closure 確認"
+util::info "  4. sudo USER=\$USER nix --extra-experimental-features \"nix-command flakes\" run nix-darwin -- switch --flake .#default --impure  # 初回ブートストラップ + 実機適用"

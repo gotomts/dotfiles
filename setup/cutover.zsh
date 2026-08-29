@@ -42,11 +42,12 @@ darwin-rebuild --list-generations > "${generations_log}"
 util::info "=== pre-flight: nix build ==="
 # --extra-experimental-features: darwin-rebuild 自体は nix-command/flakes を内蔵で
 # 有効化して呼び出す生成物だが、ここは darwin-rebuild を経由しない素の `nix build`
-# 直接呼び出しのため、システムの nix.conf が nix-command/flakes をデフォルト有効化
-# していない環境（Determinate Nix 前提が崩れている、または未設定の素の Nix）では
-# 明示しないと `experimental Nix feature 'nix-command' is disabled` で失敗する。
-# CI (.github/workflows/nix-check.yml) はインストール直後の Determinate Nix で
-# デフォルト有効なため未指定で足りるが、実機は環境依存のため明示して揃える。
+# 直接呼び出しのため、システムの nix.conf が nix-command/flakes を有効化していない
+# ホストでは `experimental Nix feature 'nix-command' is disabled` で失敗する。
+# このリポジトリは nix.conf を所有しない (nix/darwin.nix の `nix.enable = false`)
+# ため有効かどうかはホスト任せで、Determinate Nix を入れてあっても無効なホストは
+# 実在する。CI (.github/workflows/nix-check.yml) は installer action が有効化するので
+# 未指定でも通るが、実機に合わせて常に明示する。
 if ! nix build "${DOTFILES_ROOT}/nix#darwinConfigurations.default.system" --no-link --impure \
     --extra-experimental-features "nix-command flakes"; then
     util::error "nix build に失敗しました。switch は実行しません"

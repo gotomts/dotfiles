@@ -67,14 +67,13 @@ setup() {
 }
 
 @test "cutover.zsh's pre-flight nix build explicitly enables nix-command/flakes" {
-    # Regression test: on a machine where nix-command/flakes isn't enabled by
-    # default (e.g. a plain Nix install rather than Determinate Nix, or a
-    # host nix.conf without the experimental-features line), a bare `nix
-    # build` on this direct (non darwin-rebuild-wrapped) invocation fails
-    # with "experimental Nix feature 'nix-command' is disabled" before ever
-    # reaching darwin-rebuild switch. Reproduced and confirmed fixed against
-    # the real flake on 2026-08-22 (see migrate.zsh single-invocation
-    # recovery incident). darwin-rebuild itself already bakes this flag in,
+    # Regression test: this repo does not own nix.conf (nix/darwin.nix sets
+    # `nix.enable = false`), so whether nix-command/flakes is enabled is up to
+    # the host — a Determinate Nix install is no guarantee, and hosts with
+    # Determinate but the feature disabled do exist. Without the flag, this
+    # direct (non darwin-rebuild-wrapped) `nix build` fails with "experimental
+    # Nix feature 'nix-command' is disabled" before ever reaching
+    # darwin-rebuild switch. darwin-rebuild itself already bakes the flag in,
     # so only this standalone call needs it.
     _install_stubs "${STUB_BIN}" 0
     PATH="${STUB_BIN}:${PATH}" run zsh "${SETUP_DIR}/cutover.zsh"

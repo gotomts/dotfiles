@@ -32,8 +32,13 @@ echo sub-1   | sudo tee /etc/dotfiles-role   # sub-1 で運用する場合
 5. Install Nix and apply (Homebrew パッケージ層)
 ```terminal
 zsh ~/.dotfiles/nix/scripts/install-nix.zsh
-cd ~/.dotfiles/nix && sudo USER=$USER nix run nix-darwin -- switch --flake .#default --impure
+cd ~/.dotfiles/nix && sudo USER=$USER nix --extra-experimental-features "nix-command flakes" \
+  run nix-darwin -- switch --flake .#default --impure
 ```
+
+`--extra-experimental-features` は、このリポジトリが `/etc/nix/nix.conf` を所有せず
+nix-command / flakes の有効・無効をホスト任せにしているため必要。理由と他のコマンド例は
+[`nix/README.md`](nix/README.md) の「前提」節を参照。
 
 See [`nix/README.md`](nix/README.md) for details.
 
