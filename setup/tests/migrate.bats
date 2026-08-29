@@ -108,7 +108,7 @@ EOF
 setup() {
     export HOME="${BATS_TEST_TMPDIR}/home"
     mkdir -p "${HOME}"
-    unset MIGRATE_STATE_DIR MIGRATE_EUID_OVERRIDE MIGRATE_UNAME_OVERRIDE MIGRATE_SUDO_USER_OVERRIDE SUDO_USER
+    unset MIGRATE_STATE_DIR MIGRATE_EUID_OVERRIDE MIGRATE_UNAME_OVERRIDE MIGRATE_SUDO_USER_OVERRIDE MIGRATE_NIX_DIR_OVERRIDE SUDO_USER
     # The sandbox has no real second user for dscl to resolve "testuser"
     # against. Since the sandbox also has no real privilege separation
     # (root and the "original user" are the same process either way), point
@@ -116,6 +116,15 @@ setup() {
     export MIGRATE_HOME_FOR_USER_OVERRIDE="${HOME}"
     export DOTFILES_ROLE_FILE="${BATS_TEST_TMPDIR}/no-such-role-file"
     export SUDO_LOCAL_PATH="${BATS_TEST_TMPDIR}/sudo_local"
+    # Model a real machine's starting shape: nix-darwin owns /etc/pam.d/sudo_local
+    # and leaves it as a symlink to the macOS static default until setup/pam.zsh
+    # customizes it. Starting from a nonexistent target instead would make
+    # pam.zsh skip its backup step entirely, so no cutover rerun could ever
+    # restore pristine state -- a state this sandbox should not be modelling as
+    # the norm.
+    export SUDO_LOCAL_STATIC_DEFAULT="${BATS_TEST_TMPDIR}/etc-static-sudo_local"
+    : > "${SUDO_LOCAL_STATIC_DEFAULT}"
+    ln -s "${SUDO_LOCAL_STATIC_DEFAULT}" "${SUDO_LOCAL_PATH}"
 
     STUB_BIN="${BATS_TEST_TMPDIR}/stub-bin"
     NODE_BIN_DIR="${BATS_TEST_TMPDIR}/mise-node-bin"
@@ -242,7 +251,9 @@ setup() {
     [ -L "${HOME}/.zshrc" ]
 
     # Phase 2 (root-only) never attempted.
-    [ ! -f "${SUDO_LOCAL_PATH}" ]
+    run cat "${SUDO_LOCAL_PATH}"
+    [[ "${output}" != *"pam_tid.so"* ]]
+    [ ! -e "${SUDO_LOCAL_PATH}.before-setup" ]
     run cat "${DARWIN_REBUILD_LOG}"
     [ -z "${output}" ]
 
@@ -338,7 +349,9 @@ EOF
     # cutover failed before switch; pam (later in the same phase) never ran.
     run cat "${DARWIN_REBUILD_LOG}"
     [[ "${output}" != *"switch"* ]]
-    [ ! -f "${SUDO_LOCAL_PATH}" ]
+    run cat "${SUDO_LOCAL_PATH}"
+    [[ "${output}" != *"pam_tid.so"* ]]
+    [ ! -e "${SUDO_LOCAL_PATH}.before-setup" ]
 
     run cat "${HOME}/.dotfiles-migrate/manifest.log"
     [[ "${output}" == *$'\t'"cutover"$'\t'"fail"* ]]
@@ -391,14 +404,6 @@ EOF
 }
 
 @test "apply: cutover rerun safely restores pristine PAM state before switch and force-reapplies pam after (PAM ownership fix, 2026-08-22 real-machine incident)" {
-    # Model production: /etc/pam.d/sudo_local starts as a symlink to the
-    # macOS static default, exactly like a real un-migrated machine, so
-    # setup/pam.zsh's own (real, unstubbed) backup-and-customize logic runs
-    # for real here rather than being short-circuited by a nonexistent target.
-    export SUDO_LOCAL_STATIC_DEFAULT="${BATS_TEST_TMPDIR}/etc-static-sudo_local"
-    : > "${SUDO_LOCAL_STATIC_DEFAULT}"
-    ln -s "${SUDO_LOCAL_STATIC_DEFAULT}" "${SUDO_LOCAL_PATH}"
-
     # First single-invocation run reaches full success, including pam.zsh's
     # real first-time backup (creates ${SUDO_LOCAL_PATH}.before-setup
     # pointing at the static default) and Touch ID write.
@@ -415,8 +420,6 @@ EOF
     # pam.d/sudo_local unless it's put back to pristine first.
     rm -f "${STUB_BIN}/starship"
     export MIGRATE_PAM_VACATE_SUFFIX_OVERRIDE="rerun1"
-    local touch_id_content_before
-    touch_id_content_before="$(cat "${SUDO_LOCAL_PATH}")"
 
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --apply
@@ -426,18 +429,18 @@ EOF
 
     # The exact vacate->restore sequence, verifiable via the audit trail this
     # leaves behind: the live Touch ID file was moved aside (not replaced
-    # in-place) to a fresh, never-before-used path, still holding its
-    # pre-switch content untouched.
-    [ -e "${SUDO_LOCAL_PATH}.before-restore.rerun1" ]
-    [ ! -L "${SUDO_LOCAL_PATH}.before-restore.rerun1" ]
-    run cat "${SUDO_LOCAL_PATH}.before-restore.rerun1"
-    [ "${output}" = "${touch_id_content_before}" ]
+    # in-place) to a fresh, never-before-used path. Since pam then reapplied
+    # successfully, that one vacate file is cleaned up again (its content is
+    # a duplicate of what pam.zsh just rewrote) -- see the dedicated
+    # preservation tests for what happens when cutover or pam fails.
+    [ ! -e "${SUDO_LOCAL_PATH}.before-restore.rerun1" ]
 
     # pam's manifest shows the vacate event, an explicit invalidation, then a
-    # fresh start+success -- not a silent skip.
+    # fresh start+success, then the cleanup -- not a silent skip.
     run cat "${HOME}/.dotfiles-migrate/manifest.log"
-    [[ "${output}" == *$'\t'"pam"$'\t'"vacated"* ]]
+    [[ "${output}" == *$'\t'"pam"$'\t'"vacated"$'\t'*"${SUDO_LOCAL_PATH}.before-restore.rerun1"* ]]
     [[ "${output}" == *$'\t'"pam"$'\t'"invalidated"* ]]
+    [[ "${output}" == *$'\t'"pam"$'\t'"vacated-discarded"$'\t'*"${SUDO_LOCAL_PATH}.before-restore.rerun1"* ]]
     [ "$(grep -c $'\t'pam$'\t'success "${HOME}/.dotfiles-migrate/manifest.log")" -eq 2 ]
 
     # After the whole run, pam's Touch ID content is back (pam.zsh's own
@@ -452,10 +455,6 @@ EOF
 }
 
 @test "apply: cutover rerun refuses (fail-closed) when the PAM vacate destination already exists" {
-    export SUDO_LOCAL_STATIC_DEFAULT="${BATS_TEST_TMPDIR}/etc-static-sudo_local"
-    : > "${SUDO_LOCAL_STATIC_DEFAULT}"
-    ln -s "${SUDO_LOCAL_STATIC_DEFAULT}" "${SUDO_LOCAL_PATH}"
-
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --apply
     [ "${status}" -eq 0 ]
@@ -487,10 +486,6 @@ EOF
 }
 
 @test "apply: cutover rerun refuses (fail-closed) when the PAM backup isn't a symlink" {
-    export SUDO_LOCAL_STATIC_DEFAULT="${BATS_TEST_TMPDIR}/etc-static-sudo_local"
-    : > "${SUDO_LOCAL_STATIC_DEFAULT}"
-    ln -s "${SUDO_LOCAL_STATIC_DEFAULT}" "${SUDO_LOCAL_PATH}"
-
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --apply
     [ "${status}" -eq 0 ]
@@ -517,10 +512,6 @@ EOF
 }
 
 @test "apply: cutover rerun refuses (fail-closed) when the PAM backup points at an unexpected target" {
-    export SUDO_LOCAL_STATIC_DEFAULT="${BATS_TEST_TMPDIR}/etc-static-sudo_local"
-    : > "${SUDO_LOCAL_STATIC_DEFAULT}"
-    ln -s "${SUDO_LOCAL_STATIC_DEFAULT}" "${SUDO_LOCAL_PATH}"
-
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --apply
     [ "${status}" -eq 0 ]
@@ -604,4 +595,452 @@ EOF
     [ "${status}" -eq 1 ]
     [[ "${output}" == *"health check 失敗"* ]]
     [[ "${output}" == *"claude-sync:"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# desired-input fingerprint（宣言側の変更を cutover の skip 判定に反映する）
+# ---------------------------------------------------------------------------
+
+# Blank out the fingerprint detail recorded on cutover's success line, leaving
+# the line otherwise intact. This is exactly the shape of a manifest written by
+# an older migrate.zsh that had no fingerprint concept at all.
+_strip_cutover_fingerprint() {
+    local manifest="${HOME}/.dotfiles-migrate/manifest.log"
+    awk -F'\t' -v OFS='\t' '$2=="cutover" && $3=="success" {$4=""} {print}' \
+        "${manifest}" > "${manifest}.legacy"
+    mv "${manifest}.legacy" "${manifest}"
+}
+
+_darwin_calls() { wc -l < "${DARWIN_REBUILD_LOG}" | tr -d ' '; }
+_manifest_lines() { wc -l < "${HOME}/.dotfiles-migrate/manifest.log" | tr -d ' '; }
+
+# Use a private, writable copy of nix/ so a test can mutate the declaration
+# without touching this repository's real checkout.
+_use_private_nix_dir() {
+    export MIGRATE_NIX_DIR_OVERRIDE="${BATS_TEST_TMPDIR}/nix"
+    cp -R "${REPO_ROOT}/nix" "${MIGRATE_NIX_DIR_OVERRIDE}"
+}
+
+@test "apply: a legacy cutover success without a recorded fingerprint re-runs cutover exactly once (safe side)" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    _strip_cutover_fingerprint
+    local calls_before manifest_before
+    calls_before="$(_darwin_calls)"
+    manifest_before="$(_manifest_lines)"
+
+    # dry-run must surface it as a re-run, and stay side-effect free.
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"[WOULD RUN] cutover:"* ]]
+    [[ "${output}" == *"fingerprint"* ]]
+    [[ "${output}" != *"[SKIP] cutover:"* ]]
+    [ "$(_darwin_calls)" -eq "${calls_before}" ]
+    [ "$(_manifest_lines)" -eq "${manifest_before}" ]
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+
+    run cat "${HOME}/.dotfiles-migrate/manifest.log"
+    [[ "${output}" == *$'\t'"cutover"$'\t'"postcondition-unmet"* ]]
+
+    # Exactly once: the re-run records a fingerprint, so the next apply skips
+    # again instead of switching on every invocation forever.
+    local calls_after
+    calls_after="$(_darwin_calls)"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -eq "${calls_after}" ]
+}
+
+@test "dry-run: cutover shows SKIP while the recorded fingerprint still matches the current declaration" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"[SKIP] cutover:"* ]]
+    [[ "${output}" != *"[WOULD RUN] cutover:"* ]]
+}
+
+@test "apply: a changed nix declaration re-runs cutover even though every required binary is present" {
+    _use_private_nix_dir
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ -x "${STUB_BIN}/starship" ]
+
+    # Model "pulled main on another machine": the Homebrew declaration changed,
+    # nothing about the local binaries did.
+    echo '# a newly declared cask' >> "${MIGRATE_NIX_DIR_OVERRIDE}/modules/darwin/homebrew.nix"
+
+    local calls_before
+    calls_before="$(_darwin_calls)"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"再実行"* ]]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+
+    # A newly added file (not just edited content) counts as a changed input too.
+    calls_before="$(_darwin_calls)"
+    echo '{ }' > "${MIGRATE_NIX_DIR_OVERRIDE}/modules/darwin/extra.nix"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+
+    # And a lock bump, which changes nothing else about the tree.
+    calls_before="$(_darwin_calls)"
+    echo '' >> "${MIGRATE_NIX_DIR_OVERRIDE}/flake.lock"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+}
+
+@test "apply: the role file appearing or changing re-runs cutover (role selects a different desired set)" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    # absent -> present
+    local calls_before
+    calls_before="$(_darwin_calls)"
+    echo "sub-1" > "${DOTFILES_ROLE_FILE}"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+
+    # content change (sub-1 -> default selects the defaultOnly* sets)
+    calls_before="$(_darwin_calls)"
+    echo "default" > "${DOTFILES_ROLE_FILE}"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+
+    # unchanged -> skip again
+    calls_before="$(_darwin_calls)"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -eq "${calls_before}" ]
+}
+
+@test "apply: the machine-local homebrew overlay appearing or changing re-runs cutover" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    local overlay="${HOME}/.config/dotfiles/homebrew.local.nix"
+    mkdir -p "$(dirname "${overlay}")"
+
+    # absent -> present
+    local calls_before
+    calls_before="$(_darwin_calls)"
+    echo '{ casks = [ "some-local-app" ]; }' > "${overlay}"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+
+    # content change
+    calls_before="$(_darwin_calls)"
+    echo '{ casks = [ "another-local-app" ]; }' > "${overlay}"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+
+    # removal counts as a change as well (zap would take the cask back out)
+    calls_before="$(_darwin_calls)"
+    rm -f "${overlay}"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+}
+
+@test "apply: cutover records the fingerprint the switch actually read, not the tree as it looks afterwards" {
+    _use_private_nix_dir
+
+    # Model a switch that races with the declaration changing underneath it
+    # (e.g. a `git pull` landing while darwin-rebuild is still running). If
+    # the fingerprint were taken after the switch, the change this switch
+    # never saw would be recorded as already applied and silently lost.
+    cat > "${STUB_BIN}/darwin-rebuild" <<'EOF'
+#!/bin/bash
+echo "$*" >> "${DARWIN_REBUILD_LOG}"
+if [[ "$1" == "--list-generations" ]]; then
+    echo "42 2026-08-20 10:00:00 (current)"
+elif [[ "$1" == "switch" ]]; then
+    printf '#!/bin/bash\nexit 0\n' > "$(dirname "$0")/starship"
+    chmod +x "$(dirname "$0")/starship"
+    echo '# landed mid-switch' >> "${MIGRATE_NIX_DIR_OVERRIDE}/modules/darwin/homebrew.nix"
+fi
+exit "${DARWIN_REBUILD_EXIT:-0}"
+EOF
+    chmod +x "${STUB_BIN}/darwin-rebuild"
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    # The very next apply must pick the change up instead of treating it as
+    # already switched in.
+    local calls_before
+    calls_before="$(_darwin_calls)"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"[WOULD RUN] cutover:"* ]]
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+}
+
+@test "apply: a new symlink under nix/ re-runs cutover (link target is fingerprint material, not silently followed)" {
+    _use_private_nix_dir
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    local calls_before
+    calls_before="$(_darwin_calls)"
+    ln -s ../../shared/overlay.nix "${MIGRATE_NIX_DIR_OVERRIDE}/modules/darwin/overlay.nix"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+
+    # Repointing an existing symlink is a declaration change too, even though
+    # neither the link's path nor any regular file's content moved.
+    calls_before="$(_darwin_calls)"
+    rm -f "${MIGRATE_NIX_DIR_OVERRIDE}/modules/darwin/overlay.nix"
+    ln -s ../../shared/other.nix "${MIGRATE_NIX_DIR_OVERRIDE}/modules/darwin/overlay.nix"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+
+    # Unchanged -> back to skipping (a dangling link must not make every
+    # single apply switch forever).
+    calls_before="$(_darwin_calls)"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ "$(_darwin_calls)" -eq "${calls_before}" ]
+}
+
+# Reach the state every PAM-cleanup test starts from: a machine already fully
+# migrated, with pam.zsh's real backup in place and cutover about to re-run.
+_reach_pam_rerun_state() {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ -L "${SUDO_LOCAL_PATH}.before-setup" ]
+
+    rm -f "${STUB_BIN}/starship"
+}
+
+@test "apply: PAM vacate cleanup removes only the file this run created, leaving older debris alone" {
+    _reach_pam_rerun_state
+
+    # Debris from some earlier, unrelated attempt. Cleanup must be scoped to
+    # the one path this apply computed, never a glob over every vacate file.
+    echo "older debris" > "${SUDO_LOCAL_PATH}.before-restore.20260101T000000Z"
+
+    export MIGRATE_PAM_VACATE_SUFFIX_OVERRIDE="cleanup1"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    [ ! -e "${SUDO_LOCAL_PATH}.before-restore.cleanup1" ]
+    run cat "${SUDO_LOCAL_PATH}.before-restore.20260101T000000Z"
+    [ "${output}" = "older debris" ]
+
+    # The Touch ID content the vacate file held is not lost: pam.zsh rewrote
+    # it, which is the whole reason the duplicate is safe to drop.
+    run cat "${SUDO_LOCAL_PATH}"
+    [[ "${output}" == *"pam_tid.so"* ]]
+
+    run cat "${HOME}/.dotfiles-migrate/manifest.log"
+    [[ "${output}" == *$'\t'"pam"$'\t'"vacated-discarded"* ]]
+}
+
+@test "apply: the PAM vacate file is preserved when cutover fails after vacating" {
+    _reach_pam_rerun_state
+
+    local touch_id_content_before
+    touch_id_content_before="$(cat "${SUDO_LOCAL_PATH}")"
+    export MIGRATE_PAM_VACATE_SUFFIX_OVERRIDE="cutoverfail"
+
+    # cutover.zsh's pre-flight `nix build` fails, so the switch never runs --
+    # but the vacate already happened, and it holds the only copy of the live
+    # Touch ID file at that moment.
+    cat > "${STUB_BIN}/nix" <<'EOF'
+#!/bin/bash
+echo "$*" >> "${NIX_LOG}"
+exit 1
+EOF
+    chmod +x "${STUB_BIN}/nix"
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+
+    [ -f "${SUDO_LOCAL_PATH}.before-restore.cutoverfail" ]
+    run cat "${SUDO_LOCAL_PATH}.before-restore.cutoverfail"
+    [ "${output}" = "${touch_id_content_before}" ]
+
+    run cat "${HOME}/.dotfiles-migrate/manifest.log"
+    [[ "${output}" == *$'\t'"cutover"$'\t'"fail"* ]]
+    [[ "${output}" != *"vacated-discarded"* ]]
+}
+
+@test "apply: the PAM vacate file is preserved when pam fails to reapply after the switch" {
+    _reach_pam_rerun_state
+
+    local touch_id_content_before
+    touch_id_content_before="$(cat "${SUDO_LOCAL_PATH}")"
+    export MIGRATE_PAM_VACATE_SUFFIX_OVERRIDE="pamfail"
+
+    # Model activation leaving stray state in /etc: a leftover .before-setup
+    # is exactly what pam.zsh refuses to overwrite (its own fail-closed
+    # guard), so pam fails after the switch already happened.
+    cat > "${STUB_BIN}/darwin-rebuild" <<'EOF'
+#!/bin/bash
+echo "$*" >> "${DARWIN_REBUILD_LOG}"
+if [[ "$1" == "--list-generations" ]]; then
+    echo "42 2026-08-20 10:00:00 (current)"
+elif [[ "$1" == "switch" ]]; then
+    printf '#!/bin/bash\nexit 0\n' > "$(dirname "$0")/starship"
+    chmod +x "$(dirname "$0")/starship"
+    echo "stray leftover" > "${SUDO_LOCAL_PATH}.before-setup"
+fi
+exit 0
+EOF
+    chmod +x "${STUB_BIN}/darwin-rebuild"
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+
+    # pam never reapplied, so the vacate file is the only remaining copy of
+    # the Touch ID content and must survive untouched.
+    [ -f "${SUDO_LOCAL_PATH}.before-restore.pamfail" ]
+    run cat "${SUDO_LOCAL_PATH}.before-restore.pamfail"
+    [ "${output}" = "${touch_id_content_before}" ]
+
+    run cat "${HOME}/.dotfiles-migrate/manifest.log"
+    [[ "${output}" == *$'\t'"pam"$'\t'"fail"* ]]
+    [[ "${output}" != *"vacated-discarded"* ]]
+}
+
+@test "apply: PAM vacate cleanup keeps a vacate file whose content differs from the reapplied target (hand-added rules survive)" {
+    _reach_pam_rerun_state
+
+    # A rule added by hand on this machine, on top of what pam.zsh writes.
+    # pam.zsh rewrites the file from its own fixed template, so this line only
+    # ever exists in the vacate copy after a cutover rerun -- deleting that
+    # copy just because it is a regular file would destroy it.
+    printf 'auth       sufficient     pam_reattach.so\n' >> "${SUDO_LOCAL_PATH}"
+    local target_content_before
+    target_content_before="$(cat "${SUDO_LOCAL_PATH}")"
+
+    export MIGRATE_PAM_VACATE_SUFFIX_OVERRIDE="handwritten"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    [ -f "${SUDO_LOCAL_PATH}.before-restore.handwritten" ]
+    run cat "${SUDO_LOCAL_PATH}.before-restore.handwritten"
+    [ "${output}" = "${target_content_before}" ]
+    [[ "${output}" == *"pam_reattach.so"* ]]
+
+    # Kept, not discarded -- and keeping it is not reported as a failure.
+    run cat "${HOME}/.dotfiles-migrate/manifest.log"
+    [[ "${output}" == *$'\t'"pam"$'\t'"vacated-kept"* ]]
+    [[ "${output}" != *"vacated-discarded"* ]]
+    [[ "${output}" == *$'\t'"pam"$'\t'"success"* ]]
+
+    # Once the live file matches what pam.zsh writes again, the next rerun's
+    # vacate copy is a true duplicate and is cleaned up as usual.
+    rm -f "${STUB_BIN}/starship"
+    export MIGRATE_PAM_VACATE_SUFFIX_OVERRIDE="duplicate"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    [ ! -e "${SUDO_LOCAL_PATH}.before-restore.duplicate" ]
+    [ -f "${SUDO_LOCAL_PATH}.before-restore.handwritten" ]
+    run cat "${HOME}/.dotfiles-migrate/manifest.log"
+    [[ "${output}" == *$'\t'"pam"$'\t'"vacated-discarded"$'\t'*"${SUDO_LOCAL_PATH}.before-restore.duplicate"* ]]
+}
+
+@test "apply: cutover rerun proceeds when neither the PAM target nor its backup exists (true first-time shape)" {
+    _reach_pam_rerun_state
+
+    # Nothing to restore and nothing to protect: no sudo_local at all is the
+    # genuine pre-pam.zsh shape, and it is already pristine as far as
+    # nix-darwin is concerned.
+    rm -f "${SUDO_LOCAL_PATH}" "${SUDO_LOCAL_PATH}.before-setup"
+
+    local calls_before
+    calls_before="$(_darwin_calls)"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    [ "$(_darwin_calls)" -gt "${calls_before}" ]
+    run cat "${DARWIN_REBUILD_LOG}"
+    [[ "${output}" == *"switch --flake"* ]]
+
+    # pam reapplied on top of the empty slate.
+    run cat "${SUDO_LOCAL_PATH}"
+    [[ "${output}" == *"pam_tid.so"* ]]
+}
+
+@test "apply: cutover rerun refuses (fail-closed) when the PAM target is customized but its backup is gone" {
+    _reach_pam_rerun_state
+
+    # The backup is the only record of what pristine looked like. Without it,
+    # the customized target cannot be restored, and guessing its pristine form
+    # would mean overwriting a file whose content nothing else records.
+    rm -f "${SUDO_LOCAL_PATH}.before-setup"
+    [ -f "${SUDO_LOCAL_PATH}" ]
+    [ ! -L "${SUDO_LOCAL_PATH}" ]
+    local target_content_before
+    target_content_before="$(cat "${SUDO_LOCAL_PATH}")"
+
+    local calls_before
+    calls_before="$(_darwin_calls)"
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"復元しません"* ]]
+
+    # Stopped before cutover ever shelled out, and the live file is byte-identical.
+    [ "$(_darwin_calls)" -eq "${calls_before}" ]
+    run cat "${SUDO_LOCAL_PATH}"
+    [ "${output}" = "${target_content_before}" ]
+    [ ! -e "${SUDO_LOCAL_PATH}.before-setup" ]
+
+    run cat "${HOME}/.dotfiles-migrate/manifest.log"
+    [[ "${output}" == *$'\t'"cutover"$'\t'"fail"* ]]
+    [[ "${output}" != *$'\t'"pam"$'\t'"vacated"* ]]
 }

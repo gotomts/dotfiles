@@ -47,12 +47,19 @@
 #     残りステップだけ試行を続け、Phase 境界は厳格に守る（次の Phase には進まない）
 #   - 冪等検知: manifest に success の記録があるステップは再実行せず skip する。
 #     これにより「部分適用済みの実機」を安全に検出・再開できる。ただし cutover は
-#     manifest の success だけでは skip 可としない: postcondition（mise/starship 等、
-#     desired Homebrew set の必須バイナリが実在すること）も満たしているか都度再検証する
-#     （migrate::skippable）。desired set が switch 後に変わった場合（例: starship を
-#     後から追加）、古い success はもう postcondition を保証しないため、その場合は
-#     manifest に `postcondition-unmet` を記録したうえで同じ --apply 内で cutover を
-#     再実行する（実機インシデント、2026-08-22）
+#     manifest の success だけでは skip 可としない。次の 2 つを都度再検証し、どちらかが
+#     崩れていれば manifest に `postcondition-unmet` を記録したうえで同じ --apply 内で
+#     cutover を再実行する（migrate::skippable / migrate::cutover_rerun_reason）:
+#       1. postcondition（mise/starship 等、desired Homebrew set の必須バイナリが実在
+#          すること）。desired set が switch 後に変わった場合（例: starship を後から
+#          追加）、古い success はもう postcondition を保証しない（実機インシデント、
+#          2026-08-22）
+#       2. 直近 success 時に記録した desired-input fingerprint（nix/ 配下の構成と
+#          flake.lock、/etc/dotfiles-role、~/.config/dotfiles/homebrew.local.nix）が
+#          現在値と一致すること。1 だけでは「main を pull して宣言にアプリが増えた」
+#          ケースを検出できない（必須バイナリは前回の switch のまま残っているので
+#          skip され、増えたアプリが適用されない）。fingerprint の記録が無い旧 manifest
+#          は安全側に 1 度だけ再実行する
 #   - PAM/cutover の所有権結合: nix-darwin の activation は pam.d/sudo_local を
 #     「macOS 純正デフォルトへの symlink であること」以外一切許容しない（許容ハッシュが
 #     常に空）。setup/pam.zsh が Touch ID 内容へ書き換え済みの状態で switch すると
@@ -64,7 +71,11 @@
 #     再実行されるたびに同じ手順を踏む（実機インシデント、2026-08-22）。復元自体は
 #     既存の宛先へ直接 mv せず、nix-darwin 自身の /etc 置換手順と同じ「新規パスへ退避
 #     してから空いたパスへ置く」形を取る（既存宛先への直接 mv は macOS 側が
-#     "Operation not permitted" を返した実機インシデントあり、2026-08-23）
+#     "Operation not permitted" を返した実機インシデントあり、2026-08-23）。退避した
+#     ファイルは、switch 後の pam 再適用が success し、かつ内容が再適用後の pam.d/sudo_local
+#     と byte-for-byte 一致するときだけ削除する（複製にすぎないと確認できた場合のみ）。
+#     cutover か pam が失敗した場合、および手書き追加ルール等で内容が一致しない場合は
+#     その内容の唯一の控えなので残す（migrate::pam_discard_vacated）
 #   - 部分適用は健全な状態として扱わない: 全ステップが success になるまで
 #     --apply は終了コード 1 を返し続ける。「動いているように見える」ことは
 #     完了の根拠にしない（health check で実ファイル/実状態を確認する）
@@ -90,6 +101,10 @@ source "${SETUP_DIR}/lib/herdr.zsh"
 PHASE1_STEPS=(link)
 PHASE2_STEPS=(cutover pam)
 PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync)
+
+# この --apply の中で cutover 直前に退避した Touch ID ファイルのパス（
+# migrate::pam_restore_pristine_if_safe が設定し、migrate::pam_discard_vacated が使う）。
+MIGRATE_PAM_VACATED_PATH=""
 
 migrate::script_for() {
     echo "${SETUP_DIR}/${1}.zsh"
@@ -255,6 +270,86 @@ migrate::command_available() {
     PATH="${homebrew_paths}:${PATH}" command -v "${name}" &>/dev/null
 }
 
+# migrate::nix_dir  fingerprint の対象にする nix 宣言ディレクトリ。テストでは
+#   MIGRATE_NIX_DIR_OVERRIDE で差し替える（このリポジトリ自身の nix/ を書き換えずに
+#   「宣言が変わった」状況を再現するため）。
+migrate::nix_dir() {
+    echo "${MIGRATE_NIX_DIR_OVERRIDE:-${SETUP_DIR:h}/nix}"
+}
+
+# migrate::fingerprint_entry <label> <path>
+#   fingerprint 材料の 1 行を出力する。ファイルの内容だけでなく「不在」も明示的に
+#   区別する（不在 -> 在、在 -> 不在のどちらも desired set を変えるため）。
+#   変数名に `path` を使わないこと: zsh の `path` は PATH に結び付いた特殊配列で、
+#   `local path=...` はこの関数の中だけ PATH を壊し、shasum すら解決できなくなる。
+migrate::fingerprint_entry() {
+    local label="${1}" entry_path="${2}"
+    if [[ -f "${entry_path}" ]]; then
+        printf '%s\tpresent\t%s\n' "${label}" "$(shasum -a 256 "${entry_path}" | awk '{print $1}')"
+    else
+        printf '%s\tabsent\n' "${label}"
+    fi
+}
+
+# migrate::cutover_fingerprint  「次の switch の desired set を決める入力」の要約を返す。
+#   材料:
+#     - nix/ 配下の全ファイル（相対パス + 内容ハッシュ）。flake.lock・homebrew.nix・
+#       role 分岐・plist/rb などの実データを一括で覆う。ファイルの追加・削除も
+#       相対パスの一覧ごとハッシュするため検出できる
+#     - nix/ 配下の symlink（相対パス + readlink 値）。リンク先を辿って内容を読むと、
+#       リンクの張り替え自体（同じ内容の別ファイルへ向け直す等）を取りこぼすうえ、
+#       dangling link で毎回 fingerprint が揺れる。リンクそのものを材料にする
+#     - /etc/dotfiles-role の内容/不在（flake.nix が role を読んで desired set を切り替える）
+#     - ~/.config/dotfiles/homebrew.local.nix の内容/不在（homebrew.nix が絶対パスで
+#       import する、リポジトリ外の PC ローカル overlay）
+#   nix/ 配下は「switch の結果に効かないファイル」（README 等）も含めて丸ごと覆う。
+#   実際に効く入力だけを allowlist すると、宣言側の構造が変わったときに allowlist だけが
+#   古くなり「変更を検知できない」死角が生まれる。余分な再実行（switch は冪等）より
+#   検知漏れの方が高くつくため、安全側に倒している。
+#   パスは nix ディレクトリからの相対で組むので、チェックアウト位置（~/.dotfiles か
+#   worktree か）が変わっても fingerprint は変わらない。
+migrate::cutover_fingerprint() {
+    local nix_dir role_file home_dir
+    nix_dir="$(migrate::nix_dir)"
+    role_file="${DOTFILES_ROLE_FILE:-/etc/dotfiles-role}"
+    home_dir="$(migrate::effective_home)"
+
+    {
+        if [[ -d "${nix_dir}" ]]; then
+            # `result`/`result-*` は nix build の成果物 symlink（nix/.gitignore 済み）で
+            # 宣言ではないため除外する。
+            ( cd "${nix_dir}" && \
+              find . \( -name 'result' -o -name 'result-*' \) -prune -o -type f -print \
+              | LC_ALL=C sort \
+              | while IFS= read -r f; do
+                    printf 'nix\t%s\t%s\n' "${f}" "$(shasum -a 256 "${f}" | awk '{print $1}')"
+                done )
+            ( cd "${nix_dir}" && \
+              find . \( -name 'result' -o -name 'result-*' \) -prune -o -type l -print \
+              | LC_ALL=C sort \
+              | while IFS= read -r l; do
+                    printf 'nix-link\t%s\t%s\n' "${l}" "$(readlink "${l}")"
+                done )
+        else
+            printf 'nix\tabsent\n'
+        fi
+        migrate::fingerprint_entry "role" "${role_file}"
+        migrate::fingerprint_entry "homebrew-local" "${home_dir}/.config/dotfiles/homebrew.local.nix"
+    } | shasum -a 256 | awk '{print $1}'
+}
+
+# migrate::recorded_cutover_fingerprint
+#   manifest 上の cutover の最新の終端イベントに記録された fingerprint を返す。
+#   fingerprint の概念が無かった頃の manifest（legacy）では detail が空なので、
+#   空文字列を返す = 「記録なし」として呼び出し側が安全側に倒す。
+migrate::recorded_cutover_fingerprint() {
+    [[ -f "${MANIFEST}" ]] || { echo ""; return 0; }
+    awk -F'\t' \
+        '$2=="cutover" && ($3=="success"||$3=="fail"||$3=="blocked"||$3=="invalidated") {line=$4}
+         END{ if (line ~ /^fingerprint=/) { sub(/^fingerprint=/, "", line); print line } }' \
+        "${MANIFEST}"
+}
+
 # migrate::cutover_missing_bins  cutover の postcondition として必須の Homebrew バイナリの
 #   うち、現在見つからないものを空白区切りで返す（空文字列なら全部揃っている）。mise は
 #   languages.zsh が、starship は ~/.zshrc の prompt 初期化が直接依存する。homebrew.nix の
@@ -270,17 +365,51 @@ migrate::cutover_missing_bins() {
     echo "${missing[@]}"
 }
 
+# migrate::cutover_rerun_reason
+#   manifest 上 cutover が success のときに、それでも再実行すべき理由を 1 行で返す
+#   （空文字列なら skip 可）。cutover の postcondition は 2 つある:
+#     1. 必須 Homebrew バイナリが実在すること（switch の効果が残っているか）
+#     2. 直近 success 時に記録した desired-input fingerprint が現在値と一致すること
+#        （宣言側が変わっていないか）
+#   1 だけでは「main を pull して homebrew.nix にアプリが増えた」ケースを検出できない。
+#   必須バイナリは前回の switch で入ったまま残っているので、宣言が変わっても skip され、
+#   新しいアプリが永遠に適用されない。2 はその死角を塞ぐ。
+#   fingerprint の記録が無い legacy manifest は「一致しない」扱いにして安全側に 1 度だけ
+#   再実行する（その再実行で fingerprint が記録され、以降は通常どおり skip に戻る）。
+migrate::cutover_rerun_reason() {
+    local missing recorded current
+    missing="$(migrate::cutover_missing_bins)"
+    if [[ -n "${missing}" ]]; then
+        echo "missing: ${missing}"
+        return 0
+    fi
+
+    recorded="$(migrate::recorded_cutover_fingerprint)"
+    if [[ -z "${recorded}" ]]; then
+        echo "fingerprint: 前回 success に宣言入力の記録がありません（旧 manifest のため安全側に 1 度だけ再実行します）"
+        return 0
+    fi
+
+    current="$(migrate::cutover_fingerprint)"
+    if [[ "${recorded}" != "${current}" ]]; then
+        echo "fingerprint: 宣言入力が変わりました（記録: ${recorded[1,12]} / 現在: ${current[1,12]}）"
+        return 0
+    fi
+
+    echo ""
+}
+
 # migrate::skippable <step>  そのステップを「manifest 上 success だから skip してよい」と
-#   判定してよいか。cutover は manifest の自己申告だけでなく、postcondition（必須 Homebrew
-#   バイナリの実在）も満たしているときのみ skip 可とする。desired Homebrew set が switch 後に
-#   変わった場合（例: starship を追加）、古い success はもう postcondition を保証しない。
+#   判定してよいか。cutover は manifest の自己申告だけでなく、postcondition
+#   （migrate::cutover_rerun_reason 参照: 必須 Homebrew バイナリの実在 + desired-input
+#   fingerprint の一致）も満たしているときのみ skip 可とする。
 #   health check（apply 完了後の独立検証）と同じ「manifest の自己申告を信用しない」方針を
 #   skip 判定そのものにも適用する（実機インシデント、2026-08-22）。
 migrate::skippable() {
     local step="${1}"
     [[ "$(migrate::latest_status "${step}")" == "success" ]] || return 1
     if [[ "${step}" == "cutover" ]]; then
-        [[ -z "$(migrate::cutover_missing_bins)" ]] || return 1
+        [[ -z "$(migrate::cutover_rerun_reason)" ]] || return 1
     fi
     return 0
 }
@@ -331,10 +460,12 @@ migrate::pam_static_default() {
 #   （<target>.before-restore.<timestamp>）へ退避し、それが完了してから
 #   <backup> を <target> へ移す（こちらも「空になったパスへ mv」であり置換ではない）。
 #
-#   バックアップが存在しない（真の初回、pam.zsh がまだ一度も走っていない）場合や、
-#   <target> が既に pristine（想定どおりの symlink）な場合は何もせず 0 を返す。
+#   <target> が既に pristine（想定どおりの symlink）な場合、および <target> と
+#   バックアップの両方が存在しない（真の初回、pam.zsh がまだ一度も走っていない）場合は
+#   何もせず 0 を返す。<target> が存在して pristine でないのにバックアップが無い場合は、
+#   pristine が何だったかの記録が無いまま上書きすることになるため fail-closed で 1 を返す。
 #   バックアップが存在するのに symlink でない、リンク先が想定と異なる、または
-#   退避先パスが既に存在する（想定外の残骸の可能性）場合は fail-closed で 1 を返し、
+#   退避先パスが既に存在する（想定外の残骸の可能性）場合も fail-closed で 1 を返し、
 #   呼び出し側は switch を実行してはならない（不明な状態を盲信して復元しない）。
 #   退避先の時刻部分はテストでは MIGRATE_PAM_VACATE_SUFFIX_OVERRIDE で固定できる
 #   （秒境界をまたぐ flaky なテストを避けるため）。
@@ -351,7 +482,17 @@ migrate::pam_restore_pristine_if_safe() {
     fi
 
     if [[ ! -e "${backup}" && ! -L "${backup}" ]]; then
-        return 0
+        # バックアップが無いケースは 2 つあり、扱いが正反対になる。
+        #   <target> も無い: 真の初回（pam.zsh がまだ一度も走っていない）。restore する
+        #     ものも守るものも無く、nix-darwin から見ても既に pristine なので通す。
+        #   <target> はある: pam.zsh か人が書いた非 pristine な内容が居座っているのに、
+        #     pristine が何だったかの記録が無い。ここで内容を推測して上書きすると、
+        #     その内容を記録している唯一のファイルを壊す。switch 前に停止する。
+        if [[ ! -e "${target}" && ! -L "${target}" ]]; then
+            return 0
+        fi
+        util::error "pam: ${target} は pristine ではないのに ${backup} がありません（pristine の記録が無いため内容を推測して復元しません）"
+        return 1
     fi
 
     if [[ ! -L "${backup}" ]]; then
@@ -375,11 +516,60 @@ migrate::pam_restore_pristine_if_safe() {
         fi
         util::action "pam: cutover 実行前に ${target} を ${vacate_name} へ退避します（既存宛先への直接 mv はしない）"
         /bin/mv "${target}" "${vacate_name}"
+        MIGRATE_PAM_VACATED_PATH="${vacate_name}"
         migrate::log_event "pam" "vacated" "${target} moved to ${vacate_name} pending switch"
     fi
 
     util::action "pam: ${backup} を ${target} へ移動し pristine 状態に戻します"
     /bin/mv "${backup}" "${target}"
+}
+
+# migrate::pam_discard_vacated
+#   同じ --apply の中で cutover 直前に退避した Touch ID ファイル（
+#   migrate::pam_restore_pristine_if_safe が作った <target>.before-restore.<timestamp>）を
+#   後始末する。呼ぶのは「switch 後の pam 再適用が success した直後」だけ。その時点で
+#   pam.zsh が Touch ID 内容を書き直しているので、退避ファイルはその複製にすぎない。
+#
+#   宣言側の変更で cutover が日常的に走るようになったため、掃除しないと switch のたびに
+#   <target>.before-restore.<timestamp> が /etc/pam.d に増え続ける。一方で cutover か pam の
+#   どちらかが失敗した場合、この退避ファイルは Touch ID 内容の唯一の控えなので絶対に
+#   消さない（失敗時はこの関数に到達しない）。
+#
+#   削除対象はこの実行が自分で作った 1 パスだけを追跡して指す。glob で
+#   <target>.before-restore.* をまとめて消すことはしない（別の実行が残した、まだ復旧に
+#   使うかもしれない退避ファイルを巻き込むため）。
+#
+#   さらに「通常ファイルであること」だけでは削除の根拠にしない: 退避ファイルの内容が
+#   再適用後の <target> と byte-for-byte 一致することまで確認する。pam.zsh は自前の
+#   固定テンプレートで <target> を書き直すので、この PC で手書き追加したルール
+#   （pam_reattach 行など）は退避コピーの側にしか残らない。一致しないものを消すと、
+#   その内容の唯一の控えを破壊することになる。一致しなければ削除せず警告を残すが、
+#   pam ステップ自体は success のまま扱う（掃除の見送りは失敗ではない）。
+migrate::pam_discard_vacated() {
+    local vacated="${MIGRATE_PAM_VACATED_PATH}"
+    [[ -n "${vacated}" ]] || return 0
+    MIGRATE_PAM_VACATED_PATH=""
+
+    if [[ ! -f "${vacated}" || -L "${vacated}" ]]; then
+        util::warning "pam: 退避ファイル ${vacated} が想定外の形のため削除しません（手動で確認してください）"
+        migrate::log_event "pam" "vacated-kept" "${vacated} left in place (unexpected shape)"
+        return 0
+    fi
+
+    # `cmp` の非ゼロ終了（内容不一致=1 / 読めない等のエラー=2）で set -e に
+    # 巻き込まれないよう、|| で受けてから判定する。
+    local target="${SUDO_LOCAL_PATH:-/etc/pam.d/sudo_local}"
+    local cmp_rc=0
+    cmp -s "${vacated}" "${target}" || cmp_rc=$?
+    if (( cmp_rc != 0 )); then
+        util::warning "pam: 退避ファイル ${vacated} の内容が現在の ${target} と一致しないため削除しません（この PC 固有の手書き設定が含まれている可能性があります）"
+        migrate::log_event "pam" "vacated-kept" "${vacated} differs from ${target}; left in place"
+        return 0
+    fi
+
+    util::action "pam: 再適用後の ${target} と同内容のため退避ファイル ${vacated} を削除します"
+    /bin/rm -f "${vacated}"
+    migrate::log_event "pam" "vacated-discarded" "${vacated} removed after pam reapplied"
 }
 
 # migrate::run_as_original_user <user> <script>
@@ -422,15 +612,20 @@ migrate::run_step() {
         # skippable が false なのに manifest は success = postcondition 不一致
         # （現状 cutover のみ該当）。success のまま黙って再実行はせず、manifest に
         # 理由を残してから通常の実行フローに合流する。
-        local missing
-        missing="$(migrate::cutover_missing_bins)"
-        util::warning "${step}: 既に success ですが postcondition 未達成のため再実行します (missing: ${missing})"
-        migrate::log_event "${step}" "postcondition-unmet" "missing: ${missing}"
+        local reason
+        reason="$(migrate::cutover_rerun_reason)"
+        util::warning "${step}: 既に success ですが postcondition 未達成のため再実行します (${reason})"
+        migrate::log_event "${step}" "postcondition-unmet" "${reason}"
     fi
 
     local script euid_val rc
     script="$(migrate::script_for "${step}")"
     euid_val="$(migrate::euid)"
+    # cutover の success に記録する fingerprint は、switch を起動する直前に確定させる
+    # （下の cutover 分岐を参照）。switch 完了後に取ると、switch 実行中に宣言が変わった
+    # 場合（switch の最中に git pull が着地する等）その変更を「適用済み」として記録して
+    # しまい、次回以降 skip され続けて永遠に適用されない。
+    local cutover_fingerprint=""
 
     util::action "${step}: 実行開始 (${script})"
     migrate::log_event "${step}" "start"
@@ -444,6 +639,7 @@ migrate::run_step() {
             # 先（元ユーザーの実ホーム）と食い違う場所を見に行ってしまう。
             local pam_target="${SUDO_LOCAL_PATH:-/etc/pam.d/sudo_local}"
             if migrate::pam_restore_pristine_if_safe "${pam_target}"; then
+                cutover_fingerprint="$(migrate::cutover_fingerprint)"
                 if USER="$(migrate::original_user)" HOME="$(migrate::effective_home)" zsh "${script}"; then
                     rc=0
                     # switch は pam.d/sudo_local を pristine でないと受け付けないため
@@ -475,7 +671,17 @@ migrate::run_step() {
 
     if (( rc == 0 )); then
         util::info "${step}: success"
-        migrate::log_event "${step}" "success"
+        # cutover の success には、その switch が実際に読んだ desired-input fingerprint
+        # （switch 起動直前に確定させた値）を併記する。次回以降の skip 判定はこの記録と
+        # 現在値の一致で行う（migrate::cutover_rerun_reason）。
+        local success_detail=""
+        if [[ "${step}" == "cutover" ]]; then
+            success_detail="fingerprint=${cutover_fingerprint}"
+        fi
+        migrate::log_event "${step}" "success" "${success_detail}"
+        if [[ "${step}" == "pam" ]]; then
+            migrate::pam_discard_vacated
+        fi
         return 0
     else
         util::error "${step}: 失敗しました"
@@ -626,7 +832,7 @@ migrate::dry_run() {
             elif ! migrate::privilege_ok "${step}"; then
                 echo "  [BLOCKED] ${step}: $(migrate::privilege_hint "${step}")"
             elif [[ "$(migrate::latest_status "${step}")" == "success" ]]; then
-                echo "  [WOULD RUN] ${step}: postcondition 未達成のため再実行 (missing: $(migrate::cutover_missing_bins))"
+                echo "  [WOULD RUN] ${step}: postcondition 未達成のため再実行 ($(migrate::cutover_rerun_reason))"
             else
                 echo "  [WOULD RUN] ${step}: $(migrate::script_for "${step}")"
             fi
