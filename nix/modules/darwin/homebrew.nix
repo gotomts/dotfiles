@@ -227,6 +227,7 @@ let
   # default-only brews (role == "default" のときだけ)
   defaultOnlyBrews = [
     "leoafarias/fvm/fvm" # Flutter Version Manager (flutter cask に同期)
+    "gastown" # 複数エージェントの作業場を束ねる CLI (`gt`、公式 homebrew-core)。依存の beads は coreBrews で宣言済み
     # tailscale CLI 単体。GUI cask (旧 tailscale-app) を外して formula に切り替え。
     # 初回のみ `sudo tailscaled install-system-daemon` で LaunchDaemon を登録し、
     # `sudo tailscale up` でログイン。system extension の承認は手動 (System
