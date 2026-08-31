@@ -56,7 +56,7 @@
 
 - `claude/` 配下の静的ファイル（settings.json/CLAUDE.md/AGENTS.md/skills/hooks）は Tier 1 (`setup/link.zsh`) により `~/.claude/` にシンボリックリンクされる
 - そのため `~/.claude/` を書き換えるツール (plugin install・skill install・settings の UI 操作) の出力は、別リポジトリで作業していてもこのリポジトリの作業ツリーに着地する。commit 前に対象リポジトリ (dotfiles か案件か) を確認し、意図した変更だけを stage すること
-- グローバル指示の SSOT は `claude/rules/` のフラグメント。`claude/AGENTS.md` と `claude/hermes/SOUL.md` は **生成物なので直接編集しない**。編集は `claude/rules/` 側で行い、`agent-rules-build` (実体は `scripts/build-agent-rules.zsh`) を実行して生成物を更新する。生成漏れは `.github/workflows/agent-rules-check.yml` の `--check` が PR で落とす
+- グローバル指示の SSOT は `claude/rules/` のフラグメント。`claude/AGENTS.md` と `claude/hermes/SOUL.md` は **生成物なので直接編集しない**。編集は `claude/rules/` 側で行い、`agent-rules-build` (実体は `scripts/build-agent-rules.zsh`) を実行して生成物を更新する。生成漏れは `.github/workflows/agent-rules-check.yml` の `--check` が PR と main への直接 push の両方で落とす
   - `claude/AGENTS.md` = `core` + `worker`。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`setup/link.zsh`) で同じファイルを読む
   - `claude/hermes/SOUL.md` = `hermes-identity` + `core` + `orchestrator`。Hermes は `~/.hermes/SOUL.md` への symlink 経由 (`setup/link.zsh`) で読む
   - 結合が要るのは Codex CLI も Hermes も `@AGENTS.md` 形式の import を展開しないため。生成物を working tree に置くのは、Tier 1 の symlink が常に working tree を直接指すため、編集がそのまま即時反映されるようにするため
@@ -135,7 +135,7 @@ triage で「無視」マークした項目は OS デフォルト値が PC 間�
 
 ## CI 検証 (`nix-check` workflow)
 
-`.github/workflows/nix-check.yml` で PR ごとに以下を検証する:
+`.github/workflows/nix-check.yml` で PR と main への直接 push で以下を検証する:
 
 - `nix flake check` (構文・型・依存解決)
 - `USER=ciuser nix build .#darwinConfigurations.default.system --no-link --impure` (closure ビルド)
@@ -143,6 +143,23 @@ triage で「無視」マークした項目は OS デフォルト値が PC 間�
 workflow 内が bare な `nix` なのは、`DeterminateSystems/nix-installer-action` が nix-command / flakes を有効化するため。ローカルで同じ検証を回すときはホスト任せになるので `--extra-experimental-features "nix-command flakes"` を明示する（「主要コマンド」節の形が対応する）。
 
 `darwin-rebuild switch` の activation 自体は CI 範囲外 (環境差で消耗するため)。実機での `darwin-rebuild build` → `switch` で検証する方針。
+
+# main への直接 push
+
+- 専用の worktree で作業し、PR を介さず main へ直接 push してよい変更がある。対象は「1 commit = 完結した変更 + その場で実行した直接検証」に収まり、既存の設計・運用のレール内で、必須の検証が成功し、未解決の人間判断が無い通常変更に限る
+- 次のいずれかに当たる場合は直接 push しない。変更を適切に分離するか、PR を作るか、質問へ戻す
+  - 秘密情報・権限・課金・本番設定・migration・外部契約に触れる
+  - 設計・受入条件が未確定、または作業の途中で変更された
+  - 手本となる既存実装が無い新規アーキテクチャの導入
+  - 複数コミットを要する変更
+  - stack した作業
+  - 人間判断が残る変更
+- 「必須の検証」は変更種別に対応する既存のローカル検証を指す。新しいテスト基盤や CI は作らない
+  - `claude/rules/` とその生成物: `zsh scripts/build-agent-rules.zsh --check`
+  - `setup/` / `herdr/` / `claude/hooks/` / `claude/settings.json`: 該当する既存テスト（`setup/tests/*.bats`・`herdr/plugins/*/tests/*.bats`・`claude/hooks/*.test.py`）
+  - `nix/`: 「Nix 環境」の「主要コマンド」にある副作用なしビルド確認
+- 「公開リポジトリでの参照ポリシー」に触れる変更（コミットメッセージ・散文・ドキュメント）は、非公開リポジトリ・非公開 issue への参照を含まないことを push 前に確認する
+- 直接 push は最新の origin/main を base にして fast-forward だけで行う。force push はしない
 
 # 公開リポジトリでの参照ポリシー
 
