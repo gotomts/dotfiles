@@ -5,7 +5,6 @@
 
 # 不可逆な操作
 
-- merge（`git merge` / `gh pr merge` / `gh stack merge` / GitHub REST・GraphQL の merge API 経由、およびそれらの shell wrapper を含む）は実行しない。merge は人間が行う
 - 意図的に stack した作業は GitHub 純正の stacked pull requests 機能を実際に使う。作成は `gh stack`（`gh extension install github/gh-stack` で導入済み。`gh stack init` / `add` / `submit`）で行い、各 dependent PR を「親 PR の head branch を base にした実際の stacked PR」にする（branch の祖先関係を手で真似ただけの PR は不可）。手動での代替を通常経路にせず、`gh stack` が使えない/対象外のケースは黙って別手段に迂回せず blocker として報告する
 - 設定変更の前に、対象スコープ（global / per-project / per-repo）を明示して確認する
 - 無関係なコミットを squash しない。コミットメッセージの既定は Conventional Commits
