@@ -20,7 +20,7 @@
 # Herdr
 
 - Herdr の配布・更新経路は dotfiles の Homebrew 宣言（`nix/modules/darwin/homebrew.nix`）だけ。`herdr update` や `~/.local/bin/herdr` を作る自己更新・直接インストールは使わない。更新が必要なら `brew upgrade herdr` のみを使う
-- Herdr を操作する前に `command -v herdr` が `/opt/homebrew/bin/herdr` に解決されることを確認する。異なれば操作せず停止して報告する
+- Herdr を操作する前に、login shell 上で `command -v herdr` が `/opt/homebrew/bin/herdr` に解決されることを確認する。bare shell の PATH 不備で見つからないだけの場合は異常ではなく、login shell で再確認する。login shell でも `/opt/homebrew/bin/herdr` 以外に解決される場合が実際の異常で、操作せず停止して報告する
 
 # 秘密情報
 
