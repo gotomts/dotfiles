@@ -55,6 +55,7 @@ fs::link_file "${DOTFILES_ROOT}/functions/fzf-history"          "${HOME}/.functi
 fs::link_file "${DOTFILES_ROOT}/scripts/get-gke-credentials.sh" "${HOME}/.scripts/get-gke-credentials.sh"
 fs::link_file "${DOTFILES_ROOT}/scripts/claude-board.zsh"       "${HOME}/.scripts/claude-board.zsh"
 fs::link_file "${DOTFILES_ROOT}/scripts/build-agent-rules.zsh"  "${HOME}/.scripts/build-agent-rules.zsh"
+fs::link_file "${DOTFILES_ROOT}/scripts/claude-model.zsh"       "${HOME}/.scripts/claude-model.zsh"
 
 # ---- grip / cmux --------------------------------------------------------
 fs::link_file "${DOTFILES_ROOT}/grip/settings.py"            "${HOME}/.grip/settings.py"

@@ -28,6 +28,7 @@ SETUP_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     [ -L "${tmp_home}/.scripts/get-gke-credentials.sh" ]
     [ -L "${tmp_home}/.scripts/claude-board.zsh" ]
     [ -L "${tmp_home}/.scripts/build-agent-rules.zsh" ]
+    [ -L "${tmp_home}/.scripts/claude-model.zsh" ]
     [ -L "${tmp_home}/.grip/settings.py" ]
     [ -L "${tmp_home}/.config/cmux/config.ghostty" ]
     [ -L "${tmp_home}/.config/starship.toml" ]

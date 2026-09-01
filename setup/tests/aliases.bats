@@ -12,9 +12,10 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/../.." && pwd)"
     [ ! -d "${REPO_ROOT}/aliase" ]
 }
 
-@test "scripts/ contains all three helper scripts" {
+@test "scripts/ contains all four helper scripts" {
     [ -f "${REPO_ROOT}/scripts/build-agent-rules.zsh" ]
     [ -f "${REPO_ROOT}/scripts/claude-board.zsh" ]
+    [ -f "${REPO_ROOT}/scripts/claude-model.zsh" ]
     [ -f "${REPO_ROOT}/scripts/get-gke-credentials.sh" ]
 }
 

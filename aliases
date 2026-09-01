@@ -45,6 +45,10 @@ alias darwin-switch='sudo USER=$USER darwin-rebuild switch --flake $HOME/.dotfil
 # claude.ai のチャット / Code を独立 Chrome ウィンドウで一括起動しグリッド整列する
 alias claude-board='zsh $HOME/.scripts/claude-board.zsh'
 
+# Claude Code をモデル選択 (fzf) してから起動する。通常の claude はラップしない
+# （本体は scripts/claude-model.zsh / 追加引数はそのまま claude へ渡る）
+alias claudem='zsh $HOME/.scripts/claude-model.zsh'
+
 # claude/rules/ のフラグメントから claude/AGENTS.md と claude/hermes/SOUL.md を生成する
 alias agent-rules-build='zsh $HOME/.scripts/build-agent-rules.zsh'
 
