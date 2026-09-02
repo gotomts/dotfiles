@@ -71,3 +71,17 @@ tn() {
   local name="$(basename "$PWD")${1:+-$1}"
   tmux new -A -s "$name"
 }
+
+# `sudo zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply` の短縮形（Tier 1/2/3 の順序・冪等性・
+# health check・fail-closed は migrate.zsh が担う）。この定義自体が `git pull` で更新される
+# ため、pull 直後の既存シェルにはまだ存在しない。pull 後に直ちに適用するときは上記の直接
+# コマンドを使い、これは以後のログインシェル用の短縮形として使う。
+# 引数を取らないのは、`--dry-run` を付けても migrate.zsh が第 1 引数の --apply しか見ず、
+# 確認のつもりが適用になる事故を防ぐため（計画確認は下のメッセージが示す直接実行を使う）。
+dotfiles-apply() {
+  if (( $# > 0 )); then
+    print -u2 "dotfiles-apply は引数を取りません。計画だけ確認するなら: zsh ${HOME}/.dotfiles/setup/migrate.zsh --dry-run"
+    return 1
+  fi
+  sudo zsh "${HOME}/.dotfiles/setup/migrate.zsh" --apply
+}

@@ -25,3 +25,17 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/../.." && pwd)"
     run grep -c '\.aliase/' "${REPO_ROOT}/aliases"
     [ "${status}" -eq 1 ]
 }
+
+@test "aliases defines dotfiles-apply as a sudo migrate.zsh --apply entrypoint" {
+    run zsh -c "source '${REPO_ROOT}/aliases'; whence -f dotfiles-apply"
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"setup/migrate.zsh"* ]]
+    [[ "${output}" == *"--apply"* ]]
+    [[ "${output}" == *"sudo"* ]]
+}
+
+@test "dotfiles-apply rejects arguments instead of silently applying" {
+    run zsh -c "source '${REPO_ROOT}/aliases'; dotfiles-apply --dry-run"
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"--dry-run"* ]]
+}

@@ -20,8 +20,16 @@ Tier 1/2/3 の各スクリプト（`link.zsh`/`languages.zsh`/`defaults.zsh`/`pa
 順序管理なしに個別実行すると部分適用インシデントを再現する（過去に実際に発生した）。
 実機での実行は必ず `setup/migrate.zsh` からのみ行う:
 
+`git pull` の直後に適用するときは、下の `--apply` を直接実行する。シェルに読み込み済みの
+alias・関数に依存しないため、これが標準の入口。
+
+`aliases` は同じ起動の短縮形として `dotfiles-apply` を定義しているが、その定義自体が pull で
+更新されるので、pull 直後の既存シェルではまだ未定義のことがある（以後のログインシェル用）。
+引数は受け付けない（`--dry-run` を付けても `migrate.zsh` は第 1 引数の `--apply` しか見ないため、
+確認のつもりが適用になるのを防いでいる）。
+
 ```sh
-# 現在の状態と実行計画を確認する（副作用なし。まずこれを実行する）
+# 現在の状態と実行計画を確認する（副作用なし。まず確認したいときはこれを実行する）
 zsh ${HOME}/.dotfiles/setup/migrate.zsh --dry-run
 
 # 計画を実行する。単一の root 起動で全 Phase (link -> cutover/pam -> languages/defaults/
