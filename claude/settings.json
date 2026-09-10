@@ -128,7 +128,8 @@
     "playwright@claude-plugins-official": true,
     "i-have-adhd@i-have-adhd": true,
     "figma@claude-plugins-official": true,
-    "freee-mcp@freee-mcp-marketplace": true
+    "freee-mcp@freee-mcp-marketplace": true,
+    "ponytail@ponytail": true
   },
   "extraKnownMarketplaces": {
     "claude-collections": {
@@ -171,6 +172,12 @@
       "source": {
         "source": "github",
         "repo": "freee/freee-mcp"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
       }
     }
   },

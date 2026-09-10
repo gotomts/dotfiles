@@ -3,10 +3,11 @@
 # ~/.codex/config.toml が存在しないときだけ activation がこのファイルを cp する
 # (nix/modules/home/codex.nix の home.activation.syncCodexConfig 参照)。
 # 一度 seed された後は Codex / ChatGPT desktop アプリが所有する running config と
-# なり、node_repl / computer-use / marketplaces / plugins / trust_level 等の
-# 動的な状態はここでは追跡しない (公開リポに絶対パスや非公開参照を流さないため)。
+# なり、node_repl / computer-use / trust_level やインストール時刻など実行時に決まる
+# 値はここでは追跡しない (公開リポに絶対パスや非公開参照を流さないため)。
 #
 # ここに書くのは「新規 PC でも必ず宣言的に効かせたい静的設定」だけに限定する。
+# marketplace / plugin もこれに該当するものだけを、最小キー (source / enabled) で書く。
 
 [mcp_servers.github]
 command = "npx"
@@ -34,3 +35,12 @@ args = [
     "--project-from-cwd",
     "--context=codex",
 ]
+
+# Ponytail (DietrichGebert/ponytail): 過剰実装を抑えるルールセットを常時注入する。
+# Claude Code 側は claude/settings.json の enabledPlugins が同じ役割を持つ。
+[marketplaces.ponytail]
+source_type = "git"
+source = "https://github.com/DietrichGebert/ponytail.git"
+
+[plugins."ponytail@ponytail"]
+enabled = true
