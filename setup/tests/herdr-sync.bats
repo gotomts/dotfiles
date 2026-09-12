@@ -127,8 +127,10 @@ assert_no_real_herdr() {
 }
 
 @test "migrate.zsh runs herdr-sync as part of phase 3" {
-    grep -q 'PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync)' \
-        "${SETUP_DIR}/migrate.zsh"
+    # Assert membership, not the exact roster: this test is about herdr-sync
+    # being a phase 3 step, and pinning the whole line makes every unrelated
+    # step addition fail here instead of where it belongs.
+    grep -qE 'PHASE3_STEPS=\(.*\bherdr-sync\b.*\)' "${SETUP_DIR}/migrate.zsh"
 }
 
 @test "migrate health check verifies the allowlist symlink" {

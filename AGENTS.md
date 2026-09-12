@@ -5,7 +5,7 @@
 - `CONTEXT.md` — AI エージェント指示の層（規範フラグメント・グローバル / プロジェクト AGENTS.md・SOUL.md・CLAUDE.local.md・channel prompt）を区別する用語集
 - `aliases` — alias 定義の SSOT（root 直下、`~/.aliases` にシンボリックリンク）。旧 `nix/modules/home/zsh.nix` の `shellAliases` から移行（`setup/link.zsh` が配置、Tier 1）
 - `scripts/` — 外部シェルスクリプト（`aliases` の alias から呼び出される。旧 `aliase/` から改名）
-- `setup/` — Tier 1（リアルタイム symlink）・Tier 2（明示的スクリプト実行）・Tier 3（カットオーバー・ロールバック）の実装。`darwin-rebuild switch` を使わず、`zsh setup/link.zsh` で dotfiles を配置し（Tier 1）、`setup/languages.zsh`（mise による言語ランタイム + corepack + バージョン固定 CLI）／`setup/defaults.zsh`（macOS defaults・IME）／`setup/pam.zsh`（Touch ID for sudo）／`setup/claude-sync.zsh`（skills clone・plugin sync・MCP merge）／`setup/codex-sync.zsh`（config.toml seed-if-absent）／`setup/herdr-sync.zsh`（Herdr ローカルプラグインの link・allowlist 配置）を個別実行する（Tier 2）。既存 PC を home-manager 込みの旧構成から移行する場合は `setup/cutover.zsh`（pre-flight build 確認 + `darwin-rebuild switch`）／`setup/rollback.zsh`（`.before-nix` 衝突検出付きロールバック）を使う（Tier 3）。**実機での実行は `setup/migrate.zsh` が唯一のエントリポイント**（`--dry-run`/`--apply`。Tier 1/2/3 を依存順（Phase 1: link → Phase 2: cutover/pam [root] → Phase 3: languages/defaults/claude-sync/codex-sync/herdr-sync）で実行し、`~/.dotfiles-migrate/manifest.log` で部分適用を検出・再開する。fail-closed、rollback.zsh は自動では呼ばない）。個別スクリプトの直接実行はメンテナンス目的のみ。詳細は `setup/README.md` と `docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md`・`docs/superpowers/specs/2026-08-22-restore-script-management-tier3-cutover-design.md`・`docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md` を参照
+- `setup/` — Tier 1（リアルタイム symlink）・Tier 2（明示的スクリプト実行）・Tier 3（カットオーバー・ロールバック）の実装。`darwin-rebuild switch` を使わず、`zsh setup/link.zsh` で dotfiles を配置し（Tier 1）、`setup/languages.zsh`（mise による言語ランタイム + corepack + バージョン固定 CLI）／`setup/defaults.zsh`（macOS defaults・IME）／`setup/pam.zsh`（Touch ID for sudo）／`setup/claude-sync.zsh`（skills clone・plugin sync・MCP merge）／`setup/codex-sync.zsh`（config.toml seed-if-absent）／`setup/herdr-sync.zsh`（Herdr ローカルプラグインの link・allowlist 配置）／`setup/notion.zsh`（Notion CLI `ntn` を公式インストーラで `${HOME}/.local/bin` へ install-if-absent）を個別実行する（Tier 2）。既存 PC を home-manager 込みの旧構成から移行する場合は `setup/cutover.zsh`（pre-flight build 確認 + `darwin-rebuild switch`）／`setup/rollback.zsh`（`.before-nix` 衝突検出付きロールバック）を使う（Tier 3）。**実機での実行は `setup/migrate.zsh` が唯一のエントリポイント**（`--dry-run`/`--apply`。Tier 1/2/3 を依存順（Phase 1: link → Phase 2: cutover/pam [root] → Phase 3: languages/defaults/claude-sync/codex-sync/herdr-sync/notion）で実行し、`~/.dotfiles-migrate/manifest.log` で部分適用を検出・再開する。fail-closed、rollback.zsh は自動では呼ばない）。個別スクリプトの直接実行はメンテナンス目的のみ。詳細は `setup/README.md` と `docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md`・`docs/superpowers/specs/2026-08-22-restore-script-management-tier3-cutover-design.md`・`docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md` を参照
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
 - `claude/rules/` — 全 AI エージェント向けグローバル指示のフラグメント（SSOT）。`core` / `worker` / `orchestrator` / `hermes-identity` の 4 ファイルを `scripts/build-agent-rules.zsh`（旧 `aliase/build-agent-rules.zsh`）が結合して生成物を作る
 - `claude/hermes/SOUL.md` — Hermes Agent 用グローバル指示の生成物（`~/.hermes/SOUL.md` にシンボリックリンク）。直接編集しない
@@ -26,7 +26,7 @@
 - `ssh/` — SSH 設定（`~/.ssh/` にシンボリックリンク）
 - `zsh/` — zsh 補完ファイル（`~/.zsh/` にシンボリックリンク）
 - `zshrc` — zsh 設定（`~/.zshrc` にシンボリックリンク）
-- `zshenv` — zsh 環境変数（`~/.zshenv` にシンボリックリンク）
+- `zshenv` — zsh 環境変数（`~/.zshenv` にシンボリックリンク）。`${HOME}/.local/bin` を PATH へ明示的に載せる唯一の場所（pipx の出力先であり、Homebrew formula が無い CLI の導入先。例: `setup/notion.zsh` が入れる `ntn`）
 
 # シンボリックリンク管理
 

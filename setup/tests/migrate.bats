@@ -9,6 +9,11 @@ REPO_ROOT="$(cd "${SETUP_DIR}/.." && pwd)"
 # mise/corepack (languages), defaults (defaults), git/claude (claude-sync),
 # darwin-rebuild/nix (cutover). codex-sync/pam need no external command
 # (SUDO_LOCAL_PATH redirects pam's write target instead of /etc).
+# notion uses the real curl, pointed at a file:// URL holding a fake installer
+# (NTN_INSTALLER_URL below) -- no stub, no network, and still the real download
+# path. A PATH stub would not be reliable here anyway: migrate.zsh prepends the
+# hardcoded Homebrew prefixes when delegating, so a real /opt/homebrew/bin/curl
+# would win over a stub.
 _install_full_stubs() {
     local bin_dir="${1}"
     mkdir -p "${bin_dir}"
@@ -159,6 +164,18 @@ setup() {
     # the stub dir so the single-root-invocation test never resolves this
     # machine's real Homebrew mise (if installed) via the delegated step.
     export HOMEBREW_PATH_PREFIX_OVERRIDE="${STUB_BIN}"
+
+    # notion.zsh's installer source. Models the one thing the real installer
+    # contract guarantees and notion.zsh relies on: it honors NTN_INSTALL_DIR.
+    NTN_INSTALLER_FILE="${BATS_TEST_TMPDIR}/ntn-install.sh"
+    cat > "${NTN_INSTALLER_FILE}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p "${NTN_INSTALL_DIR}"
+printf '#!/bin/sh\necho "ntn 0.0.0-stub"\n' > "${NTN_INSTALL_DIR}/ntn"
+chmod +x "${NTN_INSTALL_DIR}/ntn"
+EOF
+    export NTN_INSTALLER_URL="file://${NTN_INSTALLER_FILE}"
 }
 
 @test "zsh -n syntax check passes" {
@@ -197,11 +214,11 @@ setup() {
     [[ "${output}" != *"rollback"* ]]
 }
 
-@test "dry-run lists all 7 steps and executes nothing" {
+@test "dry-run lists all 8 steps and executes nothing" {
     run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
 
-    for step in link languages defaults pam claude-sync codex-sync cutover; do
+    for step in link languages defaults pam claude-sync codex-sync herdr-sync notion cutover; do
         [[ "${output}" == *"${step}"* ]]
     done
 
@@ -224,7 +241,7 @@ setup() {
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults pam claude-sync codex-sync cutover; do
+    for step in link languages defaults pam claude-sync codex-sync herdr-sync notion cutover; do
         [[ "${output}" == *"[WOULD RUN] ${step}:"* ]]
     done
     [[ "${output}" != *"[BLOCKED]"* ]]
@@ -237,7 +254,7 @@ setup() {
     # so it alone stays WOULD RUN.
     MIGRATE_EUID_OVERRIDE=0 USER= run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults claude-sync codex-sync cutover; do
+    for step in link languages defaults claude-sync codex-sync herdr-sync notion cutover; do
         [[ "${output}" == *"[BLOCKED] ${step}:"* ]]
     done
     [[ "${output}" == *"[WOULD RUN] pam:"* ]]
@@ -284,6 +301,7 @@ setup() {
     [ -f "${SUDO_LOCAL_PATH}" ]
     [ -f "${HOME}/.claude.json" ]
     [ -f "${HOME}/.codex/config.toml" ]
+    [ -x "${HOME}/.local/bin/ntn" ]
     run cat "${DARWIN_REBUILD_LOG}"
     [[ "${output}" == *"switch --flake"* ]]
     run cat "${MISE_LOG}"
@@ -295,7 +313,7 @@ setup() {
     # `sudo -u testuser -H env PATH=... zsh <script>`; root-required steps
     # did not.
     run cat "${SUDO_LOG}"
-    for step in link languages defaults claude-sync codex-sync; do
+    for step in link languages defaults claude-sync codex-sync herdr-sync notion; do
         [[ "${output}" == *"-u testuser -H env PATH="*"zsh"*"${step}.zsh"* ]]
     done
     [[ "${output}" != *"cutover.zsh"* ]]
@@ -595,6 +613,37 @@ EOF
     [ "${status}" -eq 1 ]
     [[ "${output}" == *"health check 失敗"* ]]
     [[ "${output}" == *"claude-sync:"* ]]
+}
+
+@test "health check catches an ntn that was removed after a success manifest" {
+    # Same contract as the claude-sync case above, for the step whose evidence
+    # lives outside $HOME's dotfiles (a binary in ~/.local/bin): a manifest
+    # success must not stand in for the binary actually being there.
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    rm -f "${HOME}/.local/bin/ntn"
+
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"health check 失敗"* ]]
+    [[ "${output}" == *"notion:"* ]]
+}
+
+@test "notion step does not re-run the installer once ntn exists (idempotent across apply)" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    # Make a re-install detectable: break the installer so any second call
+    # would fail the whole apply.
+    printf '#!/usr/bin/env bash\nexit 1\n' > "${NTN_INSTALLER_FILE}"
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [ -x "${HOME}/.local/bin/ntn" ]
 }
 
 # ---------------------------------------------------------------------------

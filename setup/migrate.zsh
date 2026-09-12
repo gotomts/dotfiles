@@ -31,8 +31,8 @@
 #                                         ため、Phase 3 より前に置く。pam は cutover と同じく
 #                                         root 必須なので同じ Phase にまとめ、sudo プロンプトを
 #                                         1 回にまとめる)
-#   Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync  (root 起動時は元ユーザーへ
-#                                         委譲。
+#   Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, notion
+#                                        (root 起動時は元ユーザーへ委譲。
 #                                         mise は Phase 2 で導入済み)
 #
 # 安全設計:
@@ -100,7 +100,7 @@ source "${SETUP_DIR}/lib/herdr.zsh"
 # ---------------------------------------------------------------------------
 PHASE1_STEPS=(link)
 PHASE2_STEPS=(cutover pam)
-PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync)
+PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync notion)
 
 # この --apply の中で cutover 直前に退避した Touch ID ファイルのパス（
 # migrate::pam_restore_pristine_if_safe が設定し、migrate::pam_discard_vacated が使う）。
@@ -761,6 +761,11 @@ migrate::health_check() {
 
     [[ -f "${home_dir}/.codex/config.toml" ]] || failures+=("codex-sync: ${home_dir}/.codex/config.toml がありません")
 
+    # ntn は Homebrew 管理外なので migrate::command_available（Homebrew prefix
+    # フォールバック）では確認できない。notion.zsh が導入先を ${HOME}/.local/bin に
+    # 固定しているので、対象ユーザーのホーム配下を直接見る。
+    [[ -x "${home_dir}/.local/bin/ntn" ]] || failures+=("notion: ${home_dir}/.local/bin/ntn が実行可能ではありません")
+
     # herdr plugin の allowlist。パスは herdr-sync.zsh と同じ setup/lib/herdr.zsh の
     # 解決関数から引く（配置する側と確認する側で別々にパスを組み立てると、Herdr が
     # 設定ディレクトリの位置を変えたときに health check だけが古い場所を見に行く）。
@@ -889,7 +894,7 @@ migrate::usage() {
 
 Phase 1: link (root 起動時は元ユーザーへ委譲)
 Phase 2: cutover, pam (root 必須)
-Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync (root 起動時は元ユーザーへ委譲)
+Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, notion (root 起動時は元ユーザーへ委譲)
 
 個別スクリプト（link.zsh 等）は内部実装です。実機での実行はこのスクリプトからのみ
 行ってください。詳細は setup/README.md を参照。
