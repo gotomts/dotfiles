@@ -214,7 +214,7 @@ EOF
     [[ "${output}" != *"rollback"* ]]
 }
 
-@test "dry-run lists all 8 steps and executes nothing" {
+@test "dry-run lists all 9 steps and executes nothing" {
     run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
 
@@ -631,18 +631,30 @@ EOF
     [[ "${output}" == *"notion:"* ]]
 }
 
-@test "notion step does not re-run the installer once ntn exists (idempotent across apply)" {
+@test "notion step does not re-run the installer once ntn exists (guard inside notion.zsh, not just the manifest)" {
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --apply
     [ "${status}" -eq 0 ]
 
-    # Make a re-install detectable: break the installer so any second call
+    # Drop notion's success from the manifest so migrate.zsh actually invokes
+    # notion.zsh again. Leaving the success in place would only exercise
+    # migrate::skippable and prove nothing about notion.zsh's own
+    # already-installed guard -- the thing that has to hold on a machine that
+    # is offline or whose manifest was lost.
+    local manifest="${HOME}/.dotfiles-migrate/manifest.log"
+    grep -v $'\tnotion\t' "${manifest}" > "${manifest}.tmp"
+    mv "${manifest}.tmp" "${manifest}"
+    run grep -c $'\tnotion\t' "${manifest}"
+    [ "${output}" -eq 0 ]
+
+    # Make a re-download detectable: break the installer so any second call
     # would fail the whole apply.
     printf '#!/usr/bin/env bash\nexit 1\n' > "${NTN_INSTALLER_FILE}"
 
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --apply
     [ "${status}" -eq 0 ]
+    [[ "${output}" == *"インストーラを呼びません"* ]]
     [ -x "${HOME}/.local/bin/ntn" ]
 }
 

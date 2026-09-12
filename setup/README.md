@@ -107,14 +107,28 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   いれば何もせず、`repos.local.json`（マシンローカルの allowlist）は seed-if-absent で
   既存の中身に触れない。
 - `notion.zsh`: Notion CLI (`ntn`) に Homebrew formula が無いため、公式インストーラ
-  (`https://ntn.dev/install.sh`) を使う唯一の Tier 2 ステップ。`${HOME}/.local/bin/ntn` が
-  既に実行可能なら **インストーラを一切呼ばない**（既存バイナリを上書きしない・バージョン
-  更新もしない）。導入するときは `NTN_INSTALL_DIR` で導入先を `${HOME}/.local/bin` に固定
-  する（インストーラ既定の導入先選択は実行時の PATH の形に依存して揺れるため、宣言側で
-  固定して health check と一致させる）。`curl` は `bash` に直結せず一旦ファイルへ落とす
-  （取得失敗時に空スクリプトを実行して「成功」に見えるのを防ぐ）。トークン（`NOTION_API_KEY`
-  等）は読まない・要求しない・保存しない。導入後の認証は人間が `ntn` 側の手順で行う。
-  PATH への `${HOME}/.local/bin` 追加は Tier 1 の `zshenv` が担当する。
+  (`https://ntn.dev/install.sh`) を使う唯一の Tier 2 ステップ。npm 版もあるが、グローバル
+  ツールを Node ランタイムに依存させないため公式配布バイナリを使う。インストーラには
+  2 つの環境変数を渡して導入結果を宣言側で決めきる:
+  - `NTN_INSTALL_DIR` = `${HOME}/.local/bin`。インストーラ既定の導入先選択は実行時の PATH の
+    形に依存して揺れるため、宣言側で固定して health check と一致させる
+  - `NTN_VERSION` = `notion.zsh` の `NTN_PINNED_VERSION`（現在 `0.23.4`）。既定の `latest` だと
+    「導入した日」で版が決まり PC ごとに別物が入る。版を上げるのは dotfiles 側の明示変更で行う
+
+  `${HOME}/.local/bin/ntn` が既に実行可能なファイルなら **インストーラを一切呼ばない**
+  （既存バイナリを上書きしない。`NTN_PINNED_VERSION` を上げても入れ替えないので、入れ替える
+  ときは実体を消してから再実行する）。判定は `-x` 単独ではなく `-f && -x`（実行ビットの立った
+  ディレクトリを「導入済み」と誤判定しないため。health check も同じ条件）。
+
+  `curl` は `bash` に直結せず一旦ファイルへ落とす（取得失敗時に空スクリプトを実行して
+  「成功」に見えるのを防ぐ）。**初回ダウンロードの失敗は fail-closed** で migrate 全体を
+  止める。`ntn` は恒久的に宣言したグローバル必須ツールなので「入らなかったが成功」を健全な
+  状態として扱わない。既にバイナリがある PC では一切ネットワークに出ないため、オフラインでも
+  `--apply` は通る（ネットワークが要るのは初回導入のときだけ）。
+
+  トークン（`NOTION_API_KEY` 等）は読まない・要求しない・保存しない。導入後の認証は人間が
+  `ntn` 側の手順で行う。PATH への `${HOME}/.local/bin` 追加は Tier 1 の `zshenv` が担当する
+  （append で 1 箇所だけ。`zshrc` 側にあった重複の追加は削除済み）。
 - `cutover.zsh`: 実行前に `darwin-rebuild --list-generations` の出力を
   `~/.dotfiles-cutover-backup/pre-cutover-generations-<timestamp>.txt` へ記録してから
   `nix build`（副作用なし）で pre-flight 確認し、成功したときだけ `darwin-rebuild switch`
@@ -143,6 +157,10 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
 bats setup/tests/*.bats
 bats herdr/plugins/*/tests/*.bats
 ```
+
+`setup/tests/` は `setup/**` だけでなく `zshenv`/`zshrc` も検証対象にしている（PATH 宣言を
+1 箇所に保つ `zshenv.bats`/`zshrc.bats`）。`.github/workflows/setup-check.yml` の `paths` にも
+この 2 ファイルを含めてあるので、`setup/**` を伴わない単独編集でも CI が走る。
 
 `setup/lib/herdr.zsh` は Herdr プラグインの識別子とパス解決だけを持つ共有ライブラリ。
 配置する側（`herdr-sync.zsh`）と確認する側（`migrate.zsh` の health check）が別々に

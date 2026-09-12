@@ -763,8 +763,10 @@ migrate::health_check() {
 
     # ntn は Homebrew 管理外なので migrate::command_available（Homebrew prefix
     # フォールバック）では確認できない。notion.zsh が導入先を ${HOME}/.local/bin に
-    # 固定しているので、対象ユーザーのホーム配下を直接見る。
-    [[ -x "${home_dir}/.local/bin/ntn" ]] || failures+=("notion: ${home_dir}/.local/bin/ntn が実行可能ではありません")
+    # 固定しているので、対象ユーザーのホーム配下を直接見る。-f も見るのは、-x だけだと
+    # 実行ビットの立ったディレクトリを「導入済み」と誤判定するため。
+    [[ -f "${home_dir}/.local/bin/ntn" && -x "${home_dir}/.local/bin/ntn" ]] \
+        || failures+=("notion: ${home_dir}/.local/bin/ntn が実行可能なファイルではありません")
 
     # herdr plugin の allowlist。パスは herdr-sync.zsh と同じ setup/lib/herdr.zsh の
     # 解決関数から引く（配置する側と確認する側で別々にパスを組み立てると、Herdr が

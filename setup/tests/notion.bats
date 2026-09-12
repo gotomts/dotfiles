@@ -26,6 +26,7 @@ done
 cat > "${out}" <<'INSTALLER'
 #!/usr/bin/env bash
 set -euo pipefail
+echo "${NTN_VERSION:-<unset>}" > "${NTN_VERSION_LOG}"
 mkdir -p "${NTN_INSTALL_DIR}"
 printf '#!/bin/sh\necho "ntn 0.0.0-stub"\n' > "${NTN_INSTALL_DIR}/ntn"
 chmod +x "${NTN_INSTALL_DIR}/ntn"
@@ -41,7 +42,9 @@ setup() {
     STUB_BIN="${BATS_TEST_TMPDIR}/stub-bin"
     mkdir -p "${STUB_BIN}"
     export CURL_LOG="${BATS_TEST_TMPDIR}/curl.log"
+    export NTN_VERSION_LOG="${BATS_TEST_TMPDIR}/ntn-version.log"
     : > "${CURL_LOG}"
+    : > "${NTN_VERSION_LOG}"
     _install_curl_stub
     export PATH="${STUB_BIN}:/usr/bin:/bin:/usr/sbin:/sbin"
     export NTN_INSTALLER_URL="https://example.invalid/install.sh"
@@ -115,4 +118,25 @@ EOF
     run bash -c "grep -vE '^[[:space:]]*#' '${SETUP_DIR}/notion.zsh' | grep -cE 'NOTION_API_KEY|NOTION_TOKEN|ntn (auth|login)'"
     [ "${status}" -eq 1 ]
     [ "${output}" -eq 0 ]
+}
+
+@test "pins the installed version instead of letting the installer pick latest" {
+    # latest のままだと「導入した日」で版が決まり PC ごとに別物が入る。宣言側の
+    # NTN_PINNED_VERSION がそのまま NTN_VERSION としてインストーラに届くことを、
+    # インストーラ側が観測した値で確認する。
+    run zsh "${SETUP_DIR}/notion.zsh"
+    [ "${status}" -eq 0 ]
+    run cat "${NTN_VERSION_LOG}"
+    [ "${output}" = "0.23.4" ]
+    grep -q 'NTN_PINNED_VERSION="0.23.4"' "${SETUP_DIR}/notion.zsh"
+}
+
+@test "treats an executable directory at the install path as not installed" {
+    # -x だけで判定するとディレクトリを「導入済み」と読んでインストーラを呼ばず、
+    # health check だけが後から落ちる。ここで導入を走らせきることを固定する。
+    mkdir -p "${HOME}/.local/bin/ntn"
+    run zsh "${SETUP_DIR}/notion.zsh"
+    # 既存ディレクトリが邪魔でバイナリを置けないので、黙って成功せず失敗すること。
+    [ "${status}" -eq 1 ]
+    [[ "${output}" != *"SKIP"* ]]
 }

@@ -25,6 +25,10 @@ on:
       - 'herdr/**'
       - 'claude/hooks/**'
       - 'claude/settings.json'
+      # zshenv/zshrc は setup/tests/{zshenv,zshrc}.bats の検証対象（PATH 宣言の
+      # 単一性など）。setup/** を伴わない単独編集でもテストを走らせる。
+      - 'zshenv'
+      - 'zshrc'
       - '.github/workflows/setup-check.yml'
   push:
     # feature branch への push は pull_request イベントだけで検証する
@@ -36,6 +40,10 @@ on:
       - 'herdr/**'
       - 'claude/hooks/**'
       - 'claude/settings.json'
+      # zshenv/zshrc は setup/tests/{zshenv,zshrc}.bats の検証対象（PATH 宣言の
+      # 単一性など）。setup/** を伴わない単独編集でもテストを走らせる。
+      - 'zshenv'
+      - 'zshrc'
       - '.github/workflows/setup-check.yml'
 
 concurrency:

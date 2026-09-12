@@ -22,3 +22,11 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/../.." && pwd)"
     run grep -c 'type mise' "${REPO_ROOT}/zshrc"
     [ "${status}" -eq 0 ]
 }
+
+@test "zshrc does not re-add \${HOME}/.local/bin (zshenv owns it)" {
+    # PATH への追加を 2 箇所に置くと、片方を直しても解決順が変わらず原因を追いにくい。
+    # 宣言は zshenv 1 箇所だけ（setup/tests/zshenv.bats が対になる）。
+    run grep -c '\.local/bin' "${REPO_ROOT}/zshrc"
+    [ "${status}" -eq 1 ]
+    [ "${output}" -eq 0 ]
+}
