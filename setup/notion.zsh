@@ -9,13 +9,14 @@
 # 決めきる:
 #   - NTN_INSTALL_DIR: 導入先を ${HOME}/.local/bin に固定する（インストーラ既定の
 #     導入先選択は実行時の PATH の形に依存して揺れ、health check と食い違うため）
-#   - NTN_VERSION: 下の NTN_PINNED_VERSION に固定する（既定の latest だと「導入した
-#     日」で版が決まり、PC ごとに別物が入る）。版を上げるのは dotfiles 側の明示変更
+#   - NTN_VERSION: setup/lib/notion.zsh の NTN_PINNED_VERSION に固定する（既定の latest
+#     だと「導入した日」で版が決まり、PC ごとに別物が入る）。版を上げるのは dotfiles
+#     側の明示変更
 # PATH への ${HOME}/.local/bin の追加は Tier 1 の zshenv が担当する。
 #
 # 冪等性: 既に ntn が実行可能なら何もしない。NTN_PINNED_VERSION を上げても既存バイナリは
 # 入れ替えない（実行中のバイナリを黙って差し替えないため）。入れ替えるときは実体を消して
-# から再実行する。
+# から再実行する。版のずれ自体は migrate.zsh の health check が fail-closed で検出する。
 #
 # fail-closed: ntn は恒久的に宣言したグローバル必須ツールなので、初回ダウンロードの
 # 失敗は migrate 全体の失敗として扱う（「入らなかったが成功」を健全な状態にしない）。
@@ -35,11 +36,10 @@ set -eu
 
 SETUP_DIR="${0:A:h}"
 source "${SETUP_DIR}/lib/util.zsh"
+source "${SETUP_DIR}/lib/notion.zsh"
 
-NTN_INSTALL_DIR="${HOME}/.local/bin"
-NTN_BIN="${NTN_INSTALL_DIR}/ntn"
-# 宣言する版。上げるときはここを書き換える（更新は dotfiles 側の明示変更で行う）。
-NTN_PINNED_VERSION="0.23.4"
+NTN_BIN="$(notion::bin "${HOME}")"
+NTN_INSTALL_DIR="${NTN_BIN:h}"
 # テストではサンドボックス内のスタブを指す URL に差し替える（実ネットワークに触れない）。
 NTN_INSTALLER_URL="${NTN_INSTALLER_URL:-https://ntn.dev/install.sh}"
 

@@ -4,7 +4,7 @@
 SETUP_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 REPO_ROOT="$(cd "${SETUP_DIR}/.." && pwd)"
 
-# Full stub bin covering every external command the 7 underlying Tier scripts
+# Full stub bin covering every external command the 9 underlying Tier scripts
 # call, so a real end-to-end `migrate.zsh --apply` run touches nothing real:
 # mise/corepack (languages), defaults (defaults), git/claude (claude-sync),
 # darwin-rebuild/nix (cutover). codex-sync/pam need no external command
@@ -172,10 +172,16 @@ setup() {
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p "${NTN_INSTALL_DIR}"
-printf '#!/bin/sh\necho "ntn 0.0.0-stub"\n' > "${NTN_INSTALL_DIR}/ntn"
+# Report the version that was requested, like the real installer does, so a
+# clean sandbox run lands consistent with the declaration without this file
+# restating the pinned value.
+printf '#!/bin/sh\necho "ntn %s"\n' "${NTN_VERSION}" > "${NTN_INSTALL_DIR}/ntn"
 chmod +x "${NTN_INSTALL_DIR}/ntn"
 EOF
     export NTN_INSTALLER_URL="file://${NTN_INSTALLER_FILE}"
+    # The single declaration of the pinned version, read from where both
+    # notion.zsh and migrate.zsh read it.
+    NTN_EXPECTED_VERSION="$(zsh -c "source '${SETUP_DIR}/lib/notion.zsh'; echo \${NTN_PINNED_VERSION}")"
 }
 
 @test "zsh -n syntax check passes" {
@@ -624,6 +630,50 @@ EOF
     [ "${status}" -eq 0 ]
 
     rm -f "${HOME}/.local/bin/ntn"
+
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"health check 失敗"* ]]
+    [[ "${output}" == *"notion:"* ]]
+}
+
+@test "health check accepts an ntn whose reported version matches the declaration" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    run "${HOME}/.local/bin/ntn" --version
+    [ "${output}" = "ntn ${NTN_EXPECTED_VERSION}" ]
+}
+
+@test "health check fails when the installed ntn is a different version than declared" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    # notion.zsh is install-if-absent, so a machine carrying an older binary
+    # stays "success" forever once the declaration is bumped. Health check is
+    # the only thing that notices -- and it must not fix it silently either.
+    printf '#!/bin/sh\necho "ntn 0.1.0-stale"\n' > "${HOME}/.local/bin/ntn"
+    chmod +x "${HOME}/.local/bin/ntn"
+
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"health check 失敗"* ]]
+    [[ "${output}" == *"notion:"* ]]
+    [[ "${output}" == *"0.1.0-stale"* ]]
+
+    # No silent replacement: the binary is still the stale one afterwards.
+    run "${HOME}/.local/bin/ntn" --version
+    [[ "${output}" == *"0.1.0-stale"* ]]
+}
+
+@test "health check fails when ntn cannot report a version at all" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    printf '#!/bin/sh\nexit 1\n' > "${HOME}/.local/bin/ntn"
+    chmod +x "${HOME}/.local/bin/ntn"
 
     MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
     [ "${status}" -eq 1 ]

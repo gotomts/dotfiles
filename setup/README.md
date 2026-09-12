@@ -107,18 +107,26 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   いれば何もせず、`repos.local.json`（マシンローカルの allowlist）は seed-if-absent で
   既存の中身に触れない。
 - `notion.zsh`: Notion CLI (`ntn`) に Homebrew formula が無いため、公式インストーラ
-  (`https://ntn.dev/install.sh`) を使う唯一の Tier 2 ステップ。npm 版もあるが、グローバル
-  ツールを Node ランタイムに依存させないため公式配布バイナリを使う。インストーラには
+  (`https://ntn.dev/install.sh`) を使う唯一の Tier 2 ステップ。mise の npm backend でも
+  導入できるが、グローバル CLI を Node ランタイムに依存させないため公式配布バイナリを
+  使う。インストーラには
   2 つの環境変数を渡して導入結果を宣言側で決めきる:
   - `NTN_INSTALL_DIR` = `${HOME}/.local/bin`。インストーラ既定の導入先選択は実行時の PATH の
     形に依存して揺れるため、宣言側で固定して health check と一致させる
-  - `NTN_VERSION` = `notion.zsh` の `NTN_PINNED_VERSION`（現在 `0.23.4`）。既定の `latest` だと
-    「導入した日」で版が決まり PC ごとに別物が入る。版を上げるのは dotfiles 側の明示変更で行う
+  - `NTN_VERSION` = `setup/lib/notion.zsh` の `NTN_PINNED_VERSION`（現在 `0.23.4`）。既定の
+    `latest` だと「導入した日」で版が決まり PC ごとに別物が入る。版を上げるのは dotfiles
+    側の明示変更で行う
 
   `${HOME}/.local/bin/ntn` が既に実行可能なファイルなら **インストーラを一切呼ばない**
-  （既存バイナリを上書きしない。`NTN_PINNED_VERSION` を上げても入れ替えないので、入れ替える
-  ときは実体を消してから再実行する）。判定は `-x` 単独ではなく `-f && -x`（実行ビットの立った
+  （既存バイナリを上書きしない）。判定は `-x` 単独ではなく `-f && -x`（実行ビットの立った
   ディレクトリを「導入済み」と誤判定しないため。health check も同じ条件）。
+
+  この install-if-absent だけだと、宣言の版を上げても既に実体のある PC は古いまま success に
+  なり続ける（版が効くのは新規導入時だけ）。そこで `migrate.zsh` の health check が
+  `ntn --version` を実行し、`NTN_PINNED_VERSION` と一致しなければ **fail-closed** で落とす。
+  自動では差し替えない — 実行中かもしれないバイナリを migrate が黙って置き換えないため、
+  人が実体を削除してから `--apply` を再実行する。宣言値とパスは `setup/lib/notion.zsh` に
+  寄せてあり、導入する側と確認する側が同じ定義を引く（`setup/lib/herdr.zsh` と同じ理由）。
 
   `curl` は `bash` に直結せず一旦ファイルへ落とす（取得失敗時に空スクリプトを実行して
   「成功」に見えるのを防ぐ）。**初回ダウンロードの失敗は fail-closed** で migrate 全体を
@@ -127,8 +135,8 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   `--apply` は通る（ネットワークが要るのは初回導入のときだけ）。
 
   トークン（`NOTION_API_KEY` 等）は読まない・要求しない・保存しない。導入後の認証は人間が
-  `ntn` 側の手順で行う。PATH への `${HOME}/.local/bin` 追加は Tier 1 の `zshenv` が担当する
-  （append で 1 箇所だけ。`zshrc` 側にあった重複の追加は削除済み）。
+  `ntn` 側の手順で行う。PATH への `${HOME}/.local/bin` 追加は Tier 1 の `zshenv` が
+  append で 1 箇所だけ行う（`zshrc` 側には書かない）。
 - `cutover.zsh`: 実行前に `darwin-rebuild --list-generations` の出力を
   `~/.dotfiles-cutover-backup/pre-cutover-generations-<timestamp>.txt` へ記録してから
   `nix build`（副作用なし）で pre-flight 確認し、成功したときだけ `darwin-rebuild switch`

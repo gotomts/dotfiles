@@ -28,7 +28,8 @@ cat > "${out}" <<'INSTALLER'
 set -euo pipefail
 echo "${NTN_VERSION:-<unset>}" > "${NTN_VERSION_LOG}"
 mkdir -p "${NTN_INSTALL_DIR}"
-printf '#!/bin/sh\necho "ntn 0.0.0-stub"\n' > "${NTN_INSTALL_DIR}/ntn"
+# 実インストーラと同じく、要求された版を報告するバイナリを置く。
+printf '#!/bin/sh\necho "ntn %s"\n' "${NTN_VERSION}" > "${NTN_INSTALL_DIR}/ntn"
 chmod +x "${NTN_INSTALL_DIR}/ntn"
 INSTALLER
 exit 0
@@ -128,7 +129,7 @@ EOF
     [ "${status}" -eq 0 ]
     run cat "${NTN_VERSION_LOG}"
     [ "${output}" = "0.23.4" ]
-    grep -q 'NTN_PINNED_VERSION="0.23.4"' "${SETUP_DIR}/notion.zsh"
+    grep -q 'NTN_PINNED_VERSION="0.23.4"' "${SETUP_DIR}/lib/notion.zsh"
 }
 
 @test "treats an executable directory at the install path as not installed" {

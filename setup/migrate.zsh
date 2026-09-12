@@ -94,6 +94,7 @@ set -eu
 SETUP_DIR="${0:A:h}"
 source "${SETUP_DIR}/lib/util.zsh"
 source "${SETUP_DIR}/lib/herdr.zsh"
+source "${SETUP_DIR}/lib/notion.zsh"
 
 # ---------------------------------------------------------------------------
 # ステップ定義（配列内の並び = 実行順序。Phase 番号が依存順序を表す）
@@ -762,11 +763,24 @@ migrate::health_check() {
     [[ -f "${home_dir}/.codex/config.toml" ]] || failures+=("codex-sync: ${home_dir}/.codex/config.toml がありません")
 
     # ntn は Homebrew 管理外なので migrate::command_available（Homebrew prefix
-    # フォールバック）では確認できない。notion.zsh が導入先を ${HOME}/.local/bin に
-    # 固定しているので、対象ユーザーのホーム配下を直接見る。-f も見るのは、-x だけだと
-    # 実行ビットの立ったディレクトリを「導入済み」と誤判定するため。
-    [[ -f "${home_dir}/.local/bin/ntn" && -x "${home_dir}/.local/bin/ntn" ]] \
-        || failures+=("notion: ${home_dir}/.local/bin/ntn が実行可能なファイルではありません")
+    # フォールバック）では確認できない。パスと宣言する版は setup/lib/notion.zsh の
+    # 定義から引く（導入する側と同じ定義を見る）。-f も見るのは、-x だけだと実行ビットの
+    # 立ったディレクトリを「導入済み」と誤判定するため。
+    #
+    # 版まで見るのは、notion.zsh の install-if-absent が「実体があれば何もしない」ため。
+    # 宣言側の版を上げても実機のバイナリは古いまま success になり続ける（新規導入時だけ
+    # 版が効く状態）。実体を自動で差し替えはしない — ここで fail-closed に落として、人が
+    # 明示的に実体を削除してから --apply を再実行する経路に寄せる。
+    local ntn_bin ntn_version
+    ntn_bin="$(notion::bin "${home_dir}")"
+    if [[ -f "${ntn_bin}" && -x "${ntn_bin}" ]]; then
+        ntn_version="$(notion::installed_version "${ntn_bin}")"
+        if [[ "${ntn_version}" != "${NTN_PINNED_VERSION}" ]]; then
+            failures+=("notion: ${ntn_bin} の版が宣言と一致しません（宣言: ${NTN_PINNED_VERSION} / 実体: ${ntn_version:-取得できませんでした}）。実体を削除してから --apply を再実行してください")
+        fi
+    else
+        failures+=("notion: ${ntn_bin} が実行可能なファイルではありません")
+    fi
 
     # herdr plugin の allowlist。パスは herdr-sync.zsh と同じ setup/lib/herdr.zsh の
     # 解決関数から引く（配置する側と確認する側で別々にパスを組み立てると、Herdr が
