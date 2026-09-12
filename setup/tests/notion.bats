@@ -49,6 +49,9 @@ setup() {
     _install_curl_stub
     export PATH="${STUB_BIN}:/usr/bin:/bin:/usr/sbin:/sbin"
     export NTN_INSTALLER_URL="https://example.invalid/install.sh"
+    # The single declaration of the pinned version, read from where notion.zsh
+    # reads it. Hardcoding it here would let the two drift on the next bump.
+    NTN_EXPECTED_VERSION="$(zsh -c "source '${SETUP_DIR}/lib/notion.zsh'; echo \${NTN_PINNED_VERSION}")"
 }
 
 @test "zsh -n syntax check passes" {
@@ -125,11 +128,13 @@ EOF
     # latest のままだと「導入した日」で版が決まり PC ごとに別物が入る。宣言側の
     # NTN_PINNED_VERSION がそのまま NTN_VERSION としてインストーラに届くことを、
     # インストーラ側が観測した値で確認する。
+    [ -n "${NTN_EXPECTED_VERSION}" ]
     run zsh "${SETUP_DIR}/notion.zsh"
     [ "${status}" -eq 0 ]
     run cat "${NTN_VERSION_LOG}"
-    [ "${output}" = "0.23.4" ]
-    grep -q 'NTN_PINNED_VERSION="0.23.4"' "${SETUP_DIR}/lib/notion.zsh"
+    [ "${output}" = "${NTN_EXPECTED_VERSION}" ]
+    # ...and it is a concrete version, never the installer's own default.
+    [ "${NTN_EXPECTED_VERSION}" != "latest" ]
 }
 
 @test "treats an executable directory at the install path as not installed" {

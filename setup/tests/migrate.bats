@@ -104,6 +104,7 @@ echo "$*" >> "${SUDO_LOG}"
 if [[ "$1" == "-u" ]]; then
     shift 2
     [[ "$1" == "-H" ]] && shift
+    [[ "$1" == "--" ]] && shift
 fi
 exec "$@"
 EOF
@@ -635,6 +636,34 @@ EOF
     [ "${status}" -eq 1 ]
     [[ "${output}" == *"health check 失敗"* ]]
     [[ "${output}" == *"notion:"* ]]
+}
+
+@test "health check probes ntn's version as the original user, never as root" {
+    # The binary lives in the user's $HOME and is writable by them. health check
+    # is verification, not a place to run user-owned files with root's
+    # privileges, so the probe goes through the same delegation the non-root
+    # steps use.
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    run cat "${SUDO_LOG}"
+    [[ "${output}" == *"-u testuser -H -- ${HOME}/.local/bin/ntn --version"* ]]
+}
+
+@test "health check probes ntn directly when not running as root (no pointless sudo)" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    # Everything is success already, so this run only re-verifies. As a plain
+    # user there is nobody to delegate to and nothing to drop privileges for.
+    : > "${SUDO_LOG}"
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"health check: 全ステップの実効果を確認しました"* ]]
+    run cat "${SUDO_LOG}"
+    [[ "${output}" != *"--version"* ]]
 }
 
 @test "health check accepts an ntn whose reported version matches the declaration" {

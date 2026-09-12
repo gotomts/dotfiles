@@ -729,6 +729,29 @@ migrate::run_phase() {
     return 0
 }
 
+# migrate::ntn_version <ntn_bin>  対象ユーザーの ntn が報告する版を返す。取得できなければ
+#   空文字列（呼び出し側で fail-closed に扱うこと）。
+#
+#   root 起動のまま元ユーザー所有のバイナリを root で実行しない。health check は状態の
+#   検証であって特権実行の場ではなく、`$HOME` 配下の書き換え可能なファイルを root の
+#   権限で走らせる理由が無い。非 root ステップの実行と同じ規則に揃え、EUID 0 のときは
+#   元ユーザーへ委譲する。元ユーザーを特定できなければ probe せず空を返す（各ステップの
+#   privilege_ok と同じ fail-closed）。
+migrate::ntn_version() {
+    local ntn_bin="${1}"
+    local euid_val orig_user
+    euid_val="$(migrate::euid)"
+
+    if (( euid_val == 0 )); then
+        migrate::original_user_ok || return 0
+        orig_user="$(migrate::original_user)"
+        notion::installed_version sudo -u "${orig_user}" -H -- "${ntn_bin}"
+        return 0
+    fi
+
+    notion::installed_version "${ntn_bin}"
+}
+
 # ---------------------------------------------------------------------------
 # health check（apply が全ステップ success を報告した後の独立検証）
 #   manifest の自己申告を信用せず、実ファイル/実状態を確認する。
@@ -767,6 +790,7 @@ migrate::health_check() {
     # 定義から引く（導入する側と同じ定義を見る）。-f も見るのは、-x だけだと実行ビットの
     # 立ったディレクトリを「導入済み」と誤判定するため。
     #
+    # 版の probe は migrate::ntn_version 経由（root 起動時は元ユーザーへ委譲する）。
     # 版まで見るのは、notion.zsh の install-if-absent が「実体があれば何もしない」ため。
     # 宣言側の版を上げても実機のバイナリは古いまま success になり続ける（新規導入時だけ
     # 版が効く状態）。実体を自動で差し替えはしない — ここで fail-closed に落として、人が
@@ -774,7 +798,7 @@ migrate::health_check() {
     local ntn_bin ntn_version
     ntn_bin="$(notion::bin "${home_dir}")"
     if [[ -f "${ntn_bin}" && -x "${ntn_bin}" ]]; then
-        ntn_version="$(notion::installed_version "${ntn_bin}")"
+        ntn_version="$(migrate::ntn_version "${ntn_bin}")"
         if [[ "${ntn_version}" != "${NTN_PINNED_VERSION}" ]]; then
             failures+=("notion: ${ntn_bin} の版が宣言と一致しません（宣言: ${NTN_PINNED_VERSION} / 実体: ${ntn_version:-取得できませんでした}）。実体を削除してから --apply を再実行してください")
         fi

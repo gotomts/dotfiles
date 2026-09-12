@@ -18,8 +18,12 @@ notion::bin() {
     echo "${1}/.local/bin/ntn"
 }
 
-# notion::installed_version <bin>  実体が報告する版を返す。取得できなければ空文字列。
-#   `ntn --version` は `ntn 0.23.4` の形で出すので最終フィールドを取る。
+# notion::installed_version <cmd> [<args>...]  実体が報告する版を返す。取得できなければ
+#   空文字列。`ntn --version` は `ntn 0.23.4` の形で出すので最終フィールドを取る。
+#
+#   引数は「ntn を起動する argv 全体」であって実体パス 1 個とは限らない。呼び出し側が
+#   `sudo -u <user> -H --` を前置して別ユーザーとして probe できるようにするため
+#   （migrate.zsh の health check は root で走りつつ元ユーザーの実体を見る）。
 notion::installed_version() {
-    "${1}" --version 2>/dev/null | awk 'NR == 1 { print $NF }'
+    "$@" --version 2>/dev/null | awk 'NR == 1 { print $NF }'
 }
