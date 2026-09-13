@@ -16,7 +16,7 @@ Tier を跨いだ実行順序・部分適用の検出/復旧を担う `setup/mig
 ## 使い方（実機での唯一のエントリポイントは `setup/migrate.zsh`）
 
 Tier 1/2/3 の各スクリプト（`link.zsh`/`languages.zsh`/`defaults.zsh`/`pam.zsh`/
-`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
+`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`notion.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
 順序管理なしに個別実行すると部分適用インシデントを再現する（過去に実際に発生した）。
 実機での実行は必ず `setup/migrate.zsh` からのみ行う:
 
@@ -33,7 +33,7 @@ alias・関数に依存しないため、これが標準の入口。
 zsh ${HOME}/.dotfiles/setup/migrate.zsh --dry-run
 
 # 計画を実行する。単一の root 起動で全 Phase (link -> cutover/pam -> languages/defaults/
-# claude-sync/codex-sync/herdr-sync) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
+# claude-sync/codex-sync/herdr-sync/notion) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
 # 特定し、非 root ステップは元ユーザーへ委譲実行する（詳細は
 # docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md 参照）
 sudo zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
@@ -67,6 +67,7 @@ zsh ${HOME}/.dotfiles/setup/pam.zsh
 zsh ${HOME}/.dotfiles/setup/claude-sync.zsh
 zsh ${HOME}/.dotfiles/setup/codex-sync.zsh
 zsh ${HOME}/.dotfiles/setup/herdr-sync.zsh
+zsh ${HOME}/.dotfiles/setup/notion.zsh
 sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/cutover.zsh
 ```
 
@@ -105,6 +106,42 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   primary 以外から実行された場合は両方まとめてスキップする。登録先パスが既に一致して
   いれば何もせず、`repos.local.json`（マシンローカルの allowlist）は seed-if-absent で
   既存の中身に触れない。
+- `notion.zsh`: Notion CLI (`ntn`) に Homebrew formula が無いため、公式インストーラ
+  (`https://ntn.dev/install.sh`) を使う唯一の Tier 2 ステップ。mise の npm backend でも
+  導入できるが、グローバル CLI を Node ランタイムに依存させないため公式配布バイナリを
+  使う。インストーラには
+  2 つの環境変数を渡して導入結果を宣言側で決めきる:
+  - `NTN_INSTALL_DIR` = `${HOME}/.local/bin`。インストーラ既定の導入先選択は実行時の PATH の
+    形に依存して揺れるため、宣言側で固定して health check と一致させる
+  - `NTN_VERSION` = `setup/lib/notion.zsh` の `NTN_PINNED_VERSION`（現在 `0.23.4`）。既定の
+    `latest` だと「導入した日」で版が決まり PC ごとに別物が入る。版を上げるのは dotfiles
+    側の明示変更で行う
+
+  `${HOME}/.local/bin/ntn` が既に実行可能なファイルなら **インストーラを一切呼ばない**
+  （既存バイナリを上書きしない）。判定は `-x` 単独ではなく `-f && -x`（実行ビットの立った
+  ディレクトリを「導入済み」と誤判定しないため。health check も同じ条件）。
+
+  この install-if-absent だけだと、宣言の版を上げても既に実体のある PC は古いまま success に
+  なり続ける（版が効くのは新規導入時だけ）。そこで `migrate.zsh` の health check が
+  `ntn --version` を実行し、`NTN_PINNED_VERSION` と一致しなければ **fail-closed** で落とす。
+  自動では差し替えない — 実行中かもしれないバイナリを migrate が黙って置き換えないため、
+  人が実体を削除してから `--apply` を再実行する。宣言値とパスは `setup/lib/notion.zsh` に
+  寄せてあり、導入する側と確認する側が同じ定義を引く（`setup/lib/herdr.zsh` と同じ理由）。
+
+  この probe は root 起動時に `sudo -u <元ユーザー> -H --` を前置して元ユーザーとして実行する
+  （`migrate::ntn_version`）。実体は元ユーザーの `$HOME` 配下にあって本人が書き換えられる
+  ファイルなので、検証のために root の権限で走らせる理由が無い。非 root ステップの委譲実行と
+  同じ規則で、元ユーザーを特定できないときは probe せず fail-closed に落ちる。
+
+  `curl` は `bash` に直結せず一旦ファイルへ落とす（取得失敗時に空スクリプトを実行して
+  「成功」に見えるのを防ぐ）。**初回ダウンロードの失敗は fail-closed** で migrate 全体を
+  止める。`ntn` は恒久的に宣言したグローバル必須ツールなので「入らなかったが成功」を健全な
+  状態として扱わない。既にバイナリがある PC では一切ネットワークに出ないため、オフラインでも
+  `--apply` は通る（ネットワークが要るのは初回導入のときだけ）。
+
+  トークン（`NOTION_API_KEY` 等）は読まない・要求しない・保存しない。導入後の認証は人間が
+  `ntn` 側の手順で行う。PATH への `${HOME}/.local/bin` 追加は Tier 1 の `zshenv` が
+  append で 1 箇所だけ行う（`zshrc` 側には書かない）。
 - `cutover.zsh`: 実行前に `darwin-rebuild --list-generations` の出力を
   `~/.dotfiles-cutover-backup/pre-cutover-generations-<timestamp>.txt` へ記録してから
   `nix build`（副作用なし）で pre-flight 確認し、成功したときだけ `darwin-rebuild switch`
@@ -115,7 +152,7 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   `fs::ensure_realfile` と同じ no-data-loss 方針で、自動退避はしない）。
 - `migrate.zsh`: Tier 1/2/3 を跨いだ唯一のオーケストレーター。実行順序は Phase 1
   (`link`) → Phase 2 (`cutover`/`pam`、root 必須) → Phase 3 (`languages`/`defaults`/
-  `claude-sync`/`codex-sync`/`herdr-sync`)。`languages.zsh` 自身が「mise は darwin-switch で事前導入
+  `claude-sync`/`codex-sync`/`herdr-sync`/`notion`)。`languages.zsh` 自身が「mise は darwin-switch で事前導入
   済みが前提」と明記しているため、cutover を languages より先に置く。各ステップの結果は
   `~/.dotfiles-migrate/manifest.log` に永続化し、success 済みステップは再実行しない
   （idempotent な部分適用検出・再開）。ただし `cutover` だけは、必須バイナリの実在と
@@ -133,6 +170,10 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
 bats setup/tests/*.bats
 bats herdr/plugins/*/tests/*.bats
 ```
+
+`setup/tests/` は `setup/**` だけでなく `zshenv`/`zshrc` も検証対象にしている（PATH 宣言を
+1 箇所に保つ `zshenv.bats`/`zshrc.bats`）。`.github/workflows/setup-check.yml` の `paths` にも
+この 2 ファイルを含めてあるので、`setup/**` を伴わない単独編集でも CI が走る。
 
 `setup/lib/herdr.zsh` は Herdr プラグインの識別子とパス解決だけを持つ共有ライブラリ。
 配置する側（`herdr-sync.zsh`）と確認する側（`migrate.zsh` の health check）が別々に
@@ -157,11 +198,17 @@ bats herdr/plugins/*/tests/*.bats
 委譲実行を health check にまで広げるほどの利得が無いため）。
 
 `fs::link_file`/`fs::ensure_realfile` は関数単位、`link.zsh`/`languages.zsh`/`defaults.zsh`/
-`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`cutover.zsh`/`rollback.zsh`/
+`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`notion.zsh`/`cutover.zsh`/`rollback.zsh`/
 `migrate.zsh` は、
 実コマンド（`defaults`/`mise`/`corepack`/`claude`/`herdr`/`git`/`darwin-rebuild`/`nix`）を PATH 上の
 stub 実行ファイルに差し替え、`$HOME` を一時ディレクトリに差し替えたサンドボックスでの統合テスト
 （実機・実ネットワーク・実パッケージマネージャ・実 `darwin-rebuild switch` には一切触れない）。
+
+`notion.zsh` だけは `curl` の扱いが 2 通りある。単体テスト（`setup/tests/notion.bats`）は
+`curl` を stub に差し替えて取得失敗の経路まで見る。`migrate.zsh` 経由の統合テストでは stub を
+使わず、`NTN_INSTALLER_URL` に `file://` の偽インストーラを渡して **実 `curl` をオフラインで**
+走らせる。`migrate.zsh` の委譲実行は Homebrew prefix を PATH 先頭に固定で差し込むため、
+そこでの `curl` stub は実機に Homebrew 版 `curl` があると負けて実ネットワークに出てしまう。
 `migrate.zsh` のテストは Tier 1 が作る `~/.zshenv` symlink を経由して後続の子 `zsh` プロセスが
 実際の zshenv を re-source する（Phase を跨いだ実行を初めて連結するテストのため、単独スクリプトの
 テストでは踏まなかった経路）。stub 実行ファイルを `#!/bin/bash` にしているのはこのため

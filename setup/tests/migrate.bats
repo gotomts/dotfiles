@@ -4,11 +4,16 @@
 SETUP_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
 REPO_ROOT="$(cd "${SETUP_DIR}/.." && pwd)"
 
-# Full stub bin covering every external command the 7 underlying Tier scripts
+# Full stub bin covering every external command the 9 underlying Tier scripts
 # call, so a real end-to-end `migrate.zsh --apply` run touches nothing real:
 # mise/corepack (languages), defaults (defaults), git/claude (claude-sync),
 # darwin-rebuild/nix (cutover). codex-sync/pam need no external command
 # (SUDO_LOCAL_PATH redirects pam's write target instead of /etc).
+# notion uses the real curl, pointed at a file:// URL holding a fake installer
+# (NTN_INSTALLER_URL below) -- no stub, no network, and still the real download
+# path. A PATH stub would not be reliable here anyway: migrate.zsh prepends the
+# hardcoded Homebrew prefixes when delegating, so a real /opt/homebrew/bin/curl
+# would win over a stub.
 _install_full_stubs() {
     local bin_dir="${1}"
     mkdir -p "${bin_dir}"
@@ -99,6 +104,7 @@ echo "$*" >> "${SUDO_LOG}"
 if [[ "$1" == "-u" ]]; then
     shift 2
     [[ "$1" == "-H" ]] && shift
+    [[ "$1" == "--" ]] && shift
 fi
 exec "$@"
 EOF
@@ -159,6 +165,24 @@ setup() {
     # the stub dir so the single-root-invocation test never resolves this
     # machine's real Homebrew mise (if installed) via the delegated step.
     export HOMEBREW_PATH_PREFIX_OVERRIDE="${STUB_BIN}"
+
+    # notion.zsh's installer source. Models the one thing the real installer
+    # contract guarantees and notion.zsh relies on: it honors NTN_INSTALL_DIR.
+    NTN_INSTALLER_FILE="${BATS_TEST_TMPDIR}/ntn-install.sh"
+    cat > "${NTN_INSTALLER_FILE}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p "${NTN_INSTALL_DIR}"
+# Report the version that was requested, like the real installer does, so a
+# clean sandbox run lands consistent with the declaration without this file
+# restating the pinned value.
+printf '#!/bin/sh\necho "ntn %s"\n' "${NTN_VERSION}" > "${NTN_INSTALL_DIR}/ntn"
+chmod +x "${NTN_INSTALL_DIR}/ntn"
+EOF
+    export NTN_INSTALLER_URL="file://${NTN_INSTALLER_FILE}"
+    # The single declaration of the pinned version, read from where both
+    # notion.zsh and migrate.zsh read it.
+    NTN_EXPECTED_VERSION="$(zsh -c "source '${SETUP_DIR}/lib/notion.zsh'; echo \${NTN_PINNED_VERSION}")"
 }
 
 @test "zsh -n syntax check passes" {
@@ -197,11 +221,11 @@ setup() {
     [[ "${output}" != *"rollback"* ]]
 }
 
-@test "dry-run lists all 7 steps and executes nothing" {
+@test "dry-run lists all 9 steps and executes nothing" {
     run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
 
-    for step in link languages defaults pam claude-sync codex-sync cutover; do
+    for step in link languages defaults pam claude-sync codex-sync herdr-sync notion cutover; do
         [[ "${output}" == *"${step}"* ]]
     done
 
@@ -224,7 +248,7 @@ setup() {
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults pam claude-sync codex-sync cutover; do
+    for step in link languages defaults pam claude-sync codex-sync herdr-sync notion cutover; do
         [[ "${output}" == *"[WOULD RUN] ${step}:"* ]]
     done
     [[ "${output}" != *"[BLOCKED]"* ]]
@@ -237,7 +261,7 @@ setup() {
     # so it alone stays WOULD RUN.
     MIGRATE_EUID_OVERRIDE=0 USER= run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults claude-sync codex-sync cutover; do
+    for step in link languages defaults claude-sync codex-sync herdr-sync notion cutover; do
         [[ "${output}" == *"[BLOCKED] ${step}:"* ]]
     done
     [[ "${output}" == *"[WOULD RUN] pam:"* ]]
@@ -284,6 +308,7 @@ setup() {
     [ -f "${SUDO_LOCAL_PATH}" ]
     [ -f "${HOME}/.claude.json" ]
     [ -f "${HOME}/.codex/config.toml" ]
+    [ -x "${HOME}/.local/bin/ntn" ]
     run cat "${DARWIN_REBUILD_LOG}"
     [[ "${output}" == *"switch --flake"* ]]
     run cat "${MISE_LOG}"
@@ -295,7 +320,7 @@ setup() {
     # `sudo -u testuser -H env PATH=... zsh <script>`; root-required steps
     # did not.
     run cat "${SUDO_LOG}"
-    for step in link languages defaults claude-sync codex-sync; do
+    for step in link languages defaults claude-sync codex-sync herdr-sync notion; do
         [[ "${output}" == *"-u testuser -H env PATH="*"zsh"*"${step}.zsh"* ]]
     done
     [[ "${output}" != *"cutover.zsh"* ]]
@@ -595,6 +620,121 @@ EOF
     [ "${status}" -eq 1 ]
     [[ "${output}" == *"health check 失敗"* ]]
     [[ "${output}" == *"claude-sync:"* ]]
+}
+
+@test "health check catches an ntn that was removed after a success manifest" {
+    # Same contract as the claude-sync case above, for the step whose evidence
+    # lives outside $HOME's dotfiles (a binary in ~/.local/bin): a manifest
+    # success must not stand in for the binary actually being there.
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    rm -f "${HOME}/.local/bin/ntn"
+
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"health check 失敗"* ]]
+    [[ "${output}" == *"notion:"* ]]
+}
+
+@test "health check probes ntn's version as the original user, never as root" {
+    # The binary lives in the user's $HOME and is writable by them. health check
+    # is verification, not a place to run user-owned files with root's
+    # privileges, so the probe goes through the same delegation the non-root
+    # steps use.
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    run cat "${SUDO_LOG}"
+    [[ "${output}" == *"-u testuser -H -- ${HOME}/.local/bin/ntn --version"* ]]
+}
+
+@test "health check probes ntn directly when not running as root (no pointless sudo)" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    # Everything is success already, so this run only re-verifies. As a plain
+    # user there is nobody to delegate to and nothing to drop privileges for.
+    : > "${SUDO_LOG}"
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"health check: 全ステップの実効果を確認しました"* ]]
+    run cat "${SUDO_LOG}"
+    [[ "${output}" != *"--version"* ]]
+}
+
+@test "health check accepts an ntn whose reported version matches the declaration" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    run "${HOME}/.local/bin/ntn" --version
+    [ "${output}" = "ntn ${NTN_EXPECTED_VERSION}" ]
+}
+
+@test "health check fails when the installed ntn is a different version than declared" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    # notion.zsh is install-if-absent, so a machine carrying an older binary
+    # stays "success" forever once the declaration is bumped. Health check is
+    # the only thing that notices -- and it must not fix it silently either.
+    printf '#!/bin/sh\necho "ntn 0.1.0-stale"\n' > "${HOME}/.local/bin/ntn"
+    chmod +x "${HOME}/.local/bin/ntn"
+
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"health check 失敗"* ]]
+    [[ "${output}" == *"notion:"* ]]
+    [[ "${output}" == *"0.1.0-stale"* ]]
+
+    # No silent replacement: the binary is still the stale one afterwards.
+    run "${HOME}/.local/bin/ntn" --version
+    [[ "${output}" == *"0.1.0-stale"* ]]
+}
+
+@test "health check fails when ntn cannot report a version at all" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    printf '#!/bin/sh\nexit 1\n' > "${HOME}/.local/bin/ntn"
+    chmod +x "${HOME}/.local/bin/ntn"
+
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"health check 失敗"* ]]
+    [[ "${output}" == *"notion:"* ]]
+}
+
+@test "notion step does not re-run the installer once ntn exists (guard inside notion.zsh, not just the manifest)" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    # Drop notion's success from the manifest so migrate.zsh actually invokes
+    # notion.zsh again. Leaving the success in place would only exercise
+    # migrate::skippable and prove nothing about notion.zsh's own
+    # already-installed guard -- the thing that has to hold on a machine that
+    # is offline or whose manifest was lost.
+    local manifest="${HOME}/.dotfiles-migrate/manifest.log"
+    grep -v $'\tnotion\t' "${manifest}" > "${manifest}.tmp"
+    mv "${manifest}.tmp" "${manifest}"
+    run grep -c $'\tnotion\t' "${manifest}"
+    [ "${output}" -eq 0 ]
+
+    # Make a re-download detectable: break the installer so any second call
+    # would fail the whole apply.
+    printf '#!/usr/bin/env bash\nexit 1\n' > "${NTN_INSTALLER_FILE}"
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"インストーラを呼びません"* ]]
+    [ -x "${HOME}/.local/bin/ntn" ]
 }
 
 # ---------------------------------------------------------------------------

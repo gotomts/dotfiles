@@ -48,9 +48,6 @@ fi
 # bison
 export PATH="/opt/homebrew/opt/bison/bin:$PATH"
 
-# pipx local bin
-export PATH="$PATH:$HOME/.local/bin"
-
 # dart-cli completion
 [[ -f "$HOME/.dart-cli-completion/zsh-config.zsh" ]] && . "$HOME/.dart-cli-completion/zsh-config.zsh" || true
 

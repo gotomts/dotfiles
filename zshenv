@@ -5,6 +5,14 @@ export FPATH=${HOME}/.functions:${FPATH}
 export PIPX_HOME="${HOME}/.local/pipx"
 export PIPX_BIN_DIR="${HOME}/.local/bin"
 
+# user-local bin（pipx の出力先であり、Homebrew formula が無い CLI の導入先でもある。
+# 例: Notion CLI の ntn を setup/notion.zsh がここへ入れる。偶然 PATH に載っている状態に
+# 依存させず、dotfiles 側で明示する）
+#
+# 追加は append かつここ 1 箇所だけ。prepend にすると Homebrew/mise が供給する同名
+# コマンドをこのディレクトリが横取りし、既存の PATH 解決順を変えてしまう。
+export PATH="${PATH}:${HOME}/.local/bin"
+
 # fzf
 export FZF_DEFAULT_COMMAND='rg --files --hidden --glob "!.git"'
 export FZF_DEFAULT_OPTS='--height 40% --reverse --border'

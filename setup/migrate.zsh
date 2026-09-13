@@ -31,8 +31,8 @@
 #                                         ため、Phase 3 より前に置く。pam は cutover と同じく
 #                                         root 必須なので同じ Phase にまとめ、sudo プロンプトを
 #                                         1 回にまとめる)
-#   Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync  (root 起動時は元ユーザーへ
-#                                         委譲。
+#   Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, notion
+#                                        (root 起動時は元ユーザーへ委譲。
 #                                         mise は Phase 2 で導入済み)
 #
 # 安全設計:
@@ -94,13 +94,14 @@ set -eu
 SETUP_DIR="${0:A:h}"
 source "${SETUP_DIR}/lib/util.zsh"
 source "${SETUP_DIR}/lib/herdr.zsh"
+source "${SETUP_DIR}/lib/notion.zsh"
 
 # ---------------------------------------------------------------------------
 # ステップ定義（配列内の並び = 実行順序。Phase 番号が依存順序を表す）
 # ---------------------------------------------------------------------------
 PHASE1_STEPS=(link)
 PHASE2_STEPS=(cutover pam)
-PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync)
+PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync notion)
 
 # この --apply の中で cutover 直前に退避した Touch ID ファイルのパス（
 # migrate::pam_restore_pristine_if_safe が設定し、migrate::pam_discard_vacated が使う）。
@@ -728,6 +729,29 @@ migrate::run_phase() {
     return 0
 }
 
+# migrate::ntn_version <ntn_bin>  対象ユーザーの ntn が報告する版を返す。取得できなければ
+#   空文字列（呼び出し側で fail-closed に扱うこと）。
+#
+#   root 起動のまま元ユーザー所有のバイナリを root で実行しない。health check は状態の
+#   検証であって特権実行の場ではなく、`$HOME` 配下の書き換え可能なファイルを root の
+#   権限で走らせる理由が無い。非 root ステップの実行と同じ規則に揃え、EUID 0 のときは
+#   元ユーザーへ委譲する。元ユーザーを特定できなければ probe せず空を返す（各ステップの
+#   privilege_ok と同じ fail-closed）。
+migrate::ntn_version() {
+    local ntn_bin="${1}"
+    local euid_val orig_user
+    euid_val="$(migrate::euid)"
+
+    if (( euid_val == 0 )); then
+        migrate::original_user_ok || return 0
+        orig_user="$(migrate::original_user)"
+        notion::installed_version sudo -u "${orig_user}" -H -- "${ntn_bin}"
+        return 0
+    fi
+
+    notion::installed_version "${ntn_bin}"
+}
+
 # ---------------------------------------------------------------------------
 # health check（apply が全ステップ success を報告した後の独立検証）
 #   manifest の自己申告を信用せず、実ファイル/実状態を確認する。
@@ -760,6 +784,27 @@ migrate::health_check() {
     [[ -f "${home_dir}/.claude.json" ]] || failures+=("claude-sync: ${home_dir}/.claude.json がありません")
 
     [[ -f "${home_dir}/.codex/config.toml" ]] || failures+=("codex-sync: ${home_dir}/.codex/config.toml がありません")
+
+    # ntn は Homebrew 管理外なので migrate::command_available（Homebrew prefix
+    # フォールバック）では確認できない。パスと宣言する版は setup/lib/notion.zsh の
+    # 定義から引く（導入する側と同じ定義を見る）。-f も見るのは、-x だけだと実行ビットの
+    # 立ったディレクトリを「導入済み」と誤判定するため。
+    #
+    # 版の probe は migrate::ntn_version 経由（root 起動時は元ユーザーへ委譲する）。
+    # 版まで見るのは、notion.zsh の install-if-absent が「実体があれば何もしない」ため。
+    # 宣言側の版を上げても実機のバイナリは古いまま success になり続ける（新規導入時だけ
+    # 版が効く状態）。実体を自動で差し替えはしない — ここで fail-closed に落として、人が
+    # 明示的に実体を削除してから --apply を再実行する経路に寄せる。
+    local ntn_bin ntn_version
+    ntn_bin="$(notion::bin "${home_dir}")"
+    if [[ -f "${ntn_bin}" && -x "${ntn_bin}" ]]; then
+        ntn_version="$(migrate::ntn_version "${ntn_bin}")"
+        if [[ "${ntn_version}" != "${NTN_PINNED_VERSION}" ]]; then
+            failures+=("notion: ${ntn_bin} の版が宣言と一致しません（宣言: ${NTN_PINNED_VERSION} / 実体: ${ntn_version:-取得できませんでした}）。実体を削除してから --apply を再実行してください")
+        fi
+    else
+        failures+=("notion: ${ntn_bin} が実行可能なファイルではありません")
+    fi
 
     # herdr plugin の allowlist。パスは herdr-sync.zsh と同じ setup/lib/herdr.zsh の
     # 解決関数から引く（配置する側と確認する側で別々にパスを組み立てると、Herdr が
@@ -889,7 +934,7 @@ migrate::usage() {
 
 Phase 1: link (root 起動時は元ユーザーへ委譲)
 Phase 2: cutover, pam (root 必須)
-Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync (root 起動時は元ユーザーへ委譲)
+Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, notion (root 起動時は元ユーザーへ委譲)
 
 個別スクリプト（link.zsh 等）は内部実装です。実機での実行はこのスクリプトからのみ
 行ってください。詳細は setup/README.md を参照。
