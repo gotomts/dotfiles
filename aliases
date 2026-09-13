@@ -49,6 +49,10 @@ alias claude-board='zsh $HOME/.scripts/claude-board.zsh'
 # （本体は scripts/claude-model.zsh / 追加引数はそのまま claude へ渡る）
 alias claudem='zsh $HOME/.scripts/claude-model.zsh'
 
+# 1Password Service Account 経由でインフラ用の秘密を子プロセスへ注入して実行する
+# （本体は scripts/opsa-infra.zsh。通常経路は `opsa-infra run -- <command>` だけ）
+alias opsa-infra='zsh $HOME/.scripts/opsa-infra.zsh'
+
 # claude/rules/ のフラグメントから claude/AGENTS.md と claude/hermes/SOUL.md を生成する
 alias agent-rules-build='zsh $HOME/.scripts/build-agent-rules.zsh'
 

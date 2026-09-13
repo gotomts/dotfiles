@@ -24,6 +24,7 @@
     "deny": [
       "Bash(sops *)",
       "Bash(op *)",
+      "Bash(security find-generic-password *)",
       "Bash(ssh *)",
       "Bash(scp *)",
       "Read(**/master.key)",

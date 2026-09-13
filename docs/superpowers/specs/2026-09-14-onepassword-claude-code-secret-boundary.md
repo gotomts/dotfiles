@@ -1,13 +1,19 @@
-# 1Password × Claude Code の秘密境界と実行ブローカー設計
+# 1Password × Claude Code の秘密境界と Service Account 経路設計
 
 ローカルの AI 作業（Claude Code）でインフラ変更を実行するにあたり、秘密を平文ファイル・
-リポジトリ・ログへ露出させないための境界設計。
+リポジトリ・ログへ露出させないための設計。
 
-対象は 3 層に分かれる。
+**この文書が扱うのは「AI が到達し得る秘密の集合をどこまで絞るか」であって、「AI が何を
+実行してよいか」ではない。** 後者（`apply` の可否など）は Hermes へのユーザー明示指示と
+上位の運用規則が決める。
+
+章立ては次のとおり。
 
 1. **いま入れたもの** — 公式 1Password Claude Code plugin（宣言と同期方法）
 2. **その plugin が保証しないこと** — 誤解したまま運用しないための明文化
-3. **これから作るもの** — AI と 1Password を分離する allowlist 型の実行ブローカー
+3. **秘密の取り扱いルール** — ハーネス層で効いている層と効いていない層の切り分け
+4. **標準経路** — 用途別 Vault + Service Account + Keychain + `opsa-infra run`
+5. **将来オプション** — より強い隔離が要るときの allowlist 型実行ブローカー
 
 ## 1. 1Password plugin の宣言と同期
 
@@ -110,7 +116,8 @@ plugin を外すことではない。
   AI も読める。plugin はこの前提を変えない。
 
 結論として、**1Password Environments の hook / MCP は「秘密をリポジトリに置かない」ための
-配線であって、「AI に秘密を渡さない」ための境界ではない**。境界は 3 章のブローカーで作る。
+配線であって、「AI に秘密を渡さない」ための境界ではない**。影響範囲の限定は 4 章の
+Vault 分離と最小権限で行う。
 
 ### shell plugin（`op plugin init claude`）を採らない理由
 
@@ -123,13 +130,20 @@ plugin を外すことではない。
 - **平文の秘密をリポジトリに置かない。** 復号済みファイル（SOPS の出力等）を作業ツリーへ
   書き出さない。必要なら `VAR=$(...)` で変数へ渡し、画面にもファイルにも落とさない。
 - **`claude/settings.json` の `permissions.deny` を維持する。** `Bash(op *)` / `Bash(sops *)` /
-  `Read(**/*.key)` / `Read(**/secrets/**)` などの deny は、plugin を入れた後も外さない。
+  `Bash(security find-generic-password *)` / `Read(**/*.key)` / `Read(**/secrets/**)` などの
+  deny は、plugin を入れた後も外さない。
   plugin は AI に `op` を使わせるためのものではない。
   ただし **これはハーネス層の事故防止であって、セキュリティ境界ではない**。deny は
   Claude Code の設定であり、同一 user 上のプロセスが `op` を実行すること自体は妨げない。
   文字列マッチである以上、別名・ラッパスクリプト・シェル経由の間接実行で回避もできる。
   「うっかり `op` を叩く」を止める用途には有効、「敵対的に振る舞う AI を封じる」用途には
-  無効、と読み替えて使う。境界は 4 章のブローカーでプロセス境界として作る。
+  無効、と読み替えて使う。4 章の `opsa-infra` wrapper も同じ層にあり、境界ではない。
+  影響範囲を決めるのは Service Account に付けた Vault scope である。
+
+- **秘密を「読ませない」より前に「読む必要を無くす」。** 値を人も AI も見ないで済む経路
+  （シークレットマネージャ参照・`op run` による注入）を先に探す。
+- **会話ログを秘密の保管先にしない。** 一度出力された秘密は transcript に残る。ローテーション
+  以外に取り消す手段は無い前提で扱う。
 
 ### `defaultMode: bypassPermissions` 下で実際に効いている層
 
@@ -146,13 +160,9 @@ plugin を外すことではない。
   変えない。
 
 つまり **「AI 側の設定のどこにも、apply を人間に確認させる信頼できる層が無い」**。
-これが 4 章で `apply` の承認を **AI 経路の外（out-of-band）** に置くことを必須にする根拠である。
-リクエスト内のフラグでも、`ask` の列挙でも代替できない。
-- **秘密を「読ませない」より前に「読む必要を無くす」。** 値を人も AI も見ないで済む経路
-  （シークレットマネージャ参照・ブローカー経由の注入）を先に探す。
-- **会話ログを秘密の保管先にしない。** 一度出力された秘密は transcript に残る。ローテーション
-  以外に取り消す手段は無い前提で扱う。
-
+4 章の標準経路もこの層を作らない（4.5 の「`apply` を wrapper で塞がない理由」を参照）。
+`apply` の可否は **Hermes へのユーザー明示指示と上位の運用規則**で制御する。機構として
+強制したくなった時点で、5 章の out-of-band 承認付きブローカーへ進む。
 ### 露出面: hook が残すローカルファイル
 
 plugin の hook はディスクに 2 種類の痕跡を残す。いずれも**秘密値を載せない設計**だが、
@@ -168,7 +178,7 @@ plugin の hook はディスクに 2 種類の痕跡を残す。いずれも**�
 単体で致命的ではないが、同一マシンの他ユーザー・他プロセスから「何を扱っているか」が読める
 露出面として数える。
 
-この前例から、**ブローカーの監査ログには次を要件とする**（4.3 の受入条件に反映）。
+この前例から、**ブローカーの監査ログには次を要件とする**（5.3 の受入条件に反映）。
 
 - `/tmp` ではなく **private directory** に置く（`~/.local/state/<broker>/` など）
 - ディレクトリ `0700`・ファイル `0600`。作成時に mode を明示し、umask 任せにしない
@@ -181,14 +191,254 @@ plugin の hook はディスクに 2 種類の痕跡を残す。いずれも**�
 ローカルは `gcloud auth application-default login` による ADC、CI / 自動実行は
 Workload Identity Federation に寄せ、**長期の鍵ファイルをディスクに作らない**。
 
-移行が完了するまでは、鍵 JSON を作業ツリー・`~/.config` 直下・`.env` のいずれにも置かず、
-ブローカー側のプロセスだけが参照できる場所に隔離する。
+移行が完了するまでは、鍵 JSON を作業ツリー・`~/.config` 直下・`.env` のいずれにも置かない。
+4 章の Vault へ寄せるか、それが無理なら AI から見えない場所に隔離する。
 
-## 4. 後続実装: allowlist 型の実行ブローカー
+## 4. 標準経路: Claude 専用 Vault + Service Account + Keychain + `opsa-infra run`
 
-今回は**実装しない**。仕様・脅威モデル・受入条件・テスト計画までを確定させる。
+AI が個人 Vault や既存の広い秘密群へ届かないようにする。**「AI が理論上どうやっても読めない」
+を目指すのではなく**、AI 用に明示的に用意した最小 Vault だけに到達範囲を限定し、通常経路では
+値を見ずに注入だけを行う。
 
-### 4.1 位置づけ
+### 4.1 かたち
+
+```
+Keychain (service: OP_SERVICE_ACCOUNT_TOKEN_INFRA)
+      │  コマンド置換で取得し、op run の環境にだけ載せる（呼び出し元では export しない）
+      ▼
+opsa-infra run -- terraform plan
+      │
+      └─> op run --env-file ~/.config/opsa-infra/infra.env -- terraform plan
+                   │  op:// 参照だけを書いた非追跡テンプレート（0600）
+                   ▼
+            Vault: "Claude Code Infrastructure - Kissa Soft"（read_items のみ・期限付き）
+```
+
+### 4.2 構成要素と宣言場所
+
+| 要素 | 実体 | 層 |
+| --- | --- | --- |
+| wrapper 本体 | `scripts/opsa-infra.zsh` | SSOT |
+| 入口 | `aliases` の `alias opsa-infra=...` | Tier 1（`~/.aliases`） |
+| 配置 | `setup/link.zsh` → `~/.scripts/opsa-infra.zsh` | Tier 1 |
+| テスト | `setup/tests/opsa-infra.bats` / `setup/tests/claude-settings.bats` | — |
+| テンプレート | `~/.config/opsa-infra/infra.env`（`0600`、親 dir `0700`） | **リポジトリ外・非追跡** |
+| テンプレートの差し替え | `OPSA_INFRA_ENV_FILE` 環境変数、または `--env-file <path>` | 実行時入力 |
+| token | macOS Keychain の generic password（service 名 `OP_SERVICE_ACCOUNT_TOKEN_INFRA`） | **リポジトリ外** |
+
+テンプレートをリポジトリに置かないのは、`op://` 参照そのものが「どの Vault のどの item を
+AI に使わせているか」という構成情報だからであり、また復号済みの値を誤って書き込んだときに
+公開リポジトリへ載る事故を構造的に避けるためでもある。同じ理由で、wrapper はテンプレートが
+**owner 以外から読めない regular file（`0600` 以下・所有者が実行ユーザー）**であることを
+実行前に検証し、違えば `op` を起動せずに落ちる。
+
+### 4.3 Vault 構成
+
+Vault は用途で分ける。Service Account は Vault 単位でしか権限を付けられないため、
+**Vault の切り方がそのまま「AI が到達し得る秘密の集合」の切り方になる**。
+
+| Vault | 用途 | 状態 |
+| --- | --- | --- |
+| `Claude Code Infrastructure - Kissa Soft` | Kissa Soft のインフラ変更（Cloudflare DNS / Terraform 等） | 既存（この名前へ改称する前提） |
+| `Claude Code Infrastructure - Social Coffee Note` | Social Coffee Note のインフラ変更 | 将来 |
+| `Claude Code Development` | 開発・ローカル検証で AI が使ってよい最小の値（プロジェクト横断の共有 Vault） | 将来 |
+
+- **Infrastructure はプロジェクト別に分ける。** 1 つの Service Account が複数プロジェクトの
+  インフラ資格情報に届く状態を作らないため。プロジェクトが増えたら Vault と Service Account を
+  対で増やす
+- **Development は開発用途の最小値だけを置く共有 Vault。** インフラ変更の権限は入れない。
+  Infrastructure 側と Service Account を分けることで、ローカル検証の事故がインフラへ波及しない
+- **Personal / Private など他の Vault には権限を付けない**（Service Account の `--vault` に
+  列挙しない）
+
+### 4.4 Service Account の方針
+
+- **1 Service Account = 1 Vault。** 上の表の Vault ごとに作る。`opsa-infra` が使うのは
+  `Claude Code Infrastructure - Kissa Soft` 用の 1 本だけ
+- **権限は `read_items` のみ。** `write_items` / `share_items` は必要になるまで付けない
+- **期限付き（既定 `--expires-in 90d`）。** 切れたら wrapper が fail-closed で落ちるので、
+  放置された長期 token が残らない
+- **item は専用に発行し直す。** 既存 item を個人 Vault から移動・共有するのではなく、AI 用の
+  資格情報を新規に作って入れる。失効させても人間側の運用が止まらないようにするため
+- **token は作成時に 1 度だけ返る。** Keychain 以外にコピーを作らない（ファイル・パスワード
+  マネージャの別項目・チャット・transcript のいずれにも残さない）
+- **Vault 名は空白を含む。** `op://` 参照と `--vault` 引数では二重引用符で囲う
+
+**2 本目以降は wrapper 側の入口も要る。** 現状の `opsa-infra` は Keychain service 名
+`OP_SERVICE_ACCOUNT_TOKEN_INFRA` を 1 つだけ宣言しており、テンプレートだけを `--env-file` で
+差し替えても token は Kissa Soft のままである（別 Vault の参照は `op` 側で解決に失敗する）。
+2 本目の Vault を使う時点で、token とテンプレートを**対で**選ぶ入口（`--project` 等）を足す。
+先回りしては作らない。
+
+### 4.5 wrapper が守るもの / 守らないもの
+
+守るもの（`setup/tests/opsa-infra.bats` で検証している）。
+
+- 通常経路は `op run --env-file <template> -- <command>` の 1 本だけ。`run` 以外のサブコマンドを
+  受け付けない（`op read` / `op item` / `op vault` を wrapper 経由で呼ぶ道が無い）
+- `--` の直後のコマンドが `op` なら拒否する。macOS の FS は既定で case-insensitive なので、
+  `OP` / `Op` のような綴りも小文字化して同じ扱いにする
+- テンプレートに `op://` 参照以外の行があれば拒否する（復号済みの値が混ざった状態で実行
+  しない）。参照は vault / item / field の 3 段を必須とし、`Claude Code Infrastructure -
+  Kissa Soft` のような空白入りの Vault 名と、値を二重引用符で囲った書き方は許す
+- テンプレートが owner 以外から読める（`0077` のいずれかのビットが立つ）か、所有者が実行
+  ユーザーでなければ拒否する
+- Keychain に token が無ければ `op` を起動せずに終了する（fail-closed）
+- token を stdout / ファイル / 呼び出し元 shell の環境のいずれにも残さない。前置代入で
+  `op run` プロセスの環境にだけ載せる
+- 子コマンドの終了コードをそのまま返す（`op run` の結果を握り潰さない）
+
+**守らないもの。**
+
+- **注入した秘密は子孫プロセスへ継承され得る。** `op run` が起動した `terraform` と、それが
+  起動する provider や `local-exec` は同じ環境を持つ。`OP_SERVICE_ACCOUNT_TOKEN` もそこに
+  含まれ得るため、**子孫が `op` を呼べば Service Account の権限をそのまま使える**。
+  これは注入方式そのものの性質であって wrapper の欠陥ではない。標準経路ではこれを
+  **残余リスクとして受け入れ、影響範囲を Vault scope で限定する**（その Vault の
+  `read_items` 以上のことはできない）。これが許容できない用途なら 5 章のブローカーを選ぶ
+- **子コマンドの拒否は argv[0] の名前しか見ない。** 拒否できるのは `opsa-infra run -- op ...`
+  の形だけで、`-- env op read ...` / `-- sh -c 'op read ...'` / `-- make plan`（Makefile が
+  `op` を呼ぶ）のように 1 段でも挟めば通る。継承された token がそのまま使えるため、
+  **これらは「`op` を拒否しているから安全」の反例**として明示しておく
+- 同一 macOS user 上の別経路は塞がない。`security find-generic-password` を直接叩く、
+  注入後の環境を印字する、のいずれも通る
+- `--` の後ろのコマンドの中身を検査しない。`apply` を止める層にはならない（下記）
+- 出力の redaction をしない。`op run` の既定マスキングに任せるだけで、plan の diff や
+  tfstate に値が載る経路までは見ていない
+
+**したがって wrapper は AI に対する絶対境界ではなく、事故防止のレールである。**
+実効的な安全境界は Service Account の Vault scope —「`Claude Code Infrastructure - Kissa Soft`
+だけ・`read_items` だけ・期限付き」が、AI が到達し得る秘密の集合そのものを定義する。
+
+#### `apply` を wrapper で塞がない理由
+
+`opsa-infra run -- terraform apply` を文字列マッチで拒否する案は**採らない**。理由は 2 つ。
+
+- **効かない。** `--` の後ろは任意のコマンドであり、`sh -c` / `make` / ラッパスクリプトを
+  1 段挟めば素通りする。3 章の deny と同じく、止められるのは「うっかり」だけで、
+  止めた気になる分だけ有害である
+- **必要な運用を潰す。** ユーザーが明示的に指示した AI からの `apply` まで実行できなくなる。
+  `apply` の可否は **Hermes へのユーザー明示指示と上位の運用規則**が決めることで、
+  秘密注入の wrapper が決めることではない
+
+`opsa-infra` の責務は「AI が触れる秘密の範囲を Vault scope に限定して注入する」ことに閉じる。
+実行内容の承認を機構として強制したくなったら、それは 5 章のブローカー（out-of-band 承認）の
+仕事であって、この wrapper を膨らませる話ではない。
+
+### 4.6 ハーネス層の deny（境界ではない）
+
+`claude/settings.json` の `permissions.deny` に、秘密を直接引く 2 経路を並べておく。
+
+- `Bash(op *)` — 1Password CLI の直接実行
+- `Bash(security find-generic-password *)` — Keychain からの直接読み出し
+- `Bash(sops *)` — 既存の SOPS 経路
+
+`opsa-infra` はコマンド名が別なので、この deny に掛からずに通る（`Bash(op *)` は「`op` +
+空白」で始まるコマンドに掛かる glob であり、`opsa-infra ...` は一致しない）。Claude Code の
+permission 判定は **Bash ツールへ渡すコマンド文字列**を見るだけで、スクリプトが内部で起動する
+子プロセスまでは辿らない。したがって wrapper が内部で呼ぶ `security` / `op` は deny の対象外に
+なる。この 2 点は `setup/tests/claude-settings.bats` で固定している。
+
+**deny は 3 章のとおり境界ではない。** 別名・ラッパ・shell 経由で回避できる文字列マッチであり、
+「うっかり直接叩く」を止めるための事故防止のレールとして置く。
+
+### 4.7 runbook（今回は実行しない）
+
+値を画面に出さない形で書く。**この節のコマンドは今回実行しない。** 実行時はフラグの綴りを
+`op service-account create --help` で確認してから使う（秘密は関与しない）。
+
+1. Vault `Claude Code Infrastructure - Kissa Soft` は 1Password 側で用意する（既存 Vault の
+   改称）。存在確認のために `op vault list` を叩く必要は無い（叩けば他の Vault 名も一覧に
+   出るため、確認目的では叩かない）。
+
+2. AI に使わせる資格情報を、この Vault に**新規発行して**入れる（既存 item の移動ではない）。
+
+3. Service Account を作り、返ってきた token をその場で Keychain へ流し込む。Vault 名に空白が
+   あるので `--vault` の値は引用符で囲う。
+
+   ```sh
+   op service-account create claude-code-ro \
+     --expires-in 90d \
+     --vault "Claude Code Infrastructure - Kissa Soft:read_items" \
+     --raw \
+   | { IFS= read -r token
+       printf 'add-generic-password -U -s %s -a %s -w %s\n' \
+         OP_SERVICE_ACCOUNT_TOKEN_INFRA "${USER}" "${token}" | security -i ; }
+   ```
+
+   `security add-generic-password -w <token>` と直に書かないのは、token が argv に載って
+   実行中 `ps` から見えるため。`security -i` は標準入力からコマンド行を読むので argv に
+   残らず、`printf` は shell builtin なので同様に argv を作らない。
+
+4. 保存できたことだけを、値を出さずに確認する。
+
+   ```sh
+   security find-generic-password -s OP_SERVICE_ACCOUNT_TOKEN_INFRA >/dev/null && echo stored
+   ```
+
+5. テンプレートを非追跡の場所に作る。item の id は
+   `op item list --vault "Claude Code Infrastructure - Kissa Soft"` で確認する（値は出ない）。
+
+   ```sh
+   mkdir -p ~/.config/opsa-infra && chmod 700 ~/.config/opsa-infra
+   cat > ~/.config/opsa-infra/infra.env <<'EOF'
+   CLOUDFLARE_API_TOKEN="op://Claude Code Infrastructure - Kissa Soft/<item-id>/credential"
+   EOF
+   chmod 600 ~/.config/opsa-infra/infra.env
+   ```
+
+   **参照は二重引用符で囲う形に統一する。** Vault 名に空白があるため、囲まない書き方は
+   env-file の parser 実装に依存する。`opsa-infra` はどちらも受け付けるが、runbook としては
+   曖昧さの無い側だけを示す。`op run` が空白入りの Vault 名を解決できない場合は、Vault 名の
+   代わりに Vault の id を書く（id は手順 5 の `op item list` 出力から取れる。秘密値は出ない）。
+
+   親ディレクトリ `0700` とファイル `0600` は必須。`opsa-infra` は実行前にこれを検証し、
+   owner 以外から読める配置なら `op` を起動せずに落ちる。
+
+6. 値を表示せずに注入を確認する。
+
+   ```sh
+   opsa-infra run -- sh -c 'test -n "${CLOUDFLARE_API_TOKEN}"' && echo injected
+   ```
+
+7. 以後の通常利用。
+
+   ```sh
+   opsa-infra run -- terraform plan
+   ```
+
+### 4.8 更新・失効
+
+- **期限切れ・ローテーション** — 4.7 の手順 3 を再実行する。`security add-generic-password -U` が
+  既存エントリを置き換えるので、削除の手間は要らない
+- **失効** — 1Password 側で Service Account を revoke し、`security delete-generic-password
+  -s OP_SERVICE_ACCOUNT_TOKEN_INFRA` で Keychain からも落とす
+- **`claude/settings.json` の deny（`Bash(op *)` / `Bash(security find-generic-password *)`）は
+  外さない。** wrapper は別名なので deny に触れずに通る（4.6）。deny を外す理由がこの設計には
+  無い
+
+### 4.9 今回やらないこと
+
+Vault の作成・改称、Service Account 作成、token の Keychain 保存、`op signin`、vault / item の
+一覧、秘密の取得、実 Terraform の `plan` / `apply`。いずれも 4.7 の runbook に沿って別途行う。
+**存在確認のための参照・一覧も行っていない**（この設計は名前を宣言するだけで、1Password の
+状態を読みにいかない）。
+
+**既存 SOPS 管理の秘密の移行も、この設計には含めない。** 再読・復号・移動・一覧化のいずれも
+行わない。どの値を `Claude Code Development` や各 Infrastructure Vault へ移すかの棚卸しは、
+**秘密値を表示しない手順**を別途レビューしたうえで実施する。
+
+## 5. 将来オプション: allowlist 型の実行ブローカー
+
+4 章の標準経路は、AI が到達し得る秘密の集合を Vault scope で絞る。だが同一 macOS user 内に
+留まる以上、T1・T2（AI が `op` や Keychain を直接叩く / 注入済みの環境を読む）は塞げず、
+`apply` を人間に確認させる層も持たない。
+
+**この 2 点が実際に問題になったときに限り**、別の実行主体（別 macOS user または隔離プロセス）
+としてブローカーを立てる。以下は着手する場合の仕様であって、現時点の実装予定ではない。
+標準経路を置き換えるものでもない（ブローカーを立てても、秘密の供給元は 4 章の Vault のまま）。
+
+### 5.1 位置づけ
 
 AI は「何をしたいか」を言うだけで、実際に秘密へ触れるのはブローカーだけにする。
 AI ⇄ 1Password を直結させない。
@@ -199,7 +449,7 @@ Claude Code ──(構造化リクエスト)──> broker ──(op / ADC)─�
      └────────(redact 済み出力)─────────┘
 ```
 
-### 4.2 脅威モデル
+### 5.2 脅威モデル
 
 | ID | 脅威 | 対策 |
 | --- | --- | --- |
@@ -218,7 +468,7 @@ Claude Code ──(構造化リクエスト)──> broker ──(op / ADC)─�
 同一 user 内に留める暫定構成では「事故の防止」までで、「敵対的な AI への防御」にはならない。
 この差を運用者が認識していることを前提にする。
 
-### 4.3 受入条件
+### 5.3 受入条件
 
 1. リクエストは構造化（repo / terraform ディレクトリ / サブコマンド / 変数名）で受け取り、
    自由テキストの shell コマンドは一切受け付けない
@@ -257,7 +507,7 @@ Claude Code ──(構造化リクエスト)──> broker ──(op / ADC)─�
     作成し、rotation（サイズまたは日次 + 世代上限）を持たせる。`/tmp` には書かない
 11. ブローカーが落ちた場合は fail-closed。判定できないなら実行しない
 
-### 4.4 テスト計画
+### 5.4 テスト計画
 
 - **単体** — 引数パーサ: 未知フラグ・`-chdir`・`--` 以降の追加引数を拒否する
 - **単体** — パス正規化: `../` 混入・symlink 経由・allowlist 外の絶対パスを拒否する
@@ -286,7 +536,7 @@ Claude Code ──(構造化リクエスト)──> broker ──(op / ADC)─�
 
 テストは既存方式（`setup/tests/*.bats`）に合わせて bats で書く。
 
-### 4.5 今回やらないこと
+### 5.5 着手するまでやらないこと
 
-ブローカーの実装、秘密へのアクセス、実際の `apply`、1Password へのサインイン、
-Environments の mount 作成、MCP 経由の vault 照会。いずれも本設計の確定後に別途行う。
+ブローカーの実装、別実行主体の用意、out-of-band 承認機構。4 章の標準経路で足りている間は
+着手しない。
