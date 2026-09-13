@@ -233,6 +233,9 @@ let
     # `sudo tailscale up` でログイン。system extension の承認は手動 (System
     # Settings → Privacy & Security) で必要。
     "tailscale"
+    # Firebase CLI (`firebase`)。Firebase Hosting の本番デプロイに使う。単体のログインは持たず、
+    # casks の gcloud-cli が持つ Application Default Credentials を流用する。
+    "firebase-cli"
 
     # ---- Tier 2 (2026-08-22): packages.nix の default-only CLI tool を Homebrew へ移行 ----
     "tmux"
