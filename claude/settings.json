@@ -129,7 +129,8 @@
     "i-have-adhd@i-have-adhd": true,
     "figma@claude-plugins-official": true,
     "freee-mcp@freee-mcp-marketplace": true,
-    "ponytail@ponytail": true
+    "ponytail@ponytail": true,
+    "1password@1password": true
   },
   "extraKnownMarketplaces": {
     "claude-collections": {
@@ -178,6 +179,12 @@
       "source": {
         "source": "github",
         "repo": "DietrichGebert/ponytail"
+      }
+    },
+    "1password": {
+      "source": {
+        "source": "github",
+        "repo": "1Password/1password-claude-plugin"
       }
     }
   },
