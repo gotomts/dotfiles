@@ -29,6 +29,10 @@ on:
       # 単一性など）。setup/** を伴わない単独編集でもテストを走らせる。
       - 'zshenv'
       - 'zshrc'
+      # scripts/** と aliases も同様。setup/tests/{aliases,opsa-infra}.bats が
+      # 実体と alias 定義を直接検証するため、setup/** を伴わない単独編集で落とす。
+      - 'scripts/**'
+      - 'aliases'
       - '.github/workflows/setup-check.yml'
   push:
     # feature branch への push は pull_request イベントだけで検証する
@@ -44,6 +48,10 @@ on:
       # 単一性など）。setup/** を伴わない単独編集でもテストを走らせる。
       - 'zshenv'
       - 'zshrc'
+      # scripts/** と aliases も同様。setup/tests/{aliases,opsa-infra}.bats が
+      # 実体と alias 定義を直接検証するため、setup/** を伴わない単独編集で落とす。
+      - 'scripts/**'
+      - 'aliases'
       - '.github/workflows/setup-check.yml'
 
 concurrency:
