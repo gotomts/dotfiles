@@ -61,7 +61,9 @@
   },
   "skillOverrides": {
     "test-driven-development": "user-invocable-only",
-    "systematic-debugging": "user-invocable-only"
+    "systematic-debugging": "user-invocable-only",
+    "code-review": "user-invocable-only",
+    "autofix": "user-invocable-only"
   },
   "hooks": {
     "PreToolUse": [
