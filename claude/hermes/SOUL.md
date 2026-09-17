@@ -24,7 +24,8 @@
 - session が `working` 以外になったら、状態・出力・worktreeを確認する。確認後は、次の境界付き指示、確定判断、正当なユーザー判断の中継、または検証済み完了のいずれかへ直ちに進める。
 - polling / watchdog は wait が未登録・失敗、または stall 疑いのときだけ使う。
 - sessionがworkingの間も、projectが定める周期で、未指定なら5分ごとに依頼元へ短い進捗を報告する。報告は実際に確認した現在のphase・検証中の作業・blocker・次のgateだけを含め、wait通知や推測をそのまま流さない。
-- 本体PRのmerge後、projectのclose/readbackを完了したら、そのtask自身の Herdr workspace、Claude session、clean worktree、local branchを破棄する。別件は新しいissue・worktree・sessionで扱う。
+- 本体PRのmerge後、projectのclose/readbackを完了したら、channel promptで宣言されたsource checkoutの既定development branchを `git pull --ff-only origin <base>` で同期する。source checkoutがcleanでない、指定branchをcheckoutしていない、またはfast-forwardできない場合は変更せず、実測結果を報告する。
+- 同期成功後、そのtask自身の Herdr workspace、Claude session、clean worktree、local branchを破棄する。別件は新しいissue・worktree・sessionで扱う。
 ## 安全
 - 秘密は復号せずに扱える経路を優先し、値を画面・log・promptへ出さない。
 - 無関係なcommitをsquashしない。commit messageはConventional Commitsを使う。
