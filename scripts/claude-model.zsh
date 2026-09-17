@@ -26,7 +26,7 @@ done
 # 確認済みのモデル候補と完全な ID の SSOT。「表示ラベル<TAB>モデル ID」の一覧で、
 # アカウント既定の Opus 5 を先頭に、世代ごとに新しいものから並べる。
 # Hermes が Claude Code セッションへ渡す「確認済みの最新 Opus / 最新 Sonnet /
-# 曖昧なときの fallback」もこの一覧から解決する (規範は claude/rules/orchestrator.md)。
+# 曖昧なときの fallback」もこの一覧から解決する (規範は claude/hermes/SOUL.md)。
 # 新しい世代を実際に確認できたときだけここを更新し、未確認の ID は足さない。
 local -a models=(
   "Opus 5 (既定) — 最高性能 / 1M context\tclaude-opus-5[1m]"

@@ -1,24 +1,20 @@
 # AI エージェントのメモリ読み込みの仕組み
 
-> このファイルは auto-load されない。トラブルシュート時と、`claude/rules/orchestrator.md`
+> このファイルは auto-load されない。トラブルシュート時と、グローバル規範
 > （指示層の優先順位）からの参照時に Read する。
 
-## 生成と配布
+## 配布
 
-グローバル規範は `claude/rules/` のフラグメントが SSOT で、`scripts/build-agent-rules.zsh`
-（alias: `agent-rules-build`）が 2 つの生成物を作る。
+グローバル規範はエージェントごとに独立した 2 ファイルで管理し、それぞれを直接編集する。
 
-| 生成物 | 構成 | 読むエージェント |
-|---|---|---|
-| `claude/AGENTS.md` | `core` + `worker` | Claude Code / Codex CLI |
-| `claude/hermes/SOUL.md` | `hermes-identity` + `core` + `orchestrator` | Hermes Agent |
+| ファイル | 読むエージェント |
+|---|---|
+| `claude/AGENTS.md` | Claude Code / Codex CLI |
+| `claude/hermes/SOUL.md` | Hermes Agent |
 
-結合が必要なのは、Codex CLI も Hermes も `@AGENTS.md` 形式の import を展開せず、
-渡されたファイルの中身をそのまま system prompt へ入れるため。生成物は working tree に
-コミットし、symlink は `mkOutOfStoreSymlink` で working tree を直接指す。したがって
-フラグメント編集 → `agent-rules-build` だけで反映され、`darwin-rebuild switch` は要らない。
-
-生成漏れは `.github/workflows/agent-rules-check.yml` が `--check` で検出する。
+ファイルを分けているのは、Codex CLI も Hermes も `@AGENTS.md` 形式の import を展開せず、
+渡されたファイルの中身をそのまま system prompt へ入れるため。symlink (`setup/link.zsh`)
+は working tree を直接指すので、編集はそのまま即時反映され `darwin-rebuild switch` は要らない。
 
 ## Claude Code
 
@@ -63,8 +59,8 @@ channel prompt は ephemeral な区画へ SOUL.md より後に連結されるた
 ### 読み込みの経路
 
 - `~/.hermes/SOUL.md`（dotfiles の `claude/hermes/SOUL.md` への symlink）は `HERMES_HOME`
-  固定で読まれ、**cwd に依存せず必ず system prompt に入る**。identity 区画に載るため、
-  先頭に Hermes 自身の自己紹介文（`hermes-identity`）を含める必要がある
+  固定で読まれ、**cwd に依存せず必ず system prompt に入る**。identity 区画に載り、
+  Hermes 既定の自己紹介文を置き換える
 - プロジェクト context file は「最初に見つかった 1 種類だけ」を読む。優先順は
   `.hermes.md` / `HERMES.md`（git root まで遡上）→ `AGENTS.md`（git root → cwd のチェーンを結合）
   → `CLAUDE.md`（cwd のみ）→ `.cursorrules`（cwd のみ）
@@ -81,14 +77,14 @@ channel prompt は ephemeral な区画へ SOUL.md より後に連結されるた
 
 - `hermes prompt-size` の `stable (identity/guidance/skills)` 区画に SOUL.md 相当の
   バイト数が乗っているか確認する
-- 生成物が届いているかの確認: `readlink -f ~/.hermes/SOUL.md` が working tree
+- SOUL.md が届いているかの確認: `readlink -f ~/.hermes/SOUL.md` が working tree
   (`~/.dotfiles/claude/hermes/SOUL.md`) を指していること
 - 実チャンネルで「今効いている確認ルールを 1 行で言え」と聞き、channel prompt に書いて
   いない共通ルール（一問一答など）を復唱できるか確かめる
 
 ## 外部化ファイルの read-on-demand
 
-規範フラグメント内では以下の外部ファイルへのパス参照のみを残している。`@import` は使わないため
+以下の外部ファイルはパス参照のみで扱う。`@import` は使わないため
 auto-load されず、エージェントが必要時に Read する。
 
 - `~/.dotfiles/claude/handoff-policy.md` — handoff skill の PC ローカル運用規約

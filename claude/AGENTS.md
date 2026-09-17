@@ -1,57 +1,13 @@
-<!-- 生成物: scripts/build-agent-rules.zsh が claude/rules/ から生成する。このファイルを直接編集しない -->
-<!-- SSOT: claude/rules/core.md + claude/rules/worker.md -->
-
-# 進め方
-
-- 沈黙は同意ではない。明示的に答えられたものだけが確定で、無反応・スルー・流れた話題は未定として扱う
-- ユーザーへの確認は 1 ターン 1 問。選択肢を出すときは推奨案と「この推奨が崩れる条件」を添える
-
-# 不可逆な操作
-
-- 意図的に stack した作業は GitHub 純正の stacked pull requests 機能を実際に使う。作成は `gh stack`（`gh extension install github/gh-stack` で導入済み。`gh stack init` / `add` / `submit`）で行い、各 dependent PR を「親 PR の head branch を base にした実際の stacked PR」にする（branch の祖先関係を手で真似ただけの PR は不可）。手動での代替を通常経路にせず、`gh stack` が使えない/対象外のケースは黙って別手段に迂回せず blocker として報告する
-- 設定変更の前に、対象スコープ（global / per-project / per-repo）を明示して確認する
-- 無関係なコミットを squash しない。コミットメッセージの既定は Conventional Commits
-
-# 操作手段
-
-- ブラウザ操作より先に、CLI で実行できないかを確認する
-
-# Herdr
-
-- Herdr の配布・更新経路は dotfiles の Homebrew 宣言（`nix/modules/darwin/homebrew.nix`）だけ。`herdr update` や `~/.local/bin/herdr` を作る自己更新・直接インストールは使わない。更新が必要なら `brew upgrade herdr` のみを使う
-- Herdr を操作する前に、login shell 上で `command -v herdr` が `/opt/homebrew/bin/herdr` に解決されることを確認する。bare shell の PATH 不備で見つからないだけの場合は異常ではなく、login shell で再確認する。login shell でも `/opt/homebrew/bin/herdr` 以外に解決される場合が実際の異常で、操作せず停止して報告する
-
-# 秘密情報
-
-- 復号を含む手順を出す前に、復号せずに済む経路を先に探す（シークレットマネージャ等で同じ値を参照できないか / `VAR=$(...)` と `-e VAR` で画面に出さず渡せないか / そもそも人が値を見る必要があるか）。既存の手順書に復号手順が書かれていても、それが最善である保証にはならない
-
-# レビューゲート
-
-- レビューの要否・実施者・反復回数を決めるのはプロジェクト側のポリシーと評価者だけ。自分の判断で `/review`・`/code-review`・`/security-review`・CodeRabbit・レビュー系サブエージェントを追加で起動しない。レビューゲートは進行を止める判断であり、勝手に増やすと待ち時間と budget だけが伸びる（`/code-review` は最大 5 並列のレビューエージェントを起動する）
-- CodeRabbit は自動起動しない。PR 作成後のレビュー待ちポーリング・`APPROVED` 判定・再レビュー要求もしない
-
-# 委譲
-
-- サブエージェントの調査結果を素通しで次のエージェントへ渡さず、自分で理解・統合してから次の指示を書く
-
-# コミュニケーションの使い分け
-
-- 人間向け・リポジトリ散文（ドキュメント・コメント・コミットメッセージ・PR/レビュー文）は既定で日本語を使う
-- コミットメッセージは Conventional Commits の type/scope トークン（`feat`/`fix`/`docs` 等の識別子と丸括弧内のスコープ名）と、やむを得ない固有名詞・技術識別子（コマンド名・ファイルパス・API/関数名・エラーメッセージ原文等）を除き、説明文は日本語で書く（例: `docs(rules): コミットメッセージの日本語化ルールを明文化`）
-- エージェント間通信（Hermes↔Claude Code のタスク指示・状況報告・ブロッカー・検証結果）も既定で日本語を使う。定型の英語テンプレート（Goal / Scope / Do / Do not / Verification / Stop only if 等）は必須にしない。翻訳できない・すべきでないもの（コマンド・パス・API/関数名・エラーメッセージ原文、外部プロトコルが要求する機械可読フォーマット）だけは原文のまま残す
-
-# 検証
-
-- 検証コマンドは `| head` / `| tail` 等の pipe で exit code を隠さず実行し、実際の exit code を確認してから結果を報告する
-- フォーマッタ・リンタは `git diff --name-only` の対象ファイルにだけ適用する
-
-# handoff / resume
-
-- handoff の作成と「ハンドオフから再開」への応答は `~/.dotfiles/claude/handoff-policy.md` に従う
-
-# コメント・ドキュメント
-
-- コメント・ドキュメントは常にその時点の最新仕様のスナップショットとして書く。変更履歴として書かない
-- 自明でない WHY だけを書く。コードから読み取れる WHAT を繰り返さない
-- タスク ID・チケット番号・変更履歴をコメント・ドキュメントに書かない（git 履歴・issue tracker の役目）
-- 造語・独自ジャーゴンを発明しない。既存の用語をそのまま使う
+## 共通規約
+- 沈黙・未回答・話題転換を合意と扱わない。質問は1ターン1件にする。
+- 設定変更前に global / per-project / per-repo の対象scopeを明示する。
+- 秘密は復号・表示せずに扱える経路を優先する。
+- 無関係なcommitをsquashしない。commit messageはConventional Commitsを使う。
+- reviewer の要否・実施者・回数は project policy / evaluator が決める。自己判断で reviewer を追加しない。
+- 人間向け・リポジトリ散文・agent間通信は日本語を既定にする。
+## 実行者規約
+- 作業前に対象projectの root / local `AGENTS.md`・`CLAUDE.md` を読む。
+- 変更は割り当てられたworktreeだけで行い、既存変更・他taskのresourceを破棄・上書き・stash・resetしない。
+- 実行した検証のexit codeを確認し、結果を捏造しない。
+- project policy が定めた受入条件・検証・PR手順に従う。projectに無い共通gateを増やさない。
+- block、境界逸脱、未確定の設計判断は止めて報告する。

@@ -53,9 +53,6 @@ alias claudem='zsh $HOME/.scripts/claude-model.zsh'
 # （本体は scripts/opsa-infra.zsh。通常経路は `opsa-infra run -- <command>` だけ）
 alias opsa-infra='zsh $HOME/.scripts/opsa-infra.zsh'
 
-# claude/rules/ のフラグメントから claude/AGENTS.md と claude/hermes/SOUL.md を生成する
-alias agent-rules-build='zsh $HOME/.scripts/build-agent-rules.zsh'
-
 # kubectl グローバルエイリアス（alias -g は zsh 構文上ここにまとめる）
 alias -g KP='$(kubectl get pods | fzf | awk "{print \$1}")'
 alias -g KD='$(kubectl get deploy | fzf | awk "{print \$1}")'
