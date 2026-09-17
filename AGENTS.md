@@ -2,13 +2,12 @@
 
 このリポジトリは macOS の開発環境を再現するための dotfiles である。
 
-- `CONTEXT.md` — AI エージェント指示の層（規範フラグメント・グローバル / プロジェクト AGENTS.md・SOUL.md・CLAUDE.local.md・channel prompt）を区別する用語集
+- `CONTEXT.md` — AI エージェント指示の層（グローバル / プロジェクト AGENTS.md・SOUL.md・CLAUDE.local.md・channel prompt）を区別する用語集
 - `aliases` — alias 定義の SSOT（root 直下、`~/.aliases` にシンボリックリンク）。旧 `nix/modules/home/zsh.nix` の `shellAliases` から移行（`setup/link.zsh` が配置、Tier 1）
 - `scripts/` — 外部シェルスクリプト（`aliases` の alias から呼び出される。旧 `aliase/` から改名）。`opsa-infra.zsh` は 1Password Service Account の token を Keychain から取り `op run --env-file <非追跡 template> -- <command>` にだけ流す wrapper（設計と runbook は `docs/superpowers/specs/2026-09-14-onepassword-claude-code-secret-boundary.md` の 4 章）
 - `setup/` — Tier 1（リアルタイム symlink）・Tier 2（明示的スクリプト実行）・Tier 3（カットオーバー・ロールバック）の実装。`darwin-rebuild switch` を使わず、`zsh setup/link.zsh` で dotfiles を配置し（Tier 1）、`setup/languages.zsh`（mise による言語ランタイム + corepack + バージョン固定 CLI）／`setup/defaults.zsh`（macOS defaults・IME）／`setup/pam.zsh`（Touch ID for sudo）／`setup/claude-sync.zsh`（skills clone・plugin sync・MCP merge）／`setup/codex-sync.zsh`（config.toml seed-if-absent）／`setup/herdr-sync.zsh`（Herdr ローカルプラグインの link・allowlist 配置）／`setup/notion.zsh`（Notion CLI `ntn` を公式インストーラで `${HOME}/.local/bin` へ install-if-absent。宣言する版とパスは `setup/lib/notion.zsh` に集約し、`setup/migrate.zsh` の health check も同じ定義から引く）を個別実行する（Tier 2）。既存 PC を home-manager 込みの旧構成から移行する場合は `setup/cutover.zsh`（pre-flight build 確認 + `darwin-rebuild switch`）／`setup/rollback.zsh`（`.before-nix` 衝突検出付きロールバック）を使う（Tier 3）。**実機での実行は `setup/migrate.zsh` が唯一のエントリポイント**（`--dry-run`/`--apply`。Tier 1/2/3 を依存順（Phase 1: link → Phase 2: cutover/pam [root] → Phase 3: languages/defaults/claude-sync/codex-sync/herdr-sync/notion）で実行し、`~/.dotfiles-migrate/manifest.log` で部分適用を検出・再開する。fail-closed、rollback.zsh は自動では呼ばない）。個別スクリプトの直接実行はメンテナンス目的のみ。詳細は `setup/README.md` と `docs/superpowers/specs/2026-08-21-restore-script-management-inventory.md`・`docs/superpowers/specs/2026-08-22-restore-script-management-tier3-cutover-design.md`・`docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md` を参照
 - `claude/` — Claude Code 設定（`~/.claude/` にシンボリックリンク）
-- `claude/rules/` — 全 AI エージェント向けグローバル指示のフラグメント（SSOT）。`core` / `worker` / `orchestrator` / `hermes-identity` の 4 ファイルを `scripts/build-agent-rules.zsh`（旧 `aliase/build-agent-rules.zsh`）が結合して生成物を作る
-- `claude/hermes/SOUL.md` — Hermes Agent 用グローバル指示の生成物（`~/.hermes/SOUL.md` にシンボリックリンク）。直接編集しない
+- `claude/hermes/SOUL.md` — Hermes Agent 用グローバル指示（`~/.hermes/SOUL.md` にシンボリックリンク）
 - `claude/skills/` — Claude Code 個人スキル層（`~/.claude/skills` にシンボリックリンク）。自作 skill は `gotomts/skills` が SSOT で相対 symlink だけを置き、外部由来のみ実体を持つ
 - `claude/hooks/` — Claude Code hook スクリプト（`~/.claude/hooks/<name>` へファイル単位でシンボリックリンク）
 - `claude/mcp-servers.json` — user scope の MCP server 宣言（`setup/claude-sync.zsh` 実行時に `~/.claude.json` に merge、Tier 2）
@@ -57,14 +56,14 @@
 
 - `claude/` 配下の静的ファイル（settings.json/CLAUDE.md/AGENTS.md/skills/hooks）は Tier 1 (`setup/link.zsh`) により `~/.claude/` にシンボリックリンクされる
 - そのため `~/.claude/` を書き換えるツール (plugin install・skill install・settings の UI 操作) の出力は、別リポジトリで作業していてもこのリポジトリの作業ツリーに着地する。commit 前に対象リポジトリ (dotfiles か案件か) を確認し、意図した変更だけを stage すること
-- グローバル指示の SSOT は `claude/rules/` のフラグメント。`claude/AGENTS.md` と `claude/hermes/SOUL.md` は **生成物なので直接編集しない**。編集は `claude/rules/` 側で行い、`agent-rules-build` (実体は `scripts/build-agent-rules.zsh`) を実行して生成物を更新する。生成漏れは `.github/workflows/agent-rules-check.yml` の `--check` が PR と main への直接 push の両方で落とす
-  - `claude/AGENTS.md` = `core` + `worker`。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`setup/link.zsh`) で同じファイルを読む
-  - `claude/hermes/SOUL.md` = `hermes-identity` + `core` + `orchestrator`。Hermes は `~/.hermes/SOUL.md` への symlink 経由 (`setup/link.zsh`) で読む
-  - 結合が要るのは Codex CLI も Hermes も `@AGENTS.md` 形式の import を展開しないため。生成物を working tree に置くのは、Tier 1 の symlink が常に working tree を直接指すため、編集がそのまま即時反映されるようにするため
-  - ルールを足すときの行き先: 両者共通なら `core`、実装ワーカー (Claude Code / Codex) 専用なら `worker`、オーケストレーター (Hermes) の委譲の作法なら `orchestrator`
+- グローバル指示は `claude/AGENTS.md` と `claude/hermes/SOUL.md` をそれぞれ独立に直接編集する。両者に共通する規約があっても、片方を他方から生成しない
+  - `claude/AGENTS.md` — 実装ワーカー向け。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`setup/link.zsh`) で同じファイルを読む
+  - `claude/hermes/SOUL.md` — オーケストレーター向け。Hermes は `~/.hermes/SOUL.md` への symlink 経由 (`setup/link.zsh`) で読む
+  - Tier 1 の symlink が常に working tree を直接指すため、編集はそのまま即時反映される
+  - ルールを足すときの行き先: 実装ワーカー (Claude Code / Codex) なら `claude/AGENTS.md`、オーケストレーター (Hermes) の委譲の作法なら `claude/hermes/SOUL.md`。両方に効かせたいなら両方へ書く
   - **グローバルに置いてよいのは「モデルの既定挙動と異なり、かつコードや履歴から読み取れない」ものだけ**。既定でやることを書き直すと、system prompt と競合して判断を鈍らせる。特定リポジトリでしか効かないものは対象リポジトリの `AGENTS.md`、発火条件が限られるものは skill か on-demand の md (`claude/handoff-policy.md` 等) へ置き、常時ルールには 1 行のポインタだけ残す
-  - 実装ワーカー側 (`worker.md`) は Claude Code の system prompt が既に持つ規範 (周辺コードに合わせる / 検証結果を忠実に報告する / メモリ管理 / スコープを勝手に広げない) を重複させない
-- `claude/CLAUDE.md` は `@AGENTS.md` 1 行のみの薄い参照ファイル。プロジェクト固有のルールはここに書かない (グローバル指示は `claude/rules/` 側に集約)
+  - `claude/AGENTS.md` は Claude Code の system prompt が既に持つ規範 (周辺コードに合わせる / 検証結果を忠実に報告する / メモリ管理 / スコープを勝手に広げない) を重複させない
+- `claude/CLAUDE.md` は `@AGENTS.md` / `@CLAUDE.local.md` の import 行のみの薄い参照ファイル。プロジェクト固有のルールはここに書かない (グローバル指示は `claude/AGENTS.md` 側に集約)
 - `claude/settings.json` は全プロジェクト共通の設定（パーミッション、プラグイン、フック等）を管理する
 - `settings.json` の `enabledPlugins` は `setup/claude-sync.zsh`（Tier 2）が同期するが、**未インストールのものを install するだけ**で既存 plugin は更新しない（`homebrew.onActivation.upgrade = false` と同じ方針）。plugin の更新手順は `nix/README.md`「Claude plugin の定期メンテナンス」を参照
 - `claude/skills/` は個人スキル層。`setup/link.zsh`（Tier 1）が `~/.claude/skills` に symlink で展開する。中身は 2 系統に分かれ、配置で判別できる
@@ -82,10 +81,10 @@ Hermes はオーケストレーター役の AI エージェントで、実装は
 
 - グローバル規範の注入口は `~/.hermes/SOUL.md` (`setup/link.zsh` が `claude/hermes/SOUL.md` へ symlink)。**cwd に依存せず必ず system prompt に入る唯一のファイル**であり、他の候補 (`~/AGENTS.md` / `~/.hermes.md`) は cwd がリポジトリへ移ると失効する
 - Hermes の context file 探索は「最初に見つかった 1 種類だけ」を読む (`.hermes.md` → `AGENTS.md` の git root→cwd チェーン → `CLAUDE.md` → `.cursorrules`)。チェーンは git root より上へ遡らない
-- gateway の cwd はホーム固定 (`terminal.cwd: .` はホームに解決される)。ホームは git リポジトリではないため、**対象リポジトリの AGENTS.md は自動注入されない**。Hermes 側は作業開始時に自分で Read する規約を `claude/rules/orchestrator.md` に持つ
-- SOUL.md は Hermes の identity 区画に載り、既定の自己紹介文を置き換える。生成物の先頭に `claude/rules/hermes-identity.md` を含めているのは、この置き換えで自己紹介が失われないようにするため
+- gateway の cwd はホーム固定 (`terminal.cwd: .` はホームに解決される)。ホームは git リポジトリではないため、**対象リポジトリの AGENTS.md は自動注入されない**。Hermes 側は作業開始時に自分で Read する規約を `claude/hermes/SOUL.md` に持つ
+- SOUL.md は Hermes の identity 区画に載り、既定の自己紹介文を置き換える
 - `~/.hermes/config.yaml` は Hermes が動的に書き換える running config (channel_prompts / onboarding / telemetry 等) なので symlink・追跡しない。`~/.claude.json` や `~/.codex/config.toml` と同種の扱い
-- channel prompt (config.yaml の `discord.channel_prompts`) は SOUL.md より後に注入される上書き層。リポジトリ固有の事実 (checkout パス・origin・既定ブランチ・権限の差分・期限付きの暫定例外) だけを置き、汎用ルールは `claude/rules/orchestrator.md` に集約する
+- channel prompt (config.yaml の `discord.channel_prompts`) は SOUL.md より後に注入される上書き層。リポジトリ固有の事実 (checkout パス・origin・既定ブランチ・権限の差分・期限付きの暫定例外) だけを置き、汎用ルールは `claude/hermes/SOUL.md` に集約する
 
 # Nix 環境
 
@@ -156,7 +155,6 @@ workflow 内が bare な `nix` なのは、`DeterminateSystems/nix-installer-act
   - stack した作業
   - 人間判断が残る変更
 - 「必須の検証」は変更種別に対応する既存のローカル検証を指す。新しいテスト基盤や CI は作らない
-  - `claude/rules/` とその生成物: `zsh scripts/build-agent-rules.zsh --check`
   - `setup/` / `herdr/` / `claude/hooks/` / `claude/settings.json`: 該当する既存テスト（`setup/tests/*.bats`・`herdr/plugins/*/tests/*.bats`・`claude/hooks/*.test.py`）
   - `nix/`: 「Nix 環境」の「主要コマンド」にある副作用なしビルド確認
 - 「公開リポジトリでの参照ポリシー」に触れる変更（コミットメッセージ・散文・ドキュメント）は、非公開リポジトリ・非公開 issue への参照を含まないことを push 前に確認する

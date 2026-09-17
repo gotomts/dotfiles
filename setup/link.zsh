@@ -54,7 +54,6 @@ fs::link_file "${DOTFILES_ROOT}/ssh/config" "${HOME}/.ssh/config"
 fs::link_file "${DOTFILES_ROOT}/functions/fzf-history"          "${HOME}/.functions/fzf-history"
 fs::link_file "${DOTFILES_ROOT}/scripts/get-gke-credentials.sh" "${HOME}/.scripts/get-gke-credentials.sh"
 fs::link_file "${DOTFILES_ROOT}/scripts/claude-board.zsh"       "${HOME}/.scripts/claude-board.zsh"
-fs::link_file "${DOTFILES_ROOT}/scripts/build-agent-rules.zsh"  "${HOME}/.scripts/build-agent-rules.zsh"
 fs::link_file "${DOTFILES_ROOT}/scripts/claude-model.zsh"       "${HOME}/.scripts/claude-model.zsh"
 fs::link_file "${DOTFILES_ROOT}/scripts/opsa-infra.zsh"         "${HOME}/.scripts/opsa-infra.zsh"
 
