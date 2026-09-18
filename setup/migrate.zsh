@@ -31,7 +31,7 @@
 #                                         ため、Phase 3 より前に置く。pam は cutover と同じく
 #                                         root 必須なので同じ Phase にまとめ、sudo プロンプトを
 #                                         1 回にまとめる)
-#   Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, notion
+#   Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, hermes-sync, notion
 #                                        (root 起動時は元ユーザーへ委譲。
 #                                         mise は Phase 2 で導入済み)
 #
@@ -94,6 +94,7 @@ set -eu
 SETUP_DIR="${0:A:h}"
 source "${SETUP_DIR}/lib/util.zsh"
 source "${SETUP_DIR}/lib/herdr.zsh"
+source "${SETUP_DIR}/lib/hermes.zsh"
 source "${SETUP_DIR}/lib/notion.zsh"
 
 # ---------------------------------------------------------------------------
@@ -101,7 +102,7 @@ source "${SETUP_DIR}/lib/notion.zsh"
 # ---------------------------------------------------------------------------
 PHASE1_STEPS=(link)
 PHASE2_STEPS=(cutover pam)
-PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync notion)
+PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync hermes-sync notion)
 
 # この --apply の中で cutover 直前に退避した Touch ID ファイルのパス（
 # migrate::pam_restore_pristine_if_safe が設定し、migrate::pam_discard_vacated が使う）。
@@ -806,6 +807,19 @@ migrate::health_check() {
         failures+=("notion: ${ntn_bin} が実行可能なファイルではありません")
     fi
 
+    # Hermes 用 RTK plugin。パスと「Hermes が入っているか」の判定は hermes-sync.zsh と同じ
+    # setup/lib/hermes.zsh から引く（配置する側と確認する側で別々に組み立てない）。
+    #
+    # 要求する条件も hermes-sync.zsh のゲートと揃える。Hermes は dotfiles の宣言対象では
+    # ない（homebrew.nix にも無い）ので、入っていない PC では何も配置しないのが正しく、
+    # そこで plugin を要求すると manifest の success と health check が食い違う。rtk も
+    # 同じ理由で見る — rtk が無ければ hermes-sync.zsh は warning を出して何も作らない。
+    if hermes::is_installed "${home_dir}" && migrate::command_available rtk; then
+        local hermes_plugin_dir
+        hermes_plugin_dir="$(hermes::rtk_plugin_dir "${home_dir}")"
+        [[ -d "${hermes_plugin_dir}" ]] || failures+=("hermes-sync: ${hermes_plugin_dir} がありません")
+    fi
+
     # herdr plugin の allowlist。パスは herdr-sync.zsh と同じ setup/lib/herdr.zsh の
     # 解決関数から引く（配置する側と確認する側で別々にパスを組み立てると、Herdr が
     # 設定ディレクトリの位置を変えたときに health check だけが古い場所を見に行く）。
@@ -934,7 +948,7 @@ migrate::usage() {
 
 Phase 1: link (root 起動時は元ユーザーへ委譲)
 Phase 2: cutover, pam (root 必須)
-Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, notion (root 起動時は元ユーザーへ委譲)
+Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, hermes-sync, notion (root 起動時は元ユーザーへ委譲)
 
 個別スクリプト（link.zsh 等）は内部実装です。実機での実行はこのスクリプトからのみ
 行ってください。詳細は setup/README.md を参照。

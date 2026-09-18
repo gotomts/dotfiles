@@ -172,7 +172,6 @@ let
   #     gmp / libyaml / openssl@3 / pkg-config / re2c / zlib
   #     → ビルド系。必要時は `nix shell nixpkgs#<pkg>` で一時利用 (S3 ポリシー)
   #   - mise: S7 完全削除方針
-  #   - rtk: S8 flake input 化済み
   #   - mas (CLI): nixpkgs 収録済みだが現状 nix 側にも S3 不在。必要なら後付け
 
   # core (両 role 共通)
@@ -182,6 +181,7 @@ let
     "hunk" # review-first ターミナル diff ビューア (hunk.dev、公式 homebrew-core)。nixpkgs 未収録のため Homebrew 経由
     "crit" # agent feedback ループ用のローカル review UI (crit.md、公式 homebrew-core)。plan/diff/実行中アプリをブラウザでレビュー。nixpkgs 未収録のため Homebrew 経由
     "beads" # コーディングエージェント向け issue tracker の CLI (`bd`、公式 homebrew-core)。GUI は casks の "beadbox"。nixpkgs 未収録のため Homebrew 経由
+    "rtk" # AI エージェントの Bash 出力を圧縮する CLI proxy (rtk-ai.app、公式 homebrew-core、Apache-2.0)。Claude Code は claude/settings.json の PreToolUse hook、Hermes は setup/hermes-sync.zsh が入れる plugin から呼ぶ。nixpkgs 未収録のため Homebrew 経由
     "oven-sh/bun/bun" # tap: oven-sh/bun。S3 で「S7 で確認」とした保守的残置
     "pipx" # nixpkgs にもあるが、Python venv 周りの ergonomics で homebrew 版を選好
     "schpet/tap/linear" # tap: schpet/tap

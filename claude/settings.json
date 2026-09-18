@@ -73,6 +73,10 @@
           {
             "type": "command",
             "command": "H=\"$HOME/.claude/hooks/destructive-command-guard.py\"; [ -f \"$H\" ] || exit 0; python3 \"$H\""
+          },
+          {
+            "type": "command",
+            "command": "command -v rtk >/dev/null 2>&1 || exit 0; exec rtk hook claude"
           }
         ]
       }
@@ -133,7 +137,8 @@
     "figma@claude-plugins-official": true,
     "freee-mcp@freee-mcp-marketplace": true,
     "ponytail@ponytail": true,
-    "1password@1password": true
+    "1password@1password": true,
+    "context-mode@context-mode": true
   },
   "extraKnownMarketplaces": {
     "claude-collections": {
@@ -188,6 +193,12 @@
       "source": {
         "source": "github",
         "repo": "1Password/1password-claude-plugin"
+      }
+    },
+    "context-mode": {
+      "source": {
+        "source": "github",
+        "repo": "mksglu/context-mode"
       }
     }
   },

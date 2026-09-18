@@ -16,7 +16,7 @@ Tier を跨いだ実行順序・部分適用の検出/復旧を担う `setup/mig
 ## 使い方（実機での唯一のエントリポイントは `setup/migrate.zsh`）
 
 Tier 1/2/3 の各スクリプト（`link.zsh`/`languages.zsh`/`defaults.zsh`/`pam.zsh`/
-`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`notion.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
+`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
 順序管理なしに個別実行すると部分適用インシデントを再現する（過去に実際に発生した）。
 実機での実行は必ず `setup/migrate.zsh` からのみ行う:
 
@@ -33,7 +33,7 @@ alias・関数に依存しないため、これが標準の入口。
 zsh ${HOME}/.dotfiles/setup/migrate.zsh --dry-run
 
 # 計画を実行する。単一の root 起動で全 Phase (link -> cutover/pam -> languages/defaults/
-# claude-sync/codex-sync/herdr-sync/notion) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
+# claude-sync/codex-sync/herdr-sync/hermes-sync/notion) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
 # 特定し、非 root ステップは元ユーザーへ委譲実行する（詳細は
 # docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md 参照）
 sudo zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
@@ -67,6 +67,7 @@ zsh ${HOME}/.dotfiles/setup/pam.zsh
 zsh ${HOME}/.dotfiles/setup/claude-sync.zsh
 zsh ${HOME}/.dotfiles/setup/codex-sync.zsh
 zsh ${HOME}/.dotfiles/setup/herdr-sync.zsh
+zsh ${HOME}/.dotfiles/setup/hermes-sync.zsh
 zsh ${HOME}/.dotfiles/setup/notion.zsh
 sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/cutover.zsh
 ```
@@ -106,6 +107,31 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   primary 以外から実行された場合は両方まとめてスキップする。登録先パスが既に一致して
   いれば何もせず、`repos.local.json`（マシンローカルの allowlist）は seed-if-absent で
   既存の中身に触れない。
+- `hermes-sync.zsh`: Hermes に RTK 連携プラグインを入れる（`rtk init --agent hermes` が
+  `~/.hermes/plugins/rtk-rewrite/` を作り、`~/.hermes/config.yaml` の `plugins.enabled` に
+  登録する）。生成物も登録先も Hermes 所有の running config なので追跡せず、宣言側で固定
+  するのは「rtk を入れること（`homebrew.nix`）」と「その rtk に Hermes 用アダプタを張らせる
+  こと（このスクリプト）」だけ。`--auto-patch` を付けるのは、管理下のファイルが既知の
+  アダプタと違うときの確認プロンプトで migrate が stdin 待ちのまま止まらないようにするため。
+  `RTK_TELEMETRY_DISABLED=1` はこの 1 回の呼び出しに閉じた指定で、`rtk init` の
+  テレメトリ同意フローに巻き込まれないようにする（PC の設定は変えない。有効化したく
+  なったら人が `rtk telemetry enable` を叩く）。呼び出しはサブシェルで `${HOME}` へ
+  移ってから行う。`rtk init` は agent によっては cwd 配下へ project スコープの設定を書く
+  作りで、`migrate.zsh` はリポジトリの作業ツリーを cwd にしたまま委譲実行するため。
+
+  スキップ条件は 2 つ。**Hermes が入っていない**（`~/.hermes/config.yaml` が無い）か、
+  **rtk が PATH に無い**かで、どちらも fail-open（warning のみで exit 0）。Hermes は
+  この dotfiles の宣言対象ではない（`homebrew.nix` にも無い）ので、入っていない PC は
+  正常な状態として扱う。判定に `~/.hermes` ディレクトリの有無は使えない — Tier 1 の
+  `link.zsh` が SOUL.md を置く時点でこのディレクトリを作るため、Hermes が無い PC でも
+  必ず存在する。判定とパスは `setup/lib/hermes.zsh` に寄せてあり、health check も同じ
+  定義を引く（`setup/lib/herdr.zsh`・`setup/lib/notion.zsh` と同じ理由）。health check が
+  プラグインの実在を要求するのも、この 2 つのスキップ条件が両方とも偽のときだけ。
+
+  Claude Code 側は同じ RTK でもここを通らない。hook は追跡済みの `claude/settings.json` に
+  直接宣言してあり、`rtk init -g` は使わない（走らせると Tier 1 の symlink 越しに
+  リポジトリの `claude/settings.json` を書き換えてしまう）。
+
 - `notion.zsh`: Notion CLI (`ntn`) に Homebrew formula が無いため、公式インストーラ
   (`https://ntn.dev/install.sh`) を使う唯一の Tier 2 ステップ。mise の npm backend でも
   導入できるが、グローバル CLI を Node ランタイムに依存させないため公式配布バイナリを
@@ -152,7 +178,7 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   `fs::ensure_realfile` と同じ no-data-loss 方針で、自動退避はしない）。
 - `migrate.zsh`: Tier 1/2/3 を跨いだ唯一のオーケストレーター。実行順序は Phase 1
   (`link`) → Phase 2 (`cutover`/`pam`、root 必須) → Phase 3 (`languages`/`defaults`/
-  `claude-sync`/`codex-sync`/`herdr-sync`/`notion`)。`languages.zsh` 自身が「mise は darwin-switch で事前導入
+  `claude-sync`/`codex-sync`/`herdr-sync`/`hermes-sync`/`notion`)。`languages.zsh` 自身が「mise は darwin-switch で事前導入
   済みが前提」と明記しているため、cutover を languages より先に置く。各ステップの結果は
   `~/.dotfiles-migrate/manifest.log` に永続化し、success 済みステップは再実行しない
   （idempotent な部分適用検出・再開）。ただし `cutover` だけは、必須バイナリの実在と
@@ -198,9 +224,9 @@ bats herdr/plugins/*/tests/*.bats
 委譲実行を health check にまで広げるほどの利得が無いため）。
 
 `fs::link_file`/`fs::ensure_realfile` は関数単位、`link.zsh`/`languages.zsh`/`defaults.zsh`/
-`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`notion.zsh`/`cutover.zsh`/`rollback.zsh`/
+`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`cutover.zsh`/`rollback.zsh`/
 `migrate.zsh` は、
-実コマンド（`defaults`/`mise`/`corepack`/`claude`/`herdr`/`git`/`darwin-rebuild`/`nix`）を PATH 上の
+実コマンド（`defaults`/`mise`/`corepack`/`claude`/`herdr`/`rtk`/`git`/`darwin-rebuild`/`nix`）を PATH 上の
 stub 実行ファイルに差し替え、`$HOME` を一時ディレクトリに差し替えたサンドボックスでの統合テスト
 （実機・実ネットワーク・実パッケージマネージャ・実 `darwin-rebuild switch` には一切触れない）。
 

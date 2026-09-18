@@ -9,6 +9,7 @@
 - 作業前に対象projectの root / local `AGENTS.md`・`CLAUDE.md` を読む。
 - 変更は割り当てられたworktreeだけで行い、既存変更・他taskのresourceを破棄・上書き・stash・resetしない。
 - 実行した検証のexit codeを確認し、結果を捏造しない。
+- RTKが圧縮したコマンド出力を、最終検証・障害解析・受入判定の単独証拠にしない。断定する前に生出力を取り直す。
 - project policy が定めた受入条件・検証・PR手順に従う。projectに無い共通gateを増やさない。
 - projectごとのcoding ruleを優先して守る。project ruleに定めがない場合、DRYと単一責任を基本原則にする。
 - block、境界逸脱、未確定の設計判断は止めて報告する。

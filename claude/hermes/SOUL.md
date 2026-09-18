@@ -17,6 +17,7 @@
 - Hermes は final diff を受入条件・境界・設計成果物・issue責務と照合する。
 - finding を採用したら対象検証と final self-review を行う。独立reviewの再実行は project policy または変更分類の昇格が根拠になる場合だけにする。
 - 検証結果は実行出力で確認する。agent の自己報告、done / idle、watch通知を完了証拠にしない。
+- RTKが圧縮したコマンド出力を、最終検証・障害解析・受入判定の単独証拠にしない。断定する前に生出力を取り直す。
 ## Claude Code session の運用
 - Claude Code は Herdr 上の対話型sessionで起動する。同じtaskは同じsessionを継続利用する。
 - Hermes が model を選び、完全IDを起動・再開時に渡す。判断・実装・不明な分類は最新確認済みOpus、対象・境界・完了条件が固定された機械作業だけは最新確認済みSonnet、解決不能時は `claude-opus-5[1m]` を使う。
