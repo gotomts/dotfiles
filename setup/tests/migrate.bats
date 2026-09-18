@@ -68,6 +68,19 @@ exit 0
 EOF
     chmod +x "${bin_dir}/claude"
 
+    # hermes-sync.zsh's only external command. Models the one thing the real
+    # `rtk init --agent hermes` contract guarantees and hermes-sync.zsh relies
+    # on: it materializes ~/.hermes/plugins/rtk-rewrite/.
+    cat > "${bin_dir}/rtk" <<'EOF'
+#!/bin/bash
+echo "$*" >> "${RTK_LOG}"
+if [[ "$1" == "init" ]]; then
+    mkdir -p "${HOME}/.hermes/plugins/rtk-rewrite"
+fi
+exit "${RTK_EXIT:-0}"
+EOF
+    chmod +x "${bin_dir}/rtk"
+
     cat > "${bin_dir}/darwin-rebuild" <<'EOF'
 #!/bin/bash
 echo "$*" >> "${DARWIN_REBUILD_LOG}"
@@ -120,6 +133,13 @@ setup() {
     # (root and the "original user" are the same process either way), point
     # the delegated-user home lookup back at the same sandboxed $HOME.
     export MIGRATE_HOME_FOR_USER_OVERRIDE="${HOME}"
+    # Hermes is not declared by this repo, so whether it actually runs on the
+    # machine is what decides if hermes-sync.zsh does anything -- and that is
+    # read from Hermes's own running config, not from ~/.hermes (which Tier 1
+    # creates anyway to place SOUL.md). Model the machine that has Hermes; the
+    # "Hermes absent" branch gets its own test below.
+    mkdir -p "${HOME}/.hermes"
+    : > "${HOME}/.hermes/config.yaml"
     export DOTFILES_ROLE_FILE="${BATS_TEST_TMPDIR}/no-such-role-file"
     export SUDO_LOCAL_PATH="${BATS_TEST_TMPDIR}/sudo_local"
     # Model a real machine's starting shape: nix-darwin owns /etc/pam.d/sudo_local
@@ -142,9 +162,11 @@ setup() {
     DARWIN_REBUILD_LOG="${BATS_TEST_TMPDIR}/darwin-rebuild.log"
     NIX_LOG="${BATS_TEST_TMPDIR}/nix.log"
     SUDO_LOG="${BATS_TEST_TMPDIR}/sudo.log"
+    RTK_LOG="${BATS_TEST_TMPDIR}/rtk.log"
     : > "${MISE_LOG}"; : > "${COREPACK_LOG}"; : > "${DEFAULTS_LOG}"
     : > "${GIT_LOG}"; : > "${CLAUDE_LOG}"; : > "${DARWIN_REBUILD_LOG}"; : > "${NIX_LOG}"; : > "${SUDO_LOG}"
-    export NODE_BIN_DIR MISE_LOG COREPACK_LOG DEFAULTS_LOG GIT_LOG CLAUDE_LOG DARWIN_REBUILD_LOG NIX_LOG SUDO_LOG
+    : > "${RTK_LOG}"
+    export NODE_BIN_DIR MISE_LOG COREPACK_LOG DEFAULTS_LOG GIT_LOG CLAUDE_LOG DARWIN_REBUILD_LOG NIX_LOG SUDO_LOG RTK_LOG
     _install_full_stubs "${STUB_BIN}"
     # A minimal, real-machine-shaped PATH (not this dev sandbox's own, often
     # huge, inherited PATH). migrate.zsh chains multiple `zsh <script>`
@@ -221,11 +243,11 @@ EOF
     [[ "${output}" != *"rollback"* ]]
 }
 
-@test "dry-run lists all 9 steps and executes nothing" {
+@test "dry-run lists all 10 steps and executes nothing" {
     run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
 
-    for step in link languages defaults pam claude-sync codex-sync herdr-sync notion cutover; do
+    for step in link languages defaults pam claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
         [[ "${output}" == *"${step}"* ]]
     done
 
@@ -248,7 +270,7 @@ EOF
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults pam claude-sync codex-sync herdr-sync notion cutover; do
+    for step in link languages defaults pam claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
         [[ "${output}" == *"[WOULD RUN] ${step}:"* ]]
     done
     [[ "${output}" != *"[BLOCKED]"* ]]
@@ -261,7 +283,7 @@ EOF
     # so it alone stays WOULD RUN.
     MIGRATE_EUID_OVERRIDE=0 USER= run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults claude-sync codex-sync herdr-sync notion cutover; do
+    for step in link languages defaults claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
         [[ "${output}" == *"[BLOCKED] ${step}:"* ]]
     done
     [[ "${output}" == *"[WOULD RUN] pam:"* ]]
@@ -309,6 +331,9 @@ EOF
     [ -f "${HOME}/.claude.json" ]
     [ -f "${HOME}/.codex/config.toml" ]
     [ -x "${HOME}/.local/bin/ntn" ]
+    [ -d "${HOME}/.hermes/plugins/rtk-rewrite" ]
+    run cat "${RTK_LOG}"
+    [[ "${output}" == *"init --agent hermes"* ]]
     run cat "${DARWIN_REBUILD_LOG}"
     [[ "${output}" == *"switch --flake"* ]]
     run cat "${MISE_LOG}"
@@ -320,7 +345,7 @@ EOF
     # `sudo -u testuser -H env PATH=... zsh <script>`; root-required steps
     # did not.
     run cat "${SUDO_LOG}"
-    for step in link languages defaults claude-sync codex-sync herdr-sync notion; do
+    for step in link languages defaults claude-sync codex-sync herdr-sync hermes-sync notion; do
         [[ "${output}" == *"-u testuser -H env PATH="*"zsh"*"${step}.zsh"* ]]
     done
     [[ "${output}" != *"cutover.zsh"* ]]
@@ -333,6 +358,22 @@ EOF
         run zsh "${SETUP_DIR}/migrate.zsh" --apply
     [ "${status}" -eq 0 ]
     [ "$(wc -l < "${DARWIN_REBUILD_LOG}" | tr -d ' ')" -eq "${darwin_calls_before}" ]
+}
+
+@test "apply: a machine without Hermes completes without installing the RTK plugin" {
+    # Hermes is not declared by this repo, so "not installed" is a normal
+    # machine shape -- hermes-sync.zsh must skip and the health check must not
+    # demand a plugin that was deliberately never placed.
+    rm -f "${HOME}/.hermes/config.yaml"
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"health check: 全ステップの実効果を確認しました"* ]]
+
+    [ ! -e "${HOME}/.hermes/plugins/rtk-rewrite" ]
+    run cat "${RTK_LOG}"
+    [ -z "${output}" ]
 }
 
 @test "apply: link already done non-root, a single root invocation finishes the rest (idempotent mix)" {
