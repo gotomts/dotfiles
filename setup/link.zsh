@@ -56,6 +56,8 @@ fs::link_file "${DOTFILES_ROOT}/scripts/get-gke-credentials.sh" "${HOME}/.script
 fs::link_file "${DOTFILES_ROOT}/scripts/claude-board.zsh"       "${HOME}/.scripts/claude-board.zsh"
 fs::link_file "${DOTFILES_ROOT}/scripts/claude-model.zsh"       "${HOME}/.scripts/claude-model.zsh"
 fs::link_file "${DOTFILES_ROOT}/scripts/opsa-infra.zsh"         "${HOME}/.scripts/opsa-infra.zsh"
+fs::link_file "${DOTFILES_ROOT}/scripts/jev-development-control-plane.py" \
+    "${HOME}/.scripts/jev-development-control-plane.py"
 
 # ---- grip / cmux --------------------------------------------------------
 fs::link_file "${DOTFILES_ROOT}/grip/settings.py"            "${HOME}/.grip/settings.py"
