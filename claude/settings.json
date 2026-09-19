@@ -66,6 +66,16 @@
     "autofix": "user-invocable-only"
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/goto/.claude/hooks/context-mode-cache-heal.mjs\""
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -202,6 +212,7 @@
       }
     }
   },
+  "model": "claude-opus-5[1m]",
   "language": "japanese",
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
