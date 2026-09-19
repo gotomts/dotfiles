@@ -17,6 +17,12 @@ REPO_ROOT="$(cd "$(dirname "${BATS_TEST_FILENAME}")/../.." && pwd)"
     [ -f "${REPO_ROOT}/scripts/claude-model.zsh" ]
     [ -f "${REPO_ROOT}/scripts/get-gke-credentials.sh" ]
     [ -f "${REPO_ROOT}/scripts/opsa-infra.zsh" ]
+    [ -f "${REPO_ROOT}/scripts/jev-development-control-plane.py" ]
+}
+
+@test "aliases defines jev-dev pointing at scripts/jev-development-control-plane.py" {
+    run grep -c "alias jev-dev='python3 \$HOME/.scripts/jev-development-control-plane.py'" "${REPO_ROOT}/aliases"
+    [ "${status}" -eq 0 ]
 }
 
 @test "aliases defines opsa-infra pointing at scripts/opsa-infra.zsh" {

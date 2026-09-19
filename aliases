@@ -53,6 +53,11 @@ alias claudem='zsh $HOME/.scripts/claude-model.zsh'
 # （本体は scripts/opsa-infra.zsh。通常経路は `opsa-infra run -- <command>` だけ）
 alias opsa-infra='zsh $HOME/.scripts/opsa-infra.zsh'
 
+# 開発 lane の状態照合を TypeSafe Jev へ shadow-mode で投げる補助 CLI。stdin に制御面 JSON を
+# 渡す（本体は scripts/jev-development-control-plane.py）。返るのは型付きの「提案」だけで、
+# 実行根拠にはならない。TYPESAFE_API_KEY が無いときは外部 API を呼ばない
+alias jev-dev='python3 $HOME/.scripts/jev-development-control-plane.py'
+
 # kubectl グローバルエイリアス（alias -g は zsh 構文上ここにまとめる）
 alias -g KP='$(kubectl get pods | fzf | awk "{print \$1}")'
 alias -g KD='$(kubectl get deploy | fzf | awk "{print \$1}")'

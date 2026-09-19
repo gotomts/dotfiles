@@ -29,6 +29,8 @@ SETUP_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     [ -L "${tmp_home}/.scripts/claude-board.zsh" ]
     [ -L "${tmp_home}/.scripts/claude-model.zsh" ]
     [ -L "${tmp_home}/.scripts/opsa-infra.zsh" ]
+    [ -L "${tmp_home}/.scripts/jev-development-control-plane.py" ]
+    [ -f "${tmp_home}/.scripts/jev-development-control-plane.py" ]
     [ -L "${tmp_home}/.grip/settings.py" ]
     [ -L "${tmp_home}/.config/cmux/config.ghostty" ]
     [ -L "${tmp_home}/.config/starship.toml" ]
