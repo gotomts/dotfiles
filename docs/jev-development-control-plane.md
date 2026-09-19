@@ -73,6 +73,29 @@ stdin に渡すのは明示的な開発制御面データだけ。
   env-file template（非追跡）で別に用意する。
 - CLI 側は環境変数を読むだけで、秘密を復号・表示・リポジトリへ書く経路を持たない。
 
+### 正式な注入経路
+
+Development 用の注入は `scripts/opsa-development.zsh`（alias `opsa-development`）だけを通す。
+
+```sh
+opsa-development run [--env-file <path>] -- <command> [args...]
+```
+
+- token は Development 専用の macOS Keychain entry から取り、`op run` の子プロセスの環境に
+  だけ載せる。呼び出し元の shell へ export せず、stdout / stderr にも出さない。Keychain の
+  service 名・Vault 名・item 名・具体的な `op://` 参照は runbook 側で管理し、このリポジトリ
+  には書かない。
+- env-file template の既定は `${HOME}/.config/opsa-development/development.env`（非追跡）。
+  `OPSA_DEVELOPMENT_ENV_FILE` または `--env-file` で上書きできる。
+- template は fail-closed で検証する。現在の user が所有する通常ファイルで、owner 以外から
+  読めない（0600 以下）ことと、空行・コメント以外が `NAME=op://vault/item/field` 形式の参照
+  だけであることを要求する。復号済みの literal 値が混ざっていれば実行しない。
+- `op` 自身を子コマンドにする（`opsa-development run -- op read ...` のような）呼び出しは
+  拒否する。値の直接取得・管理は AI 経路の外で行う。
+- `op run` が起動したコマンドとその子孫は同じ環境を継承し得る。これは標準経路の残余リスク
+  として受け入れ、Development 専用 Vault の scope（read_items だけ・期限付き）で影響範囲を
+  限定する。wrapper は事故防止のレールであって、AI に対する絶対境界ではない。
+
 ## 予算
 
 - 台帳は private state directory `~/.local/state/jev-development-control-plane`（0700）の
@@ -96,8 +119,8 @@ stdin に渡すのは明示的な開発制御面データだけ。
 # 構造とローカル判断だけ確認する（外部通信なし）
 jev-dev --dry-run < payload.json
 
-# 実際に問い合わせる（key がある場合のみ）
-op run --env-file <非追跡 template> -- jev-dev < payload.json
+# 実際に問い合わせる（key がある場合のみ。注入は wrapper 経由の 1 本だけ）
+opsa-development run -- jev-dev < payload.json
 ```
 
 テスト用の上書き: `JEV_ENDPOINT` / `JEV_TIMEOUT_SECONDS` / `JEV_STATE_DIR`。
@@ -107,5 +130,5 @@ model は既定で `jev-1.13.0` に pin し、`JEV_MODEL` で明示上書きで�
 
 ```sh
 python3 scripts/jev-development-control-plane.test.py
-bats setup/tests/link.bats setup/tests/aliases.bats
+bats setup/tests/opsa-development.bats setup/tests/link.bats setup/tests/aliases.bats
 ```

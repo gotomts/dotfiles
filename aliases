@@ -53,6 +53,11 @@ alias claudem='zsh $HOME/.scripts/claude-model.zsh'
 # （本体は scripts/opsa-infra.zsh。通常経路は `opsa-infra run -- <command>` だけ）
 alias opsa-infra='zsh $HOME/.scripts/opsa-infra.zsh'
 
+# 1Password Service Account 経由で Development 用の秘密を子プロセスへ注入して実行する
+# （本体は scripts/opsa-development.zsh。通常経路は `opsa-development run -- <command>` だけ。
+#   token・template・Vault scope はインフラ用の opsa-infra とは別系統）
+alias opsa-development='zsh $HOME/.scripts/opsa-development.zsh'
+
 # 開発 lane の状態照合を TypeSafe Jev へ shadow-mode で投げる補助 CLI。stdin に制御面 JSON を
 # 渡す（本体は scripts/jev-development-control-plane.py）。返るのは型付きの「提案」だけで、
 # 実行根拠にはならない。TYPESAFE_API_KEY が無いときは外部 API を呼ばない
