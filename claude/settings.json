@@ -212,6 +212,7 @@
       }
     }
   },
+  "model": "claude-opus-5[1m]",
   "language": "japanese",
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true,
