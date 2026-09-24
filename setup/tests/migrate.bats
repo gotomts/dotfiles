@@ -393,8 +393,8 @@ EOF
 
 @test "apply: link already done non-root, a single root invocation finishes the rest (idempotent mix)" {
     # Backward-compat path: someone still runs Phase 1 by hand as themselves
-    # first; the single root invocation must skip it (manifest already
-    # success) and finish Phase 2/3 via delegation.
+    # first; the single root invocation must finish Phase 2/3 via delegation.
+    # link itself re-runs (see the always-rerun test below) and stays harmless.
     MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
     [ "${status}" -eq 1 ]
     [ -L "${HOME}/.zshrc" ]
@@ -402,8 +402,43 @@ EOF
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --apply
     [ "${status}" -eq 0 ]
-    [[ "${output}" == *"link: 既に success です"* ]]
+    [ -L "${HOME}/.zshrc" ]
     [ -f "${HOME}/.claude.json" ]
+}
+
+@test "apply: link re-runs even when the manifest already records it as success" {
+    # link.zsh's declarations grow as dotfiles gains files, but a manifest
+    # success carries no record of WHICH declarations it covered. Skipping on
+    # it leaves every newly declared symlink unapplied forever on an existing
+    # machine (real incident 2026-09-24: 5 links, including the destructive
+    # command guard hook, were missing while --apply kept reporting success).
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    # Delete a link that link.zsh declares, then re-apply: it must come back.
+    rm "${HOME}/.zshrc"
+    [ ! -e "${HOME}/.zshrc" ]
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+    [[ "${output}" != *"link: 既に success です"* ]]
+    [ -L "${HOME}/.zshrc" ]
+}
+
+@test "dry-run: link is reported as WOULD RUN even after a recorded success" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"[WOULD RUN] link:"* ]]
+    # the other already-successful steps still report as skippable
+    [[ "${output}" == *"notion:"* ]]
+    [[ "${output}" != *"[WOULD RUN] notion:"* ]]
 }
 
 @test "apply: a real step failure halts immediately (fail-closed, no automatic rollback)" {

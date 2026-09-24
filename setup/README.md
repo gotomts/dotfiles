@@ -47,7 +47,20 @@ success したステップは再実行しない（idempotent）。全ステッ�
 非ゼロ終了コードを返し続ける（部分適用を健全な状態として扱わない）。`SUDO_USER` が特定できない
 環境（sudo を介さない直接 root ログイン等）では非 root ステップは blocked のまま止まる。
 
-例外は `cutover`（`darwin-rebuild switch`）で、manifest の success だけでは skip しない。
+例外が 2 つある。
+
+1 つ目は `link`（Tier 1 の symlink 配置）で、**manifest に success があっても毎回再実行する**。
+`link.zsh` の宣言（`fs::link_file` の並び）は dotfiles の更新で増えるのに、manifest の success は
+「いつ時点の宣言に対する success か」を持たない。skip すると、新しく足した symlink が既存 PC では
+永久に張られない（実機インシデント 2026-09-24: `claude-model.zsh` 等 4 本の script と
+`destructive-command-guard.py` の計 5 本が未適用のまま `--apply` が success を返し続け、
+破壊的コマンドブロック hook は `settings.json` 側の `[ -f "$H" ] || exit 0` ガードで黙って
+素通りしていた）。`cutover` のような fingerprint 方式は採らない — `link.zsh` は完全に冪等で、
+既に正しい symlink は SKIP ログを出して終わるだけ（実行時間も 1 秒未満）なので、skip して得る
+ものが無い。`postcondition-unmet` も記録しない（設計上そうしているだけで、postcondition 違反
+ではないため）。
+
+2 つ目は `cutover`（`darwin-rebuild switch`）で、manifest の success だけでは skip しない。
 必須 Homebrew バイナリ（mise/starship）の実在に加え、直近 success 時に記録した
 desired-input fingerprint — `nix/` 配下の構成と `flake.lock`、`/etc/dotfiles-role`、
 `~/.config/dotfiles/homebrew.local.nix` — が現在値と一致するかを毎回検証し、変わっていれば
@@ -75,8 +88,9 @@ sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/cutover.zsh
 
 `setup/link.zsh` は一度実行すれば、以後の repo 編集（`zshrc`/`aliases`/`claude/CLAUDE.md` 等）は
 symlink 越しに即座に反映される。再実行が必要なのは「`setup/link.zsh` 自体に新しい対応行を
-追加したとき」だけ。Tier 2 の各スクリプトは冪等なので、値を変更した後は該当スクリプトを
-再実行すれば反映される。
+追加したとき」だけで、それは `migrate.zsh --apply` が毎回 `link` を走らせるので自動的に拾われる
+（上記「例外が 2 つある」参照。ここを手で叩く必要は無い）。Tier 2 の各スクリプトは冪等なので、
+値を変更した後は該当スクリプトを再実行すれば反映される。
 
 ## 安全策（明示関数）
 

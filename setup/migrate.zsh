@@ -47,8 +47,13 @@
 #     防ぐ）。元ユーザーが特定できないステップは blocked として記録し、同じ Phase 内の
 #     残りステップだけ試行を続け、Phase 境界は厳格に守る（次の Phase には進まない）
 #   - 冪等検知: manifest に success の記録があるステップは再実行せず skip する。
-#     これにより「部分適用済みの実機」を安全に検出・再開できる。ただし cutover は
-#     manifest の success だけでは skip 可としない。次の 2 つを都度再検証し、どちらかが
+#     これにより「部分適用済みの実機」を安全に検出・再開できる。ただし link と cutover は
+#     例外で、manifest の success だけでは skip しない。
+#     link は常に再実行する。link.zsh の宣言は dotfiles の更新で増えるのに manifest の
+#     success は「いつ時点の宣言に対する success か」を持たず、skip すると新しく足した
+#     symlink が既存 PC では永久に張られないため（実機インシデント、2026-09-24）。
+#     link.zsh は完全に冪等なので、毎回走らせて失うものが無い。
+#     cutover は次の 2 つを都度再検証し、どちらかが
 #     崩れていれば manifest に `postcondition-unmet` を記録したうえで同じ --apply 内で
 #     cutover を再実行する（migrate::skippable / migrate::cutover_rerun_reason）:
 #       1. postcondition（mise/starship 等、desired Homebrew set の必須バイナリが実在
@@ -411,13 +416,33 @@ migrate::cutover_rerun_reason() {
 #   fingerprint の一致）も満たしているときのみ skip 可とする。
 #   health check（apply 完了後の独立検証）と同じ「manifest の自己申告を信用しない」方針を
 #   skip 判定そのものにも適用する（実機インシデント、2026-08-22）。
+#
+#   link は manifest に success があっても常に再実行する。link.zsh の宣言（fs::link_file
+#   の並び）は dotfiles の更新で増えるのに、manifest の success は「いつ時点の宣言に対する
+#   success か」を持たない。skip すると、新しく足した symlink が既存 PC では永久に張られない
+#   （実機インシデント、2026-09-24: claude-model.zsh / opsa-infra.zsh / opsa-development.zsh /
+#   jev-development-control-plane.py / destructive-command-guard.py の 5 本が未適用のまま
+#   --apply が success を返し続けていた。破壊的コマンドブロック hook は settings.json 側の
+#   `[ -f "$H" ] || exit 0` ガードで黙って素通りしていた）。
+#   cutover のような fingerprint 方式は採らない。link.zsh は完全に冪等で、既に正しい
+#   symlink は SKIP ログを出して終わるだけ（実行時間も 1 秒未満）なので、skip して得る
+#   ものが無い。
 migrate::skippable() {
     local step="${1}"
+    ! migrate::always_reruns "${step}" || return 1
     [[ "$(migrate::latest_status "${step}")" == "success" ]] || return 1
     if [[ "${step}" == "cutover" ]]; then
         [[ -z "$(migrate::cutover_rerun_reason)" ]] || return 1
     fi
     return 0
+}
+
+# migrate::always_reruns <step>  manifest の success に関わらず毎回実行するステップなら 0。
+#   現状 link のみ。理由は migrate::skippable のコメント参照。cutover と違って
+#   「postcondition 未達成」ではなく設計上そうしているだけなので、再実行しても manifest に
+#   postcondition-unmet は残さない。
+migrate::always_reruns() {
+    [[ "${1}" == "link" ]]
 }
 
 # migrate::pam_static_default <target>  <target> の「macOS 純正デフォルト」パスを返す。
@@ -615,13 +640,18 @@ migrate::run_step() {
     fi
 
     if [[ "$(migrate::latest_status "${step}")" == "success" ]]; then
-        # skippable が false なのに manifest は success = postcondition 不一致
-        # （現状 cutover のみ該当）。success のまま黙って再実行はせず、manifest に
-        # 理由を残してから通常の実行フローに合流する。
-        local reason
-        reason="$(migrate::cutover_rerun_reason)"
-        util::warning "${step}: 既に success ですが postcondition 未達成のため再実行します (${reason})"
-        migrate::log_event "${step}" "postcondition-unmet" "${reason}"
+        if migrate::always_reruns "${step}"; then
+            # 設計上そうしているだけで postcondition 違反ではないので manifest には残さない。
+            util::info "${step}: success 済みですが、宣言の追加を取りこぼさないため毎回再実行します"
+        else
+            # skippable が false なのに manifest は success = postcondition 不一致
+            # （現状 cutover のみ該当）。success のまま黙って再実行はせず、manifest に
+            # 理由を残してから通常の実行フローに合流する。
+            local reason
+            reason="$(migrate::cutover_rerun_reason)"
+            util::warning "${step}: 既に success ですが postcondition 未達成のため再実行します (${reason})"
+            migrate::log_event "${step}" "postcondition-unmet" "${reason}"
+        fi
     fi
 
     local script euid_val rc
@@ -906,6 +936,8 @@ migrate::dry_run() {
                 echo "  [SKIP] ${step}: 既に success です"
             elif ! migrate::privilege_ok "${step}"; then
                 echo "  [BLOCKED] ${step}: $(migrate::privilege_hint "${step}")"
+            elif migrate::always_reruns "${step}"; then
+                echo "  [WOULD RUN] ${step}: $(migrate::script_for "${step}")（success 済みでも毎回再実行）"
             elif [[ "$(migrate::latest_status "${step}")" == "success" ]]; then
                 echo "  [WOULD RUN] ${step}: postcondition 未達成のため再実行 ($(migrate::cutover_rerun_reason))"
             else
