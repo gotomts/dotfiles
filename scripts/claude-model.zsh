@@ -24,11 +24,13 @@ for cmd in claude fzf; do
 done
 
 # 確認済みのモデル候補と完全な ID の SSOT。「表示ラベル<TAB>モデル ID」の一覧で、
-# アカウント既定の Opus 5 を先頭に、世代ごとに新しいものから並べる。
+# 世代ごとに新しいものから並べ、アカウント既定のものに (既定) を付ける。並び順と既定は
+# 一致しないことがある (既定を上げるのは claude/settings.json の model を変える別の判断)。
 # Hermes が Claude Code セッションへ渡す「確認済みの最新 Opus / 最新 Sonnet /
 # 曖昧なときの fallback」もこの一覧から解決する (規範は claude/hermes/SOUL.md)。
 # 新しい世代を実際に確認できたときだけここを更新し、未確認の ID は足さない。
 local -a models=(
+  "Opus 5.5 — 最新世代 / 1M context\tclaude-opus-5-5[1m]"
   "Opus 5 (既定) — 最高性能 / 1M context\tclaude-opus-5[1m]"
   "Fable 5 — 速度と性能のバランス\tclaude-fable-5"
   "Sonnet 5 — 日常作業向け\tclaude-sonnet-5"
