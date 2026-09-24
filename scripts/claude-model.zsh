@@ -30,8 +30,8 @@ done
 # 曖昧なときの fallback」もこの一覧から解決する (規範は claude/hermes/SOUL.md)。
 # 新しい世代を実際に確認できたときだけここを更新し、未確認の ID は足さない。
 local -a models=(
-  "Opus 5.5 — 最新世代 / 1M context\tclaude-opus-5-5[1m]"
-  "Opus 5 (既定) — 最高性能 / 1M context\tclaude-opus-5[1m]"
+  "Opus 5.5 (既定) — 最新世代 / 1M context\tclaude-opus-5-5[1m]"
+  "Opus 5 — 前世代 / 1M context\tclaude-opus-5[1m]"
   "Fable 5 — 速度と性能のバランス\tclaude-fable-5"
   "Sonnet 5 — 日常作業向け\tclaude-sonnet-5"
   "Haiku 4.5 — 軽量・高速\tclaude-haiku-4-5-20251001"
