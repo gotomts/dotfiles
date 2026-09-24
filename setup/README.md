@@ -16,7 +16,7 @@ Tier を跨いだ実行順序・部分適用の検出/復旧を担う `setup/mig
 ## 使い方（実機での唯一のエントリポイントは `setup/migrate.zsh`）
 
 Tier 1/2/3 の各スクリプト（`link.zsh`/`languages.zsh`/`defaults.zsh`/`pam.zsh`/
-`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
+`claude-code.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
 順序管理なしに個別実行すると部分適用インシデントを再現する（過去に実際に発生した）。
 実機での実行は必ず `setup/migrate.zsh` からのみ行う:
 
@@ -33,7 +33,7 @@ alias・関数に依存しないため、これが標準の入口。
 zsh ${HOME}/.dotfiles/setup/migrate.zsh --dry-run
 
 # 計画を実行する。単一の root 起動で全 Phase (link -> cutover/pam -> languages/defaults/
-# claude-sync/codex-sync/herdr-sync/hermes-sync/notion) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
+# claude-code/claude-sync/codex-sync/herdr-sync/hermes-sync/notion) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
 # 特定し、非 root ステップは元ユーザーへ委譲実行する（詳細は
 # docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md 参照）
 sudo zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
@@ -64,6 +64,7 @@ zsh ${HOME}/.dotfiles/setup/link.zsh
 zsh ${HOME}/.dotfiles/setup/languages.zsh
 zsh ${HOME}/.dotfiles/setup/defaults.zsh
 zsh ${HOME}/.dotfiles/setup/pam.zsh
+zsh ${HOME}/.dotfiles/setup/claude-code.zsh
 zsh ${HOME}/.dotfiles/setup/claude-sync.zsh
 zsh ${HOME}/.dotfiles/setup/codex-sync.zsh
 zsh ${HOME}/.dotfiles/setup/herdr-sync.zsh
@@ -132,6 +133,38 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   直接宣言してあり、`rtk init -g` は使わない（走らせると Tier 1 の symlink 越しに
   リポジトリの `claude/settings.json` を書き換えてしまう）。
 
+- `claude-code.zsh`: Claude Code CLI をネイティブ版として `${HOME}/.local/bin` へ導入する。
+  以前は Homebrew cask (`claude-code`) で管理していたが、cask 版は Claude Code 自身の
+  バックグラウンド自動更新が効かず、`brew upgrade` を回した PC だけが新しい版になるため
+  複数台で版が食い違う（公式もネイティブ版を推奨）。cask は `homebrew.nix` から削除済み。
+  ただし `onActivation.cleanup = "none"` なので、**宣言から外しても実機の cask は消えない**。
+  既存 PC では `brew uninstall --cask claude-code` を手動で 1 度だけ実行する。未実行だと
+  `/opt/homebrew/bin/claude` が PATH 上でネイティブ版より先に来て cask 版が使われ続ける
+  （health check は `${HOME}/.local/bin/claude` の実在しか見ないので、この状態でも通る）。
+
+  その uninstall に **`--zap` を付けてはいけない**。`claude-code` cask の zap stanza は
+  `~/.local/bin/claude`・`~/.local/share/claude`・`~/.claude.json*`・`~/.claude` を消す対象に
+  していて、ネイティブ版の実体と MCP / 認証設定ごと消える。落とすのは `binary "claude"` の
+  symlink と Caskroom エントリだけでよい。
+
+  導入先は環境変数で渡さない・渡せない。公式インストーラ (`https://claude.ai/install.sh`)
+  が落としたバイナリの `claude install` が `${HOME}/.local/bin/claude` にランチャーを置き、
+  版ごとの実体は `${HOME}/.local/share/claude/` 配下で自身が管理する。パスは
+  `setup/lib/claude-code.zsh` に寄せてあり、health check も同じ定義を引く。
+
+  **版は固定しない**（`notion.zsh` と意図的に方針が違う）。インストーラを引数無しで呼んで
+  stable を入れ、以降の更新は Claude Code 自身に任せる。自動更新が効くことが cask から
+  移行した理由そのものなので、宣言側で版を pin すると更新が走るたびに health check が
+  落ちる。したがって health check も版は見ず、`${HOME}/.local/bin/claude` が実行可能な
+  ファイルであることだけを **fail-closed** で確認する。
+
+  `${HOME}/.local/bin/claude` が既に実行可能なファイルなら **インストーラを一切呼ばない**
+  （自動更新で進んだ既存バイナリを巻き戻さない）。判定は `-x` 単独ではなく `-f && -x`
+  （実行ビットの立ったディレクトリを「導入済み」と誤判定しないため。health check も同じ条件）。
+
+  認証は扱わない。トークンの読み書きはせず、ログインは人間が `claude` 側の手順で行う
+  （cask からの移行でも `~/.claude` 配下の設定・認証情報はそのまま引き継がれる）。
+
 - `notion.zsh`: Notion CLI (`ntn`) に Homebrew formula が無いため、公式インストーラ
   (`https://ntn.dev/install.sh`) を使う唯一の Tier 2 ステップ。mise の npm backend でも
   導入できるが、グローバル CLI を Node ランタイムに依存させないため公式配布バイナリを
@@ -178,7 +211,9 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   `fs::ensure_realfile` と同じ no-data-loss 方針で、自動退避はしない）。
 - `migrate.zsh`: Tier 1/2/3 を跨いだ唯一のオーケストレーター。実行順序は Phase 1
   (`link`) → Phase 2 (`cutover`/`pam`、root 必須) → Phase 3 (`languages`/`defaults`/
-  `claude-sync`/`codex-sync`/`herdr-sync`/`hermes-sync`/`notion`)。`languages.zsh` 自身が「mise は darwin-switch で事前導入
+  `claude-code`/`claude-sync`/`codex-sync`/`herdr-sync`/`hermes-sync`/`notion`)。`claude-code` を
+  `claude-sync` より前に置くのは、`claude-sync.zsh` の plugin 同期が `claude` CLI の実体を要求する
+  ため。`languages.zsh` 自身が「mise は darwin-switch で事前導入
   済みが前提」と明記しているため、cutover を languages より先に置く。各ステップの結果は
   `~/.dotfiles-migrate/manifest.log` に永続化し、success 済みステップは再実行しない
   （idempotent な部分適用検出・再開）。ただし `cutover` だけは、必須バイナリの実在と
@@ -224,16 +259,17 @@ bats herdr/plugins/*/tests/*.bats
 委譲実行を health check にまで広げるほどの利得が無いため）。
 
 `fs::link_file`/`fs::ensure_realfile` は関数単位、`link.zsh`/`languages.zsh`/`defaults.zsh`/
-`pam.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`cutover.zsh`/`rollback.zsh`/
+`pam.zsh`/`claude-code.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`cutover.zsh`/`rollback.zsh`/
 `migrate.zsh` は、
 実コマンド（`defaults`/`mise`/`corepack`/`claude`/`herdr`/`rtk`/`git`/`darwin-rebuild`/`nix`）を PATH 上の
 stub 実行ファイルに差し替え、`$HOME` を一時ディレクトリに差し替えたサンドボックスでの統合テスト
 （実機・実ネットワーク・実パッケージマネージャ・実 `darwin-rebuild switch` には一切触れない）。
 
-`notion.zsh` だけは `curl` の扱いが 2 通りある。単体テスト（`setup/tests/notion.bats`）は
-`curl` を stub に差し替えて取得失敗の経路まで見る。`migrate.zsh` 経由の統合テストでは stub を
-使わず、`NTN_INSTALLER_URL` に `file://` の偽インストーラを渡して **実 `curl` をオフラインで**
-走らせる。`migrate.zsh` の委譲実行は Homebrew prefix を PATH 先頭に固定で差し込むため、
+公式インストーラを呼ぶ 2 つ（`notion.zsh`/`claude-code.zsh`）だけは `curl` の扱いが 2 通りある。
+単体テスト（`setup/tests/notion.bats`・`setup/tests/claude-code.bats`）は `curl` を stub に
+差し替えて取得失敗の経路まで見る。`migrate.zsh` 経由の統合テストでは stub を使わず、
+`NTN_INSTALLER_URL`／`CLAUDE_INSTALLER_URL` に `file://` の偽インストーラを渡して
+**実 `curl` をオフラインで** 走らせる。`migrate.zsh` の委譲実行は Homebrew prefix を PATH 先頭に固定で差し込むため、
 そこでの `curl` stub は実機に Homebrew 版 `curl` があると負けて実ネットワークに出てしまう。
 `migrate.zsh` のテストは Tier 1 が作る `~/.zshenv` symlink を経由して後続の子 `zsh` プロセスが
 実際の zshenv を re-source する（Phase を跨いだ実行を初めて連結するテストのため、単独スクリプトの

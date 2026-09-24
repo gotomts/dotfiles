@@ -9,8 +9,9 @@ REPO_ROOT="$(cd "${SETUP_DIR}/.." && pwd)"
 # mise/corepack (languages), defaults (defaults), git/claude (claude-sync),
 # darwin-rebuild/nix (cutover). codex-sync/pam need no external command
 # (SUDO_LOCAL_PATH redirects pam's write target instead of /etc).
-# notion uses the real curl, pointed at a file:// URL holding a fake installer
-# (NTN_INSTALLER_URL below) -- no stub, no network, and still the real download
+# notion and claude-code use the real curl, pointed at file:// URLs holding fake
+# installers (NTN_INSTALLER_URL / CLAUDE_INSTALLER_URL below) -- no stub, no
+# network, and still the real download
 # path. A PATH stub would not be reliable here anyway: migrate.zsh prepends the
 # hardcoded Homebrew prefixes when delegating, so a real /opt/homebrew/bin/curl
 # would win over a stub.
@@ -202,6 +203,20 @@ printf '#!/bin/sh\necho "ntn %s"\n' "${NTN_VERSION}" > "${NTN_INSTALL_DIR}/ntn"
 chmod +x "${NTN_INSTALL_DIR}/ntn"
 EOF
     export NTN_INSTALLER_URL="file://${NTN_INSTALLER_FILE}"
+
+    # claude-code.zsh's installer source, handled the same way as notion's (real
+    # curl, file:// URL, no network). The real installer takes no install-dir
+    # env var -- `claude install` always lands the launcher at
+    # ~/.local/bin/claude -- so the fake one builds the path from $HOME too.
+    CLAUDE_INSTALLER_FILE="${BATS_TEST_TMPDIR}/claude-install.sh"
+    cat > "${CLAUDE_INSTALLER_FILE}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p "${HOME}/.local/bin"
+printf '#!/bin/sh\necho "9.9.9 (Claude Code)"\n' > "${HOME}/.local/bin/claude"
+chmod +x "${HOME}/.local/bin/claude"
+EOF
+    export CLAUDE_INSTALLER_URL="file://${CLAUDE_INSTALLER_FILE}"
     # The single declaration of the pinned version, read from where both
     # notion.zsh and migrate.zsh read it.
     NTN_EXPECTED_VERSION="$(zsh -c "source '${SETUP_DIR}/lib/notion.zsh'; echo \${NTN_PINNED_VERSION}")"
@@ -243,11 +258,11 @@ EOF
     [[ "${output}" != *"rollback"* ]]
 }
 
-@test "dry-run lists all 10 steps and executes nothing" {
+@test "dry-run lists all 11 steps and executes nothing" {
     run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
 
-    for step in link languages defaults pam claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
+    for step in link languages defaults pam claude-code claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
         [[ "${output}" == *"${step}"* ]]
     done
 
@@ -270,7 +285,7 @@ EOF
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults pam claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
+    for step in link languages defaults pam claude-code claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
         [[ "${output}" == *"[WOULD RUN] ${step}:"* ]]
     done
     [[ "${output}" != *"[BLOCKED]"* ]]
@@ -283,7 +298,7 @@ EOF
     # so it alone stays WOULD RUN.
     MIGRATE_EUID_OVERRIDE=0 USER= run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
+    for step in link languages defaults claude-code claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
         [[ "${output}" == *"[BLOCKED] ${step}:"* ]]
     done
     [[ "${output}" == *"[WOULD RUN] pam:"* ]]
@@ -345,7 +360,7 @@ EOF
     # `sudo -u testuser -H env PATH=... zsh <script>`; root-required steps
     # did not.
     run cat "${SUDO_LOG}"
-    for step in link languages defaults claude-sync codex-sync herdr-sync hermes-sync notion; do
+    for step in link languages defaults claude-code claude-sync codex-sync herdr-sync hermes-sync notion; do
         [[ "${output}" == *"-u testuser -H env PATH="*"zsh"*"${step}.zsh"* ]]
     done
     [[ "${output}" != *"cutover.zsh"* ]]

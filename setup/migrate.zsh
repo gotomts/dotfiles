@@ -31,7 +31,8 @@
 #                                         ため、Phase 3 より前に置く。pam は cutover と同じく
 #                                         root 必須なので同じ Phase にまとめ、sudo プロンプトを
 #                                         1 回にまとめる)
-#   Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, hermes-sync, notion
+#   Phase 3: languages, defaults, claude-code, claude-sync, codex-sync, herdr-sync,
+#            hermes-sync, notion
 #                                        (root 起動時は元ユーザーへ委譲。
 #                                         mise は Phase 2 で導入済み)
 #
@@ -96,13 +97,16 @@ source "${SETUP_DIR}/lib/util.zsh"
 source "${SETUP_DIR}/lib/herdr.zsh"
 source "${SETUP_DIR}/lib/hermes.zsh"
 source "${SETUP_DIR}/lib/notion.zsh"
+source "${SETUP_DIR}/lib/claude-code.zsh"
 
 # ---------------------------------------------------------------------------
 # ステップ定義（配列内の並び = 実行順序。Phase 番号が依存順序を表す）
 # ---------------------------------------------------------------------------
 PHASE1_STEPS=(link)
 PHASE2_STEPS=(cutover pam)
-PHASE3_STEPS=(languages defaults claude-sync codex-sync herdr-sync hermes-sync notion)
+# claude-code は claude-sync より前。claude-sync.zsh の plugin 同期が claude CLI の実体を
+# 要求するため（順序が逆だと新規 PC の初回 --apply で plugin 同期だけが黙って skip される）。
+PHASE3_STEPS=(languages defaults claude-code claude-sync codex-sync herdr-sync hermes-sync notion)
 
 # この --apply の中で cutover 直前に退避した Touch ID ファイルのパス（
 # migrate::pam_restore_pristine_if_safe が設定し、migrate::pam_discard_vacated が使う）。
@@ -782,6 +786,18 @@ migrate::health_check() {
 
     [[ -d "${home_dir}/.dotfiles-defaults-backup" ]] || failures+=("defaults: ${home_dir}/.dotfiles-defaults-backup/ がありません（初回スナップショット未取得）")
 
+    # claude はネイティブ版なので Homebrew 管理外 = migrate::command_available（Homebrew
+    # prefix フォールバック）では確認できない。パスは setup/lib/claude-code.zsh の定義から
+    # 引く（導入する側と同じ定義を見る）。-f も見るのは、-x だけだと実行ビットの立った
+    # ディレクトリを「導入済み」と誤判定するため。
+    #
+    # 版は見ない。ネイティブ版は自身でバックグラウンド更新するので、宣言値と突き合わせると
+    # 更新が走るたびにここが落ちる。宣言側が要求するのは「実体があること」だけ（ntn とは
+    # 意図的に方針が違う。理由は setup/lib/claude-code.zsh のコメント）。
+    local claude_bin
+    claude_bin="$(claude_code::bin "${home_dir}")"
+    [[ -f "${claude_bin}" && -x "${claude_bin}" ]] || failures+=("claude-code: ${claude_bin} が実行可能なファイルではありません")
+
     [[ -f "${home_dir}/.claude.json" ]] || failures+=("claude-sync: ${home_dir}/.claude.json がありません")
 
     [[ -f "${home_dir}/.codex/config.toml" ]] || failures+=("codex-sync: ${home_dir}/.codex/config.toml がありません")
@@ -948,7 +964,8 @@ migrate::usage() {
 
 Phase 1: link (root 起動時は元ユーザーへ委譲)
 Phase 2: cutover, pam (root 必須)
-Phase 3: languages, defaults, claude-sync, codex-sync, herdr-sync, hermes-sync, notion (root 起動時は元ユーザーへ委譲)
+Phase 3: languages, defaults, claude-code, claude-sync, codex-sync, herdr-sync, hermes-sync,
+         notion (root 起動時は元ユーザーへ委譲)
 
 個別スクリプト（link.zsh 等）は内部実装です。実機での実行はこのスクリプトからのみ
 行ってください。詳細は setup/README.md を参照。

@@ -30,6 +30,20 @@ util::ensure_homebrew_path() {
     export PATH="${prefix}:${PATH}"
 }
 
+# util::ensure_local_bin_path  ${HOME}/.local/bin を PATH の末尾に足す。
+#
+#   Homebrew formula を持たず ${HOME}/.local/bin に入る実行体（setup/claude-code.zsh の
+#   claude、setup/notion.zsh の ntn など）に依存するスクリプト用。
+#   util::ensure_homebrew_path と同じ理由で呼び出し元の PATH を信用しない: zshenv の
+#   append は ~/.zshenv が読まれる前提で、NO_RCS 付きの委譲実行やテストでは効かない。
+#
+#   append であって prepend ではない。zshenv 側の取り決め（${HOME}/.local/bin を先頭に
+#   置くと Homebrew/mise が供給する同名コマンドを横取りする）をここでも守る。
+#   テストでは LOCAL_BIN_PATH_OVERRIDE で差し替える。
+util::ensure_local_bin_path() {
+    export PATH="${PATH}:${LOCAL_BIN_PATH_OVERRIDE:-${HOME}/.local/bin}"
+}
+
 # util::confirm <message>
 #   FORCE=1 なら常に yes 扱い。それ以外は y/N プロンプト。
 #   戻り値 0 = yes、4 = no（旧 setup/util.zsh の終了コードを踏襲）

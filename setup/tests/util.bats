@@ -39,3 +39,17 @@ SETUP_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
     [ "${status}" -eq 0 ]
     [[ "${output}" == "/fake/brew:/usr/bin" ]]
 }
+
+@test "util::ensure_local_bin_path appends ~/.local/bin (never prepends)" {
+    # prepend にすると Homebrew/mise が供給する同名コマンドを横取りする。zshenv 側の
+    # 取り決めと同じ向きであることを固定する。
+    run zsh -f -c "source '${SETUP_DIR}/lib/util.zsh'; HOME=/fake/home; PATH=/usr/bin:/bin; util::ensure_local_bin_path; echo \$PATH"
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == "/usr/bin:/bin:/fake/home/.local/bin" ]]
+}
+
+@test "util::ensure_local_bin_path honors LOCAL_BIN_PATH_OVERRIDE (test hook)" {
+    run zsh -f -c "source '${SETUP_DIR}/lib/util.zsh'; LOCAL_BIN_PATH_OVERRIDE=/fake/local/bin; PATH=/usr/bin; util::ensure_local_bin_path; echo \$PATH"
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == "/usr/bin:/fake/local/bin" ]]
+}

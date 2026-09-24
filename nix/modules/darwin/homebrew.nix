@@ -47,7 +47,14 @@ let
     "beadbox" # tap: beadbox/cask。beads issue tracker の macOS GUI (arm64 のみ・macOS Ventura 以降)。CLI は brews の "beads"
     "chatgpt" # OpenAI 公式 ChatGPT デスクトップアプリ (公式 homebrew-cask なので tap 不要)
     "claude" # Anthropic Desktop app (claude-code CLI とは別)
-    "claude-code"
+    # claude-code CLI はここでは宣言しない。cask 版は Claude Code 自身の自動更新が
+    # 効かず PC ごとに版が食い違うため、公式が推奨するネイティブ版へ移行した
+    # (setup/claude-code.zsh、Tier 2)。ここに戻すと /opt/homebrew/bin/claude が
+    # PATH 上で ~/.local/bin/claude より先に来て cask 版が使われるので、再宣言しないこと。
+    # なお onActivation.cleanup = "none" なので、この行を消しただけでは実機の cask は
+    # 消えない。既存 PC では `brew uninstall --cask claude-code` を手動で 1 度だけ実行する
+    # (--zap は付けない。この cask の zap stanza は ~/.local/bin/claude・
+    # ~/.local/share/claude・~/.claude.json*・~/.claude まで消す)
     "cmux" # tap: manaflow-ai/cmux
     "coderabbit" # AI コードレビュー CLI (cask だが Binary artifact。`coderabbit` コマンド。公式 homebrew-cask なので tap 不要)
     "codex" # OpenAI Codex CLI (公式 prebuilt binary; nixpkgs 版が cache.nixos.org 未登録で CI timeout したため移行)
