@@ -36,8 +36,8 @@
 # Homebrew パッケージ管理
 
 - パッケージの追加・削除は `nix/modules/darwin/homebrew.nix` で管理する
-- `default` role の手動 `brew install` は禁止（switch 時に zap される）
-- `sub-1` role は手動 `brew install` 許容（cleanup = "none"）。ただし別 PC では復元されないため、再現性が必要なら `homebrew.nix` に追記する
+- 手動 `brew install` は role に関わらず避ける。`homebrew.nix` に記録が残らず別 PC で復元されないため、再現性が必要なものは必ず `homebrew.nix` に追記する
+- ただし **`switch` は宣言外パッケージを削除しない**（`onActivation.cleanup = "none"`、全 role 共通）。宣言から行を消しても実機には残り続けるので、落としたいものは `brew uninstall` / `brew uninstall --cask <cask>` を手動で実行する。`--zap` はアプリ固有のユーザーデータまで消すため、zap stanza の中身を確認してから付けること
 - `homebrew.nix` は role 別 declarative セットの宣言。`Brewfile` は削除済み
 - 既存のパッケージのみを対象とする。ユーザーが明示的に依頼していないパッケージを追加しない
 - `taps` / `brews` / `casks` / `masApps` の区分を守る
@@ -46,7 +46,7 @@
 - もう 1 つの例外は **Homebrew 経由では版の運用が成立せず、かつ宣言的に供給できる経路が公式インストーラしか無い CLI tool** で、その場合だけ公式インストーラを呼ぶ専用の Tier 2 スクリプトを立てる。現状の対象は 2 つで、版の扱いが逆になっている
   - Notion CLI の `ntn`（`setup/notion.zsh`）— Homebrew formula が無い。mise の npm backend でも導入できるが、グローバル CLI を Node ランタイムに依存させないため公式配布バイナリを選んでいる。**版は宣言側で固定する**（`setup/lib/notion.zsh` の `NTN_PINNED_VERSION`）。インストーラ既定の `latest`（導入した日で版が決まる）には倒さない。更新は dotfiles 側の明示変更で行い、実機の版ずれは `setup/migrate.zsh` の health check が fail-closed で検出する（自動差し替えはしない）
   - Claude Code CLI の `claude`（`setup/claude-code.zsh`）— cask (`claude-code`) は存在したが、cask 経由だと Claude Code 自身のバックグラウンド自動更新が効かず、`brew upgrade` を回した PC だけが新しい版になって複数台で版が食い違う（公式もネイティブ版を推奨）。**版は固定しない** — 自動更新が効くことが移行理由そのものなので、宣言側で pin すると更新が走るたびに health check が落ちる。health check は実体（`${HOME}/.local/bin/claude`）の存在だけを fail-closed で見る。導入先は環境変数で渡せず、`claude install` が置く固定パスを `setup/lib/claude-code.zsh` に書き留めている
-- PC ローカル専用の cask は `~/.config/dotfiles/homebrew.local.nix`（リポジトリ外配置）で declarative に宣言する。`homebrew.nix` が絶対パスで `builtins.pathExists` + `import` する。用途は「git に追跡させたくないが `default` role の zap から守りたい cask」（例: 特定アカウントの個人用ツール、業務用アプリ）。別 PC では復元されないため、再現性が必要なものは `homebrew.nix` 本体に書くこと。現状 casks のみ対応（brews / taps / masApps の overlay が必要になったら `homebrew.nix` の `local` 解決を拡張する）。nix flake は git tree のみコピーするため、`.gitignore` で除外したリポジトリ内ファイルは flake から不可視になる点に注意（リポジトリ外配置を選んでいる理由）
+- PC ローカル専用の cask は `~/.config/dotfiles/homebrew.local.nix`（リポジトリ外配置）で declarative に宣言する。`homebrew.nix` が絶対パスで `builtins.pathExists` + `import` する。用途は「git に追跡させたくないが、この PC では declarative に宣言しておきたい cask」（例: 特定アカウントの個人用ツール、業務用アプリ）。cleanup を将来 zap に戻したときに消されない保険でもある。別 PC では復元されないため、再現性が必要なものは `homebrew.nix` 本体に書くこと。現状 casks のみ対応（brews / taps / masApps の overlay が必要になったら `homebrew.nix` の `local` 解決を拡張する）。nix flake は git tree のみコピーするため、`.gitignore` で除外したリポジトリ内ファイルは flake から不可視になる点に注意（リポジトリ外配置を選んでいる理由）
 
 # zsh スクリプト規約
 
@@ -129,7 +129,7 @@ darwin-rebuild --list-generations
   - CI 例外: `nix-check` workflow は installer action が有効化するため、workflow 内は bare のままでよい
   - 診断手順と背景は `nix/README.md` の「前提: experimental-features は用途単位で明示する」を参照
 - **PC 名・ユーザー名のリポジトリ非格納**: `darwinConfigurations.default` で output 名を hostname フリーに固定し、`username = builtins.getEnv "USER"` で macOS ローカルアカウント名を実行時解決する。公開リポジトリに PC 名や個人アカウント名を晒さないための設計。`--impure` フラグが必須になる代償と引き換え (S15)
-- **`homebrew.onActivation.cleanup = "zap"`**: 宣言外パッケージは Cellar ごと削除する強い管理。宣言外のパッケージが残らないよう破壊的に同期する (`nix/modules/darwin/homebrew.nix` のコメント参照)
+- **`homebrew.onActivation.cleanup = "none"`**: 全 role で何も削除しない。activation 中の `brew bundle --cleanup --zap` が出力なしの exit 1 を返して `darwin-rebuild switch` ごと落ちる事象が実機で発生したため、cleanup を activation から外して switch を通す方を選んでいる（`fd5df95`）。トレードオフは「宣言から外したパッケージ・手動 install したパッケージが自動削除されず残る」ことで、削除は手動 `brew uninstall` に委ねる (`nix/modules/darwin/homebrew.nix` のコメントと `nix/README.md` を参照)
 
 ## 棚卸 → triage → 翻訳ワークフロー (S10)
 
