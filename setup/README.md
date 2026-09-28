@@ -120,8 +120,8 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   で `~/.claude.json` に反映されるだけで、認証や権限はここでは扱わない。初回の OAuth 認可は
   Claude Code 上で本人が行う（`claude mcp` の認証フローに従う。dotfiles・このスクリプトは
   token・組織 ID・プロジェクト ID を持たない）。読み書き権限は Sentry 側の認可スコープに従う。
-  現時点で Hermes には接続していない（`claude/mcp-servers.json` は Claude Code の user scope
-  専用で、Hermes 側の MCP 設定には反映されない）。
+  `claude/mcp-servers.json` は Claude Code の user scope 専用で、Hermes 側には反映されない
+  （Hermes 側の Sentry MCP は `hermes-sync.zsh` が別に宣言する）。
   `herdr-sync.zsh` は primary チェックアウト（`~/.dotfiles`）から実行されたときだけ
   plugin link と設定配置を行う。`herdr plugin link` は渡されたパスをそのまま登録先に
   するため、使い捨ての worktree を登録すると削除時にプラグインと allowlist が同時に壊れる。
@@ -152,6 +152,31 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   Claude Code 側は同じ RTK でもここを通らない。hook は追跡済みの `claude/settings.json` に
   直接宣言してあり、`rtk init -g` は使わない（走らせると Tier 1 の symlink 越しに
   リポジトリの `claude/settings.json` を書き換えてしまう）。
+
+  もう 1 つ、Hermes に Sentry 公式 MCP（`https://mcp.sentry.dev/mcp`、`auth: oauth`、
+  `enabled: true`）を登録する。RTK の手順とは独立で、rtk が無くても走る。
+  `~/.hermes/config.yaml` は直接編集せず、Hermes 公式 CLI の
+  `hermes config set mcp_servers.sentry <JSON>` で `sentry` キーだけを書く（他の server
+  — `discord_admin`・`linear` 等 — の保持と整形は Hermes 自身に任せる）。OAuth token は
+  Hermes が `~/.hermes/mcp-tokens/` に持ち、このスクリプトは読みも書きもしない。
+  `HERMES_HOME` は `~/.hermes` に固定して呼ぶ（導入判定と書き込み先を揃えるため）。
+  既存値の扱い: 未設定と確定できたとき（`hermes config get` が exit 1 で、stderr が
+  正確に `Config key not set: mcp_servers.sentry`）だけ登録する。宣言と同値（キー順は
+  無視）なら何もしない。**違う値なら上書きせず warning を出して止める**（人が意図して
+  変えた可能性があるため。解消は人が `hermes config set` / `unset` で行う）。それ以外の
+  取得失敗・空の成功・JSON オブジェクトでない値も、既存状態が読めていないので warning
+  だけで何も書かない。warning には既存値・宣言値・CLI の stderr を出さない（URL や
+  認証値が混ざりうるため）。スキップ条件は Hermes 未導入・`hermes` / `jq` が PATH に
+  無い・`hermes config set` の失敗で、いずれも fail-open。
+
+  運用上の注意:
+  - **グローバルな MCP 登録**である。Hermes の `mcp_servers` は会話・チャンネルを問わず
+    効くので、Sentry のツールは Discord 経由の他の会話にも露出する。
+  - **OAuth 認可は人の操作で、このスクリプトは行わない**（dotfiles は token・組織 ID・
+    プロジェクト ID を持たない）。登録後に本人が `hermes mcp login sentry` で認可する。
+    未認可のあいだ Sentry のツールは使えない。
+  - 読み取りだけでなく書き込み系ツールも持ち、何ができるかは Sentry 側で付与した認可
+    スコープに従う。
 
 - `claude-code.zsh`: Claude Code CLI をネイティブ版として `${HOME}/.local/bin` へ導入する。
   以前は Homebrew cask (`claude-code`) で管理していたが、cask 版は Claude Code 自身の
