@@ -110,6 +110,45 @@ JSON
 
     run jq -r '.mcpServers.linear.url' "${HOME}/.claude.json"
     [ "${output}" = "https://mcp.linear.app/mcp" ]
+
+    run jq -r '.mcpServers.sentry.url' "${HOME}/.claude.json"
+    [ "${output}" = "https://mcp.sentry.dev/mcp" ]
+
+    run jq -r '.mcpServers.sentry.type' "${HOME}/.claude.json"
+    [ "${output}" = "http" ]
+}
+
+@test "MCP merge preserves Sentry OAuth/runtime keys across re-sync" {
+    _install_git_clone_stub "${STUB_BIN}"
+    _install_claude_stub "${STUB_BIN}" '[]'
+    mkdir -p "${HOME}/ghq/github.com/gotomts/skills"
+    (cd "${HOME}/ghq/github.com/gotomts/skills" && /usr/bin/git init -q)
+
+    # 初回 OAuth 済み状態を模す: Claude Code が実行時に足す想定の runtime key
+    # (accessToken 等) が、宣言側 (type/url のみ) との add-only merge で
+    # 消えないことを確認する。
+    cat > "${HOME}/.claude.json" <<'JSON'
+{
+  "mcpServers": {
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp",
+      "oauth": { "accessToken": "runtime-token-do-not-clobber" }
+    }
+  }
+}
+JSON
+
+    PATH="${STUB_BIN}:${PATH}" run zsh "${SETUP_DIR}/claude-sync.zsh"
+    [ "${status}" -eq 0 ]
+    PATH="${STUB_BIN}:${PATH}" run zsh "${SETUP_DIR}/claude-sync.zsh"
+    [ "${status}" -eq 0 ]
+
+    run jq -r '.mcpServers.sentry.oauth.accessToken' "${HOME}/.claude.json"
+    [ "${output}" = "runtime-token-do-not-clobber" ]
+
+    run jq -r '.mcpServers.sentry.url' "${HOME}/.claude.json"
+    [ "${output}" = "https://mcp.sentry.dev/mcp" ]
 }
 
 @test "plugin sync installs only the plugins missing from claude plugin list" {
