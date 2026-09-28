@@ -116,6 +116,12 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   解決し、テストでは `DOTFILES_ROLE_FILE` で上書きできる。
 - `claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`: 破壊的な操作を行わない（MCP merge は
   add-only、config.toml は seed-if-absent、skills repo clone は既存ディレクトリを一切変更しない）。
+  Sentry 公式 MCP (`claude/mcp-servers.json` の `sentry`, `type: http`) もこの add-only merge
+  で `~/.claude.json` に反映されるだけで、認証や権限はここでは扱わない。初回の OAuth 認可は
+  Claude Code 上で本人が行う（`claude mcp` の認証フローに従う。dotfiles・このスクリプトは
+  token・組織 ID・プロジェクト ID を持たない）。読み書き権限は Sentry 側の認可スコープに従う。
+  現時点で Hermes には接続していない（`claude/mcp-servers.json` は Claude Code の user scope
+  専用で、Hermes 側の MCP 設定には反映されない）。
   `herdr-sync.zsh` は primary チェックアウト（`~/.dotfiles`）から実行されたときだけ
   plugin link と設定配置を行う。`herdr plugin link` は渡されたパスをそのまま登録先に
   するため、使い捨ての worktree を登録すると削除時にプラグインと allowlist が同時に壊れる。
