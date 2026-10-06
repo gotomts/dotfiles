@@ -26,6 +26,7 @@ let
     "manaflow-ai/cmux"
     "oven-sh/bun"
     "schpet/tap"
+    "stablyai/orca"
   ];
 
   # Homebrew 6.0+ は非公式 tap の formula/cask/command を brew trust で信頼しない限り
@@ -78,6 +79,9 @@ let
     "nani" # jp.kiok.nani — 公式 cask (brew install --cask nani)
     "notion"
     "orbstack" # 軽量 Docker 代替 (docker-desktop は削除済み)
+    # tap: stablyai/orca。GUI Orca.app と bundled `orca` CLI を供給し自動更新対応。公式 homebrew-cask に
+    # 同名 "orca" (plotly、disabled) があり短縮名だと衝突するため、完全修飾名で宣言する
+    "stablyai/orca/orca"
     "postman"
     "proxyman" # HTTP デバッグプロキシ (proxyman.com)。公式 homebrew-cask なので tap 不要
     "raycast"
