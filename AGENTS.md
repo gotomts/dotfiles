@@ -61,6 +61,7 @@
 - その uninstall に **`--zap` を付けてはいけない**。`claude-code` cask の zap stanza は `~/.local/bin/claude`・`~/.local/share/claude`・`~/.claude.json*`・`~/.claude` を消す、つまり **ネイティブ版の実体と MCP / 認証設定ごと吹き飛ぶ**。落としたいのは `binary "claude"` の symlink と Caskroom エントリだけなので `--zap` 無しで足りる
 - `claude/` 配下の静的ファイル（settings.json/CLAUDE.md/AGENTS.md/skills/hooks）は Tier 1 (`setup/link.zsh`) により `~/.claude/` にシンボリックリンクされる
 - そのため `~/.claude/` を書き換えるツール (plugin install・skill install・settings の UI 操作) の出力は、別リポジトリで作業していてもこのリポジトリの作業ツリーに着地する。commit 前に対象リポジトリ (dotfiles か案件か) を確認し、意図した変更だけを stage すること
+- `claude/settings.json` の `agent-hooks/claude-hook` を含む hook entry は Orca（Herdr と併用）の生成物で、`orca agent hooks on` の出力をそのまま追跡する（Hermes 側の Orca hook は `~/.hermes/config.yaml` で別管理）。手で編集しない。手書き hook は同じ event の managed entry より前に置き、ファイルは `jq .` と同じ整形を保つ — Orca は起動のたびに managed entry を各 event 末尾へ付け直し、結果が同一なら書かないので、この形を守る限り source checkout は dirty にならない（`setup/tests/claude-settings.bats` が検証）。Orca 更新や Claude の版上げで managed entry が変わると、Orca 起動時に symlink 越しに書き戻されるので、その差分を確認して commit する（隣に作られる `settings.json.bak` は ignore 済み）。`orca agent hooks off` は Hermes を含む全 agent の hook を外し、Orca の設定で Claude を無効化すると tracked entry が消えるため、どちらも実行しない
 - グローバル指示は `claude/AGENTS.md` と `claude/hermes/SOUL.md` をそれぞれ独立に直接編集する。両者に共通する規約があっても、片方を他方から生成しない
   - `claude/AGENTS.md` — 実装ワーカー向け。Claude Code は `claude/CLAUDE.md` の `@AGENTS.md` import で取り込み、Codex CLI は `~/.codex/AGENTS.md` への symlink 経由 (`setup/link.zsh`) で同じファイルを読む
   - `claude/hermes/SOUL.md` — オーケストレーター向け。Hermes は `~/.hermes/SOUL.md` への symlink 経由 (`setup/link.zsh`) で読む

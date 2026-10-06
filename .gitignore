@@ -13,3 +13,7 @@ herdr/plugins/*/config/repos.local.json
 # Claude Code の外部 skill 同期キャッシュ。`~/.claude/skills` はこの作業ツリーへの
 # symlink のため、同期物をここへ生成しても dotfiles の変更として扱わない。
 claude/skills/synced/
+
+# Orca が ~/.claude/settings.json（この作業ツリーへの symlink）を書き換える直前に、
+# 実体の隣へ作るバックアップ。生成物なので追跡しない。
+claude/settings.json.bak

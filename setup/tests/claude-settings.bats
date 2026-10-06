@@ -74,3 +74,42 @@ SETTINGS="${REPO_ROOT}/claude/settings.json"
                | all(. as $m | $known | index($m) != null)' "${SETTINGS}"
     [ "${status}" -eq 0 ]
 }
+
+# Orca の Claude status hook は Orca 自身が `~/.claude/settings.json` に merge する生成物で、
+# 中身は `orca agent hooks on` の出力をそのまま追跡している。Orca は起動のたびに
+# 「既存の managed entry を外して各 event の末尾へ付け直し、JSON.stringify(cfg, null, 2) + "\n"
+# で直列化した結果が現ファイルと同じなら書かない」という再 install を走らせる。
+# 以下の 3 件は、その再 install が no-op になる（= source checkout を dirty にしない）形を守る。
+ORCA_MANAGED='agent-hooks/claude-hook'
+
+# 手で整形すると Orca の直列化と食い違い、Orca 起動のたびに書き戻しが起きる。
+@test "settings.json keeps the canonical 2-space JSON form Orca serializes" {
+    run bash -c "jq . '${SETTINGS}' | cmp -s - '${SETTINGS}'"
+    [ "${status}" -eq 0 ]
+}
+
+# Orca は managed entry を各 event 配列の末尾へ付け直す。手書き hook を後ろに足すと順序が
+# 変わって書き戻しが起きるので、手書き hook は managed entry より前に置く。
+@test "Orca managed hook entries sit last in every event they appear in" {
+    run jq -e --arg m "${ORCA_MANAGED}" '
+        [.hooks | to_entries[] | .value
+         | select(any(.[]; any(.hooks[]?; .command | contains($m))))
+         | (last | any(.hooks[]?; .command | contains($m)))
+           and (.[:-1] | all(all(.hooks[]?; .command | contains($m) | not)))]
+        | length > 0 and all
+    ' "${SETTINGS}"
+    [ "${status}" -eq 0 ]
+}
+
+# command は 1 世代分だけで、${HOME} 相対の Orca 所有スクリプトを呼ぶ。Orca 未導入の PC では
+# スクリプトが無いので stdin を読み捨てて `{}` を返す fallback に倒れる（公開リポなので絶対パスも持たない）。
+@test "Orca managed hook command is single-generation, HOME-relative and fails open" {
+    run jq -e --arg m "${ORCA_MANAGED}" '
+        [.hooks[][] | .hooks[]? | .command | select(contains($m))] | unique
+        | length == 1
+          and (.[0] | contains("\"${HOME-}/.orca/agent-hooks/claude-hook.sh\""))
+          and (.[0] | contains("printf '"'"'{}\\n'"'"'"))
+          and (.[0] | test("/Users/|/home/") | not)
+    ' "${SETTINGS}"
+    [ "${status}" -eq 0 ]
+}
