@@ -286,7 +286,7 @@
     "figma@claude-plugins-official": true,
     "freee-mcp@freee-mcp-marketplace": true,
     "ponytail@ponytail": true,
-    "1password@1password": true,
+    "1password@1password": false,
     "context-mode@context-mode": true
   },
   "extraKnownMarketplaces": {
