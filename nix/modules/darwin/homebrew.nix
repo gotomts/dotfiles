@@ -25,6 +25,7 @@ let
     "leoafarias/fvm"
     "manaflow-ai/cmux"
     "oven-sh/bun"
+    "posthog/tap"
     "schpet/tap"
     "stablyai/orca"
   ];
@@ -195,6 +196,7 @@ let
     "rtk" # AI エージェントの Bash 出力を圧縮する CLI proxy (rtk-ai.app、公式 homebrew-core、Apache-2.0)。Claude Code は claude/settings.json の PreToolUse hook、Hermes は setup/hermes-sync.zsh が入れる plugin から呼ぶ。nixpkgs 未収録のため Homebrew 経由
     "oven-sh/bun/bun" # tap: oven-sh/bun。S3 で「S7 で確認」とした保守的残置
     "pipx" # nixpkgs にもあるが、Python venv 周りの ergonomics で homebrew 版を選好
+    "posthog/tap/posthog-cli" # PostHog API・SQL・dashboardをAI/terminalから操作する公式CLI
     "schpet/tap/linear" # tap: schpet/tap
 
     # ---- Tier 2 (2026-08-22): 旧 home-manager packages.nix の CLI tool を Homebrew へ移行 ----
