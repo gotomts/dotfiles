@@ -138,32 +138,62 @@ EOF
 SENTRY_DECL='{"url":"https://mcp.sentry.dev/mcp","auth":"oauth","enabled":true}'
 
 # Models the slice of the Hermes CLI hermes-sync.zsh depends on:
-#   hermes config get --json <mcp_servers.X>  -> JSON value, or exit 1 with empty stdout
-#   hermes config set <mcp_servers.X> <JSON>  -> writes only that key
-# State is the mcp_servers map kept as JSON in ${HERMES_HOME}/mcp_servers.json, so a
-# test can assert that sibling servers survive. Every call's argv and HERMES_HOME are logged.
+#   hermes config get --json <section.key>        -> JSON value, or exit 1 + "Config key not set: <key>"
+#   hermes config set [--force] <section.key> <v> -> writes only that key
+#                                                    (true/false -> bool, {...} -> mapping, else string)
+#   hermes config unset <section.key>             -> removes only that key, or exit 1 + "Config key not set: <key>"
+# State is one JSON map per top-level section in ${HERMES_HOME}/<section>.json (the
+# mcp_servers map lives in mcp_servers.json), so a test can assert that sibling keys
+# survive. Every call's argv and HERMES_HOME are logged.
 _install_hermes_stub() {
     cat > "${STUB_BIN}/hermes" <<'EOF2'
 #!/bin/bash
 echo "HERMES_HOME=${HERMES_HOME} $*" >> "${HERMES_LOG}"
-state="${HERMES_HOME}/mcp_servers.json"
+sub="$2"
+shift 2
+[[ "$1" == --* ]] && shift
+key="$1"
+state="${HERMES_HOME}/${key%%.*}.json"
+name="${key#*.}"
 [[ -f "${state}" ]] || echo '{}' > "${state}"
-if [[ "$1 $2" == "config get" ]]; then
-    case "${HERMES_GET_MODE:-}" in
-        error) echo "boom token=SECRET-FROM-STDERR" >&2; exit 2 ;;
-        other-exit1) echo "Traceback: SECRET-FROM-STDERR" >&2; exit 1 ;;
-        empty) exit 0 ;;
-        invalid) echo "not-json SECRET-FROM-STDOUT"; exit 0 ;;
-    esac
-    name="${4#mcp_servers.}"
-    jq -e -c --arg n "${name}" '.[$n] // empty' "${state}" && exit 0
-    echo "Config key not set: $4" >&2
-    exit 1
-elif [[ "$1 $2" == "config set" ]]; then
-    [[ "${HERMES_SET_EXIT:-0}" -eq 0 ]] || exit "${HERMES_SET_EXIT}"
-    name="${3#mcp_servers.}"
-    jq --arg n "${name}" --argjson v "$4" '.[$n] = $v' "${state}" > "${state}.tmp" && mv "${state}.tmp" "${state}"
-fi
+case "${sub}" in
+    get)
+        case "${HERMES_GET_MODE:-}" in
+            error) echo "boom token=SECRET-FROM-STDERR" >&2; exit 2 ;;
+            other-exit1) echo "Traceback: SECRET-FROM-STDERR" >&2; exit 1 ;;
+            empty) exit 0 ;;
+            invalid) echo "not-json SECRET-FROM-STDOUT"; exit 0 ;;
+        esac
+        if jq -e --arg n "${name}" 'has($n)' "${state}" >/dev/null; then
+            jq -c --arg n "${name}" '.[$n]' "${state}"
+            exit 0
+        fi
+        ;;
+    set)
+        if [[ "${HERMES_SET_EXIT:-0}" -ne 0 ]]; then
+            echo "boom token=SECRET-FROM-STDERR" >&2
+            exit "${HERMES_SET_EXIT}"
+        fi
+        case "$2" in
+            true|false|\{*) value="$2" ;;
+            *) value="$(jq -n --arg s "$2" '$s')" ;;
+        esac
+        jq --arg n "${name}" --argjson v "${value}" '.[$n] = $v' "${state}" > "${state}.tmp" && mv "${state}.tmp" "${state}"
+        exit 0
+        ;;
+    unset)
+        if [[ "${HERMES_UNSET_EXIT:-0}" -ne 0 ]]; then
+            echo "Traceback: SECRET-FROM-STDERR" >&2
+            exit "${HERMES_UNSET_EXIT}"
+        fi
+        if jq -e --arg n "${name}" 'has($n)' "${state}" >/dev/null; then
+            jq --arg n "${name}" 'del(.[$n])' "${state}" > "${state}.tmp" && mv "${state}.tmp" "${state}"
+            exit 0
+        fi
+        ;;
+esac
+echo "Config key not set: ${key}" >&2
+exit 1
 EOF2
     chmod +x "${STUB_BIN}/hermes"
     export HERMES_LOG="${BATS_TEST_TMPDIR}/hermes.log"
@@ -186,7 +216,7 @@ EOF2
     [ "${lines[1]}" == '{"url":"https://mcp.linear.app/mcp","auth":"oauth"}' ]
 
     # Only the sentry key is written, and against ~/.hermes (not an inherited HERMES_HOME).
-    run grep "config set" "${HERMES_LOG}"
+    run grep "config set mcp_servers" "${HERMES_LOG}"
     [ "${#lines[@]}" -eq 1 ]
     [[ "${output}" == "HERMES_HOME=${HOME}/.hermes config set mcp_servers.sentry "* ]]
 }
@@ -201,7 +231,7 @@ EOF2
     [ "${status}" -eq 0 ]
     [[ "${output}" == *"宣言どおり設定済み"* ]]
 
-    run grep -c "config set" "${HERMES_LOG}"
+    run grep -c "config set mcp_servers.sentry" "${HERMES_LOG}"
     [ "${output}" -eq 1 ]
 }
 
@@ -214,7 +244,7 @@ EOF2
     run zsh "${SETUP_DIR}/hermes-sync.zsh"
     [ "${status}" -eq 0 ]
     [[ "${output}" == *"宣言どおり設定済み"* ]]
-    run grep -c "config set" "${HERMES_LOG}"
+    run grep -c "config set mcp_servers.sentry" "${HERMES_LOG}"
     [ "${output}" -eq 0 ]
 }
 
@@ -232,7 +262,7 @@ EOF2
     [[ "${output}" != *"sentry.example.com"* ]]
     [[ "${output}" != *"mcp.sentry.dev"* ]]
 
-    run grep -c "config set" "${HERMES_LOG}"
+    run grep -c "config set mcp_servers.sentry" "${HERMES_LOG}"
     [ "${output}" -eq 0 ]
     run jq -S -c . "${HOME}/.hermes/mcp_servers.json"
     [ "${output}" == "$(jq -S -c . <<< "${existing}")" ]
@@ -307,4 +337,100 @@ _assert_get_failure_is_noop() {
 
 @test "sentry: non-JSON get output does not write" {
     _assert_get_failure_is_noop invalid
+}
+
+# --- browser real-profile (config set --force browser.* / config unset computer_use.*) ---
+
+@test "browser: pins the real-profile snapshot to Profile 6 and keeps other browser settings" {
+    _install_hermes
+    _install_hermes_stub
+    # real_profile_pin differs from the declaration and use_real_profile is unset:
+    # both converge to the declared values.
+    echo '{"real_profile_pin":"Default","inactivity_timeout":300}' > "${HOME}/.hermes/browser.json"
+
+    run zsh "${SETUP_DIR}/hermes-sync.zsh"
+    [ "${status}" -eq 0 ]
+    run jq -S -c . "${HOME}/.hermes/browser.json"
+    [ "${output}" == '{"inactivity_timeout":300,"real_profile_pin":"Profile 6","use_real_profile":true}' ]
+
+    # --force lets a Hermes that does not know these keys yet (v0.20.3) save them.
+    grep -Fxq "HERMES_HOME=${HOME}/.hermes config set --force browser.use_real_profile true" "${HERMES_LOG}"
+    grep -Fxq "HERMES_HOME=${HOME}/.hermes config set --force browser.real_profile_pin Profile 6" "${HERMES_LOG}"
+}
+
+@test "browser: removes the legacy live-profile grant and keeps other computer_use settings" {
+    _install_hermes
+    _install_hermes_stub
+    echo '{"grant_existing_profile":true,"permission_mode":"standard"}' > "${HOME}/.hermes/computer_use.json"
+
+    run zsh "${SETUP_DIR}/hermes-sync.zsh"
+    [ "${status}" -eq 0 ]
+    run jq -c . "${HOME}/.hermes/computer_use.json"
+    [ "${output}" == '{"permission_mode":"standard"}' ]
+}
+
+@test "browser: an absent legacy grant is not reported as a failure" {
+    _install_hermes
+    _install_hermes_stub
+    _install_rtk_stub
+
+    run zsh "${SETUP_DIR}/hermes-sync.zsh"
+    [ "${status}" -eq 0 ]
+    grep -Fxq "HERMES_HOME=${HOME}/.hermes config unset computer_use.grant_existing_profile" "${HERMES_LOG}"
+    # A clean machine produces no warning at all (util::warning prints in yellow).
+    [[ "${output}" != *$'\e[33m'* ]]
+}
+
+@test "browser: re-running is a no-op once the declared values are present" {
+    _install_hermes
+    _install_hermes_stub
+
+    run zsh "${SETUP_DIR}/hermes-sync.zsh"
+    [ "${status}" -eq 0 ]
+    run zsh "${SETUP_DIR}/hermes-sync.zsh"
+    [ "${status}" -eq 0 ]
+
+    # Only the first run writes the two keys.
+    run grep -cE "config set.* browser\." "${HERMES_LOG}"
+    [ "${output}" -eq 2 ]
+    run jq -S -c . "${HOME}/.hermes/browser.json"
+    [ "${output}" == '{"real_profile_pin":"Profile 6","use_real_profile":true}' ]
+}
+
+@test "browser: a get failure leaves the browser settings untouched and is not logged" {
+    _install_hermes
+    _install_hermes_stub
+    echo '{"real_profile_pin":"Default"}' > "${HOME}/.hermes/browser.json"
+
+    HERMES_GET_MODE=error run zsh "${SETUP_DIR}/hermes-sync.zsh"
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"browser.real_profile_pin は変更しません"* ]]
+    [[ "${output}" != *"SECRET"* ]]
+    run grep -cE "config set.* browser\." "${HERMES_LOG}"
+    [ "${output}" -eq 0 ]
+    run jq -c . "${HOME}/.hermes/browser.json"
+    [ "${output}" == '{"real_profile_pin":"Default"}' ]
+}
+
+@test "browser: a set failure fails open, keeps going, and is not logged" {
+    _install_hermes
+    _install_hermes_stub
+
+    HERMES_SET_EXIT=1 run zsh "${SETUP_DIR}/hermes-sync.zsh"
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"browser.use_real_profile に失敗"* ]]
+    [[ "${output}" == *"browser.real_profile_pin に失敗"* ]]
+    [[ "${output}" != *"SECRET"* ]]
+}
+
+@test "browser: an unset failure other than 'not set' is a warning, not logged" {
+    _install_hermes
+    _install_hermes_stub
+    echo '{"grant_existing_profile":true}' > "${HOME}/.hermes/computer_use.json"
+
+    # exit 1 with a different stderr must not be mistaken for "not set".
+    HERMES_UNSET_EXIT=1 run zsh "${SETUP_DIR}/hermes-sync.zsh"
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"computer_use.grant_existing_profile が想定外の失敗"* ]]
+    [[ "${output}" != *"SECRET"* ]]
 }

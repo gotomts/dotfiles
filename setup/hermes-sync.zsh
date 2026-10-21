@@ -1,12 +1,15 @@
 #!/bin/zsh
 # setup/hermes-sync.zsh
 #
-# Tier 2: Hermes Agent 側の宣言を running config へ同期する。互いに独立した 2 つを持つ。
+# Tier 2: Hermes Agent 側の宣言を running config へ同期する。互いに独立した 3 つを持つ。
 #   1. RTK 連携プラグイン: `rtk init --agent hermes` が ~/.hermes/plugins/rtk-rewrite/ を作り、
 #      ~/.hermes/config.yaml の plugins.enabled に登録する。
 #   2. Sentry 公式 MCP server: `hermes config set mcp_servers.sentry <JSON>` で登録する
 #      (Claude Code 側の claude/mcp-servers.json に対応する Hermes 側の宣言。詳細は
 #      hermes-sync::sync_sentry_mcp のコメント)。
+#   3. browser real-profile: `hermes config set --force browser.*` で snapshot 経路と複製元を
+#      固定し、旧 computer_use.grant_existing_profile を `hermes config unset` で消す (詳細は
+#      hermes-sync::sync_browser_profile のコメント)。
 #
 # なぜ Tier 1 (symlink) ではないか:
 #   ~/.hermes/config.yaml は Hermes が動的に書き換える running config なので symlink・追跡
@@ -157,8 +160,89 @@ hermes-sync::sync_sentry_mcp() {
     util::info "Hermes MCP sentry を登録しました。OAuth 認可は人間が \`hermes mcp login sentry\` で行ってください"
 }
 
+# Hermes の browser real-profile 宣言。値は `hermes config get --json` が返す JSON の形で持つ。
+#   use_real_profile: 認証済みブラウザを実プロファイルの複製 (snapshot) 経由で使う
+#   real_profile_pin: 複製元のプロファイルディレクトリ名 (Profile 6 = Hermes Automation)
+HERMES_BROWSER_CONFIG=(
+    browser.use_real_profile 'true'
+    browser.real_profile_pin '"Profile 6"'
+)
+# live profile へ直接つなぐ旧 computer_use 経路の opt-in。残っていれば消す。
+HERMES_LEGACY_PROFILE_GRANT='computer_use.grant_existing_profile'
+
+# hermes-sync::sync_browser_profile
+#   認証済みブラウザの経路を real-profile の snapshot へ固定する。Chrome 144 以降は default
+#   profile への remote debugging 接続のたびに許可ダイアログが出るため、live profile へ接続する
+#   旧 computer_use 経路の許可を残さない。Sentry MCP と同じく公式 CLI だけを使い、HERMES_HOME を
+#   ${HOME}/.hermes に固定する。
+#
+#   既存値の扱い (Sentry MCP と違い、宣言値へ揃える。複製元の固定がこの同期の目的なので):
+#     - 未設定 (get が exit 1 かつ `Config key not set: <key>`)・宣言値と違う → 宣言値を書く
+#     - 宣言値と同じ → 何もしない
+#     - 取得失敗・空・JSON でない → 既存状態が読めていないので書かない
+#   set に --force を付けるのは、real-profile をまだ知らない版の Hermes (v0.20.3 など) でも
+#   未知キーとして保存させるため。
+#   旧キーは unset の応答で存在を判定する (get は既定値を合成して返すので使えない)。
+#   `Config key not set` は未設定として正常扱いにする。
+#   warning に既存値・CLI の stdout/stderr は出さない。
+hermes-sync::sync_browser_profile() {
+    if ! hermes::is_installed "${HOME}"; then
+        util::skip "$(hermes::config "${HOME}") が無いため browser real-profile の同期をスキップします"
+        return 0
+    fi
+    if ! command -v hermes &>/dev/null; then
+        util::warning "hermes コマンドが見つからないため browser real-profile の同期をスキップします"
+        return 0
+    fi
+    if ! command -v jq &>/dev/null; then
+        util::warning "jq 未インストール、browser real-profile の同期をスキップ (nix/modules/darwin/homebrew.nix で宣言済み)"
+        return 0
+    fi
+
+    local hermes_home err_file key want current rc err
+    hermes_home="$(hermes::home "${HOME}")"
+    err_file="$(mktemp)"
+
+    for key want in "${HERMES_BROWSER_CONFIG[@]}"; do
+        current="$(HERMES_HOME="${hermes_home}" hermes config get --json "${key}" 2>"${err_file}")"
+        rc=$?
+        err="$(<"${err_file}")"
+        if (( rc != 0 )); then
+            if (( rc != 1 )) || [[ "${err}" != "Config key not set: ${key}" ]]; then
+                util::warning "hermes config get ${key} が想定外の失敗 (exit ${rc})。${key} は変更しません"
+                continue
+            fi
+        elif [[ -z "${current}" ]] || ! jq . <<< "${current}" &>/dev/null; then
+            util::warning "hermes config get ${key} の結果を解釈できません。${key} は変更しません"
+            continue
+        elif [[ "$(jq -c . <<< "${current}")" == "${want}" ]]; then
+            util::skip "Hermes ${key} は宣言どおり設定済み"
+            continue
+        fi
+
+        util::action "Hermes ${key} を宣言値へ設定します"
+        # set は JSON ではなく素の値を受け取る (true は bool に変換される)。
+        if ! HERMES_HOME="${hermes_home}" hermes config set --force "${key}" "$(jq -r . <<< "${want}")" &>/dev/null; then
+            util::warning "hermes config set ${key} に失敗"
+        fi
+    done
+
+    HERMES_HOME="${hermes_home}" hermes config unset "${HERMES_LEGACY_PROFILE_GRANT}" >/dev/null 2>"${err_file}"
+    rc=$?
+    err="$(<"${err_file}")"
+    rm -f "${err_file}"
+    if (( rc == 0 )); then
+        util::info "旧 ${HERMES_LEGACY_PROFILE_GRANT} を削除しました"
+    elif (( rc == 1 )) && [[ "${err}" == "Config key not set: ${HERMES_LEGACY_PROFILE_GRANT}" ]]; then
+        util::skip "旧 ${HERMES_LEGACY_PROFILE_GRANT} は設定されていません"
+    else
+        util::warning "hermes config unset ${HERMES_LEGACY_PROFILE_GRANT} が想定外の失敗 (exit ${rc})"
+    fi
+}
+
 hermes-sync::sync_rtk_plugin
 hermes-sync::sync_sentry_mcp
+hermes-sync::sync_browser_profile
 
 util::info "=== Tier 2: Hermes sync 完了 ==="
 exit 0
