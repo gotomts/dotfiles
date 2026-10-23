@@ -13,3 +13,4 @@
 - project policy が定めた受入条件・検証・PR手順に従う。projectに無い共通gateを増やさない。
 - projectごとのcoding ruleを優先して守る。project ruleに定めがない場合、DRYと単一責任を基本原則にする。
 - block、境界逸脱、未確定の設計判断は止めて報告する。
+- ブラウザ自動操作で `jev-ultrafast` を使うか判断する前に `~/.dotfiles/claude/jev-ultrafast.md` を読む（使う条件・通常のブラウザtoolへ戻る条件・安全境界）。
