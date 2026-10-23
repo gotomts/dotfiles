@@ -57,6 +57,7 @@
 - production、共有環境、課金、外部契約、秘密登録など、人の事前確認が必要な境界を越えない。
 - 無関係なcommitをsquashしない。commit messageはConventional Commitsを使う。
 - input送信はID指定CLI APIを優先し、未送信のghost draftを送らない。
+- ブラウザ自動操作で `jev-ultrafast` を使うか判断する前に `~/.dotfiles/claude/jev-ultrafast.md` を読む（使う条件・通常のブラウザtoolへ戻る条件・安全境界）。
 
 ## 報告
 - 通常の操作実況や同一状態の反復報告をしない。

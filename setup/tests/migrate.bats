@@ -107,6 +107,26 @@ exit "${NIX_EXIT:-0}"
 EOF
     chmod +x "${bin_dir}/nix"
 
+    # jev-ultrafast.zsh's only external command. Models the uv contract it
+    # relies on: `uv tool install ... <req>` builds UV_TOOL_DIR/jev-ultrafast/
+    # and records the requirement's @<rev> in the PEP 610 direct_url.json.
+    cat > "${bin_dir}/uv" <<'EOF'
+#!/bin/bash
+echo "$* UV_TOOL_DIR=${UV_TOOL_DIR:-}" >> "${UV_LOG}"
+if [[ "$1 $2" == "tool install" ]]; then
+    req="${@: -1}"
+    venv="${UV_TOOL_DIR}/jev-ultrafast"
+    site="${venv}/lib/python3.14/site-packages/jev_ultrafast-0.1.0.dist-info"
+    rm -rf "${venv}"
+    mkdir -p "${site}" "${venv}/bin"
+    printf '{"url":"x","vcs_info":{"vcs":"git","commit_id":"%s"}}' "${req##*@}" > "${site}/direct_url.json"
+    printf '#!/bin/sh\nexit 0\n' > "${venv}/bin/python"
+    chmod +x "${venv}/bin/python"
+fi
+exit 0
+EOF
+    chmod +x "${bin_dir}/uv"
+
     # migrate.zsh's single-root-invocation de-escalation path shells out to
     # `sudo -u <user> -H zsh <script>` for non-root steps. The sandbox has no
     # real second user to switch to, so this stub just records the call and
@@ -164,10 +184,11 @@ setup() {
     NIX_LOG="${BATS_TEST_TMPDIR}/nix.log"
     SUDO_LOG="${BATS_TEST_TMPDIR}/sudo.log"
     RTK_LOG="${BATS_TEST_TMPDIR}/rtk.log"
+    UV_LOG="${BATS_TEST_TMPDIR}/uv.log"
     : > "${MISE_LOG}"; : > "${COREPACK_LOG}"; : > "${DEFAULTS_LOG}"
     : > "${GIT_LOG}"; : > "${CLAUDE_LOG}"; : > "${DARWIN_REBUILD_LOG}"; : > "${NIX_LOG}"; : > "${SUDO_LOG}"
-    : > "${RTK_LOG}"
-    export NODE_BIN_DIR MISE_LOG COREPACK_LOG DEFAULTS_LOG GIT_LOG CLAUDE_LOG DARWIN_REBUILD_LOG NIX_LOG SUDO_LOG RTK_LOG
+    : > "${RTK_LOG}"; : > "${UV_LOG}"
+    export NODE_BIN_DIR MISE_LOG COREPACK_LOG DEFAULTS_LOG GIT_LOG CLAUDE_LOG DARWIN_REBUILD_LOG NIX_LOG SUDO_LOG RTK_LOG UV_LOG
     _install_full_stubs "${STUB_BIN}"
     # A minimal, real-machine-shaped PATH (not this dev sandbox's own, often
     # huge, inherited PATH). migrate.zsh chains multiple `zsh <script>`
@@ -258,11 +279,11 @@ EOF
     [[ "${output}" != *"rollback"* ]]
 }
 
-@test "dry-run lists all 11 steps and executes nothing" {
+@test "dry-run lists all 12 steps and executes nothing" {
     run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
 
-    for step in link languages defaults pam claude-code claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
+    for step in link languages defaults pam claude-code claude-sync codex-sync herdr-sync hermes-sync notion jev-ultrafast cutover; do
         [[ "${output}" == *"${step}"* ]]
     done
 
@@ -285,7 +306,7 @@ EOF
     MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
         run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults pam claude-code claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
+    for step in link languages defaults pam claude-code claude-sync codex-sync herdr-sync hermes-sync notion jev-ultrafast cutover; do
         [[ "${output}" == *"[WOULD RUN] ${step}:"* ]]
     done
     [[ "${output}" != *"[BLOCKED]"* ]]
@@ -298,7 +319,7 @@ EOF
     # so it alone stays WOULD RUN.
     MIGRATE_EUID_OVERRIDE=0 USER= run zsh "${SETUP_DIR}/migrate.zsh" --dry-run
     [ "${status}" -eq 0 ]
-    for step in link languages defaults claude-code claude-sync codex-sync herdr-sync hermes-sync notion cutover; do
+    for step in link languages defaults claude-code claude-sync codex-sync herdr-sync hermes-sync notion jev-ultrafast cutover; do
         [[ "${output}" == *"[BLOCKED] ${step}:"* ]]
     done
     [[ "${output}" == *"[WOULD RUN] pam:"* ]]
@@ -346,6 +367,11 @@ EOF
     [ -f "${HOME}/.claude.json" ]
     [ -f "${HOME}/.codex/config.toml" ]
     [ -x "${HOME}/.local/bin/ntn" ]
+    [ -x "${HOME}/.local/share/uv/tools/jev-ultrafast/bin/python" ]
+    [ -d "${HOME}/.local/state/jev-ultrafast/chrome-profile" ]
+    [ -L "${HOME}/.local/bin/jev-ultrafast" ]
+    run cat "${UV_LOG}"
+    [[ "${output}" == *"tool install git+https://github.com/browser-use/jev-ultrafast@"* ]]
     [ -d "${HOME}/.hermes/plugins/rtk-rewrite" ]
     run cat "${RTK_LOG}"
     [[ "${output}" == *"init --agent hermes"* ]]
@@ -360,7 +386,7 @@ EOF
     # `sudo -u testuser -H env PATH=... zsh <script>`; root-required steps
     # did not.
     run cat "${SUDO_LOG}"
-    for step in link languages defaults claude-code claude-sync codex-sync herdr-sync hermes-sync notion; do
+    for step in link languages defaults claude-code claude-sync codex-sync herdr-sync hermes-sync notion jev-ultrafast; do
         [[ "${output}" == *"-u testuser -H env PATH="*"zsh"*"${step}.zsh"* ]]
     done
     [[ "${output}" != *"cutover.zsh"* ]]
@@ -727,6 +753,41 @@ EOF
     [ "${status}" -eq 1 ]
     [[ "${output}" == *"health check 失敗"* ]]
     [[ "${output}" == *"notion:"* ]]
+}
+
+@test "health check catches a jev-ultrafast revision that drifted from the declaration" {
+    # manifest success is never re-run, so bumping JEV_ULTRAFAST_REV must
+    # surface here and point at the standalone script that converges it.
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    local f
+    f="$(ls "${HOME}"/.local/share/uv/tools/jev-ultrafast/lib/python*/site-packages/jev_ultrafast-*.dist-info/direct_url.json)"
+    printf '{"url":"x","vcs_info":{"vcs":"git","commit_id":"%s"}}' "0000000000000000000000000000000000000000" > "${f}"
+
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"jev-ultrafast:"* ]]
+    [[ "${output}" == *"jev-ultrafast.zsh を再実行"* ]]
+
+    # The standalone script converges the machine; the health check then passes.
+    PATH="${STUB_BIN}:${PATH}" run zsh "${SETUP_DIR}/jev-ultrafast.zsh"
+    [ "${status}" -eq 0 ]
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+}
+
+@test "health check catches a removed dedicated browser profile" {
+    MIGRATE_EUID_OVERRIDE=0 MIGRATE_SUDO_USER_OVERRIDE=testuser \
+        run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 0 ]
+
+    rm -rf "${HOME}/.local/state/jev-ultrafast/chrome-profile"
+
+    MIGRATE_EUID_OVERRIDE=501 run zsh "${SETUP_DIR}/migrate.zsh" --apply
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"jev-ultrafast: 専用ブラウザの profile"* ]]
 }
 
 @test "health check probes ntn's version as the original user, never as root" {

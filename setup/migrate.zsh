@@ -32,7 +32,7 @@
 #                                         root 必須なので同じ Phase にまとめ、sudo プロンプトを
 #                                         1 回にまとめる)
 #   Phase 3: languages, defaults, claude-code, claude-sync, codex-sync, herdr-sync,
-#            hermes-sync, notion
+#            hermes-sync, notion, jev-ultrafast
 #                                        (root 起動時は元ユーザーへ委譲。
 #                                         mise は Phase 2 で導入済み)
 #
@@ -102,6 +102,7 @@ source "${SETUP_DIR}/lib/util.zsh"
 source "${SETUP_DIR}/lib/herdr.zsh"
 source "${SETUP_DIR}/lib/hermes.zsh"
 source "${SETUP_DIR}/lib/notion.zsh"
+source "${SETUP_DIR}/lib/jev-ultrafast.zsh"
 source "${SETUP_DIR}/lib/claude-code.zsh"
 
 # ---------------------------------------------------------------------------
@@ -111,7 +112,8 @@ PHASE1_STEPS=(link)
 PHASE2_STEPS=(cutover pam)
 # claude-code は claude-sync より前。claude-sync.zsh の plugin 同期が claude CLI の実体を
 # 要求するため（順序が逆だと新規 PC の初回 --apply で plugin 同期だけが黙って skip される）。
-PHASE3_STEPS=(languages defaults claude-code claude-sync codex-sync herdr-sync hermes-sync notion)
+# jev-ultrafast は Phase 2 の cutover が Homebrew 経由で入れる uv と Google Chrome に依存する。
+PHASE3_STEPS=(languages defaults claude-code claude-sync codex-sync herdr-sync hermes-sync notion jev-ultrafast)
 
 # この --apply の中で cutover 直前に退避した Touch ID ファイルのパス（
 # migrate::pam_restore_pristine_if_safe が設定し、migrate::pam_discard_vacated が使う）。
@@ -853,6 +855,21 @@ migrate::health_check() {
         failures+=("notion: ${ntn_bin} が実行可能なファイルではありません")
     fi
 
+    # Jev Ultrafast。revision・venv・専用 profile のパスは setup/jev-ultrafast.zsh と同じ
+    # setup/lib/jev-ultrafast.zsh から引く。revision は venv 内の direct_url.json をファイルとして
+    # 読むだけなので（実行しない）、root 起動でも元ユーザーへ委譲せずに確かめられる。
+    #
+    # revision まで見るのは、manifest が success のステップは再実行されないため。宣言の
+    # revision を上げた既存 PC はここで落ち、単体スクリプトの再実行（--reinstall で収束する）へ
+    # 誘導する。
+    local jev_rev jev_profile
+    jev_rev="$(jev_ultrafast::installed_rev "${home_dir}")"
+    if [[ "${jev_rev}" != "${JEV_ULTRAFAST_REV}" ]]; then
+        failures+=("jev-ultrafast: 導入済みの revision が宣言と一致しません（宣言: ${JEV_ULTRAFAST_REV} / 実体: ${jev_rev:-未導入}）。zsh ${SETUP_DIR}/jev-ultrafast.zsh を再実行してください")
+    fi
+    jev_profile="$(jev_ultrafast::profile_dir "${home_dir}")"
+    [[ -d "${jev_profile}" ]] || failures+=("jev-ultrafast: 専用ブラウザの profile ${jev_profile} がありません")
+
     # Hermes 用 RTK plugin。パスと「Hermes が入っているか」の判定は hermes-sync.zsh と同じ
     # setup/lib/hermes.zsh から引く（配置する側と確認する側で別々に組み立てない）。
     #
@@ -997,7 +1014,7 @@ migrate::usage() {
 Phase 1: link (root 起動時は元ユーザーへ委譲)
 Phase 2: cutover, pam (root 必須)
 Phase 3: languages, defaults, claude-code, claude-sync, codex-sync, herdr-sync, hermes-sync,
-         notion (root 起動時は元ユーザーへ委譲)
+         notion, jev-ultrafast (root 起動時は元ユーザーへ委譲)
 
 個別スクリプト（link.zsh 等）は内部実装です。実機での実行はこのスクリプトからのみ
 行ってください。詳細は setup/README.md を参照。

@@ -59,6 +59,9 @@ fs::link_file "${DOTFILES_ROOT}/scripts/opsa-infra.zsh"         "${HOME}/.script
 fs::link_file "${DOTFILES_ROOT}/scripts/opsa-development.zsh"   "${HOME}/.scripts/opsa-development.zsh"
 fs::link_file "${DOTFILES_ROOT}/scripts/jev-development-control-plane.py" \
     "${HOME}/.scripts/jev-development-control-plane.py"
+# jev-ultrafast は Claude Code / Hermes が非対話 shell からも呼ぶ共有 CLI なので、alias ではなく
+# PATH 上（zshenv が載せる ${HOME}/.local/bin）に置く。
+fs::link_file "${DOTFILES_ROOT}/scripts/jev-ultrafast.zsh"      "${HOME}/.local/bin/jev-ultrafast"
 
 # ---- grip / cmux --------------------------------------------------------
 fs::link_file "${DOTFILES_ROOT}/grip/settings.py"            "${HOME}/.grip/settings.py"

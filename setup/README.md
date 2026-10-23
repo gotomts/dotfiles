@@ -16,7 +16,7 @@ Tier を跨いだ実行順序・部分適用の検出/復旧を担う `setup/mig
 ## 使い方（実機での唯一のエントリポイントは `setup/migrate.zsh`）
 
 Tier 1/2/3 の各スクリプト（`link.zsh`/`languages.zsh`/`defaults.zsh`/`pam.zsh`/
-`claude-code.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
+`claude-code.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`jev-ultrafast.zsh`/`cutover.zsh`）を実機で直接実行することは非推奨。
 順序管理なしに個別実行すると部分適用インシデントを再現する（過去に実際に発生した）。
 実機での実行は必ず `setup/migrate.zsh` からのみ行う:
 
@@ -33,7 +33,7 @@ alias・関数に依存しないため、これが標準の入口。
 zsh ${HOME}/.dotfiles/setup/migrate.zsh --dry-run
 
 # 計画を実行する。単一の root 起動で全 Phase (link -> cutover/pam -> languages/defaults/
-# claude-code/claude-sync/codex-sync/herdr-sync/hermes-sync/notion) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
+# claude-code/claude-sync/codex-sync/herdr-sync/hermes-sync/notion/jev-ultrafast) が完結する。sudo が自動設定する SUDO_USER から元ユーザーを
 # 特定し、非 root ステップは元ユーザーへ委譲実行する（詳細は
 # docs/superpowers/specs/2026-08-22-migrate-orchestrator-recovery-plan.md 参照）
 sudo zsh ${HOME}/.dotfiles/setup/migrate.zsh --apply
@@ -83,6 +83,7 @@ zsh ${HOME}/.dotfiles/setup/codex-sync.zsh
 zsh ${HOME}/.dotfiles/setup/herdr-sync.zsh
 zsh ${HOME}/.dotfiles/setup/hermes-sync.zsh
 zsh ${HOME}/.dotfiles/setup/notion.zsh
+zsh ${HOME}/.dotfiles/setup/jev-ultrafast.zsh
 sudo USER=${USER} zsh ${HOME}/.dotfiles/setup/cutover.zsh
 ```
 
@@ -246,6 +247,31 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   トークン（`NOTION_API_KEY` 等）は読まない・要求しない・保存しない。導入後の認証は人間が
   `ntn` 側の手順で行う。PATH への `${HOME}/.local/bin` 追加は Tier 1 の `zshenv` が
   append で 1 箇所だけ行う（`zshrc` 側には書かない）。
+- `jev-ultrafast.zsh`: browser-use/jev-ultrafast を `uv tool install` でユーザー scope に入れ、
+  Jev 専用ブラウザの状態ディレクトリを owner だけが読めるように作る。宣言値は
+  `setup/lib/jev-ultrafast.zsh` に集約してある:
+  - 導入元と revision: `git+https://github.com/browser-use/jev-ultrafast@<JEV_ULTRAFAST_REV>`。
+    upstream はタグもリリースも無く main が動き続けるので commit SHA（40 桁）で固定する
+  - 導入先: `UV_TOOL_DIR=${HOME}/.local/share/uv/tools`・`UV_TOOL_BIN_DIR=${HOME}/.local/bin` を
+    明示して渡す。uv tool は tool ごとに別 venv なので既存の `browser-use` tool とは混ざらない。
+    `--force` は付けない（他 tool の同名実行ファイルを上書きしないため、衝突は失敗として止める）
+  - 専用 profile: `${HOME}/.local/state/jev-ultrafast/chrome-profile`（Chrome の
+    `--user-data-dir`）と browser-harness の `BH_HOME`（同 `browser-harness`）。専用 port は
+    `127.0.0.1:9339`。普段の Chrome の profile・Hermes の real-profile snapshot とは別物で、
+    remote debugging を有効にするのはこの profile だけ
+
+  導入済みの revision（venv 内の PEP 610 `direct_url.json` の `commit_id`）が宣言と一致すれば
+  uv を呼ばない。一致しなければ `--reinstall` で宣言の revision へ入れ替えて収束させる（ntn と
+  違い単一バイナリの差し替えではなく venv の作り直しなので自動で行う）。`migrate.zsh` は
+  success 済みのステップを再実行しないため、revision を上げた既存 PC では health check が
+  不一致を fail-closed で報告し、このスクリプトの直接再実行へ誘導する。health check は
+  `direct_url.json` をファイルとして読むだけなので root 起動でも委譲は要らない。uv 不在・
+  導入失敗は fail-closed（`notion.zsh` と同じ理由）。
+
+  Chrome の起動はここでは行わない。起動と接続は Tier 1 が `${HOME}/.local/bin/jev-ultrafast` に
+  置く共有 CLI（`scripts/jev-ultrafast.zsh`）が都度、宣言値どおりに行う。API key はこの
+  スクリプトでは扱わない。Claude Code と Hermes が使う条件・戻る条件・安全境界は
+  `claude/jev-ultrafast.md`。
 - `cutover.zsh`: 実行前に `darwin-rebuild --list-generations` の出力を
   `~/.dotfiles-cutover-backup/pre-cutover-generations-<timestamp>.txt` へ記録してから
   `nix build`（副作用なし）で pre-flight 確認し、成功したときだけ `darwin-rebuild switch`
@@ -256,7 +282,7 @@ symlink 越しに即座に反映される。再実行が必要なのは「`setup
   `fs::ensure_realfile` と同じ no-data-loss 方針で、自動退避はしない）。
 - `migrate.zsh`: Tier 1/2/3 を跨いだ唯一のオーケストレーター。実行順序は Phase 1
   (`link`) → Phase 2 (`cutover`/`pam`、root 必須) → Phase 3 (`languages`/`defaults`/
-  `claude-code`/`claude-sync`/`codex-sync`/`herdr-sync`/`hermes-sync`/`notion`)。`claude-code` を
+  `claude-code`/`claude-sync`/`codex-sync`/`herdr-sync`/`hermes-sync`/`notion`/`jev-ultrafast`)。`claude-code` を
   `claude-sync` より前に置くのは、`claude-sync.zsh` の plugin 同期が `claude` CLI の実体を要求する
   ため。`languages.zsh` 自身が「mise は darwin-switch で事前導入
   済みが前提」と明記しているため、cutover を languages より先に置く。各ステップの結果は
@@ -304,9 +330,9 @@ bats herdr/plugins/*/tests/*.bats
 委譲実行を health check にまで広げるほどの利得が無いため）。
 
 `fs::link_file`/`fs::ensure_realfile` は関数単位、`link.zsh`/`languages.zsh`/`defaults.zsh`/
-`pam.zsh`/`claude-code.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`cutover.zsh`/`rollback.zsh`/
+`pam.zsh`/`claude-code.zsh`/`claude-sync.zsh`/`codex-sync.zsh`/`herdr-sync.zsh`/`hermes-sync.zsh`/`notion.zsh`/`jev-ultrafast.zsh`/`cutover.zsh`/`rollback.zsh`/
 `migrate.zsh` は、
-実コマンド（`defaults`/`mise`/`corepack`/`claude`/`herdr`/`rtk`/`git`/`darwin-rebuild`/`nix`）を PATH 上の
+実コマンド（`defaults`/`mise`/`corepack`/`claude`/`herdr`/`rtk`/`uv`/`git`/`darwin-rebuild`/`nix`）を PATH 上の
 stub 実行ファイルに差し替え、`$HOME` を一時ディレクトリに差し替えたサンドボックスでの統合テスト
 （実機・実ネットワーク・実パッケージマネージャ・実 `darwin-rebuild switch` には一切触れない）。
 
