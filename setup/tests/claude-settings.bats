@@ -101,15 +101,16 @@ ORCA_MANAGED='agent-hooks/claude-hook'
     [ "${status}" -eq 0 ]
 }
 
-# command は 1 世代分だけで、${HOME} 相対の Orca 所有スクリプトを呼ぶ。Orca 未導入の PC では
-# スクリプトが無いので stdin を読み捨てて `{}` を返す fallback に倒れる（公開リポなので絶対パスも持たない）。
-@test "Orca managed hook command is single-generation, HOME-relative and fails open" {
+# command は ${HOME} 相対の Orca 所有スクリプトを呼ぶ。Orca 未導入の PC ではスクリプトが無いので
+# stdin を読み捨てる fallback に倒れる（公開リポなので絶対パスも持たない）。Orca は event ごとに
+# 別世代の command を出すことがある（1.4.224 は PostCompact だけ短い形）ため、世代の一致は求めない。
+@test "Orca managed hook commands are HOME-relative and fail open" {
     run jq -e --arg m "${ORCA_MANAGED}" '
         [.hooks[][] | .hooks[]? | .command | select(contains($m))] | unique
-        | length == 1
-          and (.[0] | contains("\"${HOME-}/.orca/agent-hooks/claude-hook.sh\""))
-          and (.[0] | contains("printf '"'"'{}\\n'"'"'"))
-          and (.[0] | test("/Users/|/home/") | not)
+        | length > 0
+          and all(contains("\"${HOME-}/.orca/agent-hooks/claude-hook.sh\""))
+          and all(contains("command -p cat"))
+          and all(test("/Users/|/home/") | not)
     ' "${SETTINGS}"
     [ "${status}" -eq 0 ]
 }
