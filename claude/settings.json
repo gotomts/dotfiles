@@ -361,6 +361,11 @@
   "model": "claude-opus-5-5[1m]",
   "language": "japanese",
   "alwaysThinkingEnabled": true,
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "effortLevel": "high"
+    }
+  },
   "skipDangerousModePermissionPrompt": true,
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": false,
