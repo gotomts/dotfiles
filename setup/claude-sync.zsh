@@ -71,6 +71,24 @@ claude-sync::sync_plugins() {
         return 0
     fi
 
+    # extraKnownMarketplaces を宣言しただけでは marketplace は手元に登録されず、
+    # 未登録の marketplace の plugin は install が "not found in marketplace" で落ちる。
+    # 先に未登録分だけ add する (add は settings.json のキー順を入れ替えることがあるので、
+    # 初回 sync 後は差分を確認して戻す)。
+    local known
+    known="$(claude plugin marketplace list --json 2>/dev/null)" || known='[]'
+    jq -r --argjson known "${known:-[]}" '
+        ($known | map(.name)) as $have
+        | (.extraKnownMarketplaces // {}) | to_entries[]
+        | select(.key as $k | $have | index($k) | not)
+        | select(.value.source.source == "github")
+        | .value.source.repo
+    ' "${settings}" 2>/dev/null | while IFS= read -r repo; do
+        claude plugin marketplace add "${repo}" &>/dev/null \
+            && util::info "marketplace ${repo}: added" \
+            || util::warning "marketplace ${repo}: add failed"
+    done
+
     local installed
     installed="$(claude plugin list --json 2>/dev/null)"
     if [[ $? -ne 0 || -z "${installed}" ]]; then

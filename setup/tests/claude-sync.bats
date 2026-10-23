@@ -32,6 +32,10 @@ ${installed_json}
 JSON
     exit 0
 fi
+if [[ "\$1" == "plugin" && "\$2" == "marketplace" && "\$3" == "list" ]]; then
+    echo '${MARKETPLACES_JSON:-[]}'
+    exit 0
+fi
 if [[ "\$1" == "plugin" && "\$2" == "install" ]]; then
     exit 0
 fi
@@ -174,6 +178,35 @@ JSON
     [ "${status}" -eq 0 ]
     run grep -c '^plugin install superpowers@claude-plugins-official$' "${CLAUDE_LOG}"
     [ "${status}" -eq 1 ]
+}
+
+@test "plugin sync adds only declared github marketplaces that are not registered yet" {
+    _install_git_clone_stub "${STUB_BIN}"
+    mkdir -p "${HOME}/ghq/github.com/gotomts/skills"
+    (cd "${HOME}/ghq/github.com/gotomts/skills" && /usr/bin/git init -q)
+
+    cat > "${HOME}/.claude/settings.json" <<'JSON'
+{
+  "enabledPlugins": { "foo@foo": true },
+  "extraKnownMarketplaces": {
+    "foo": { "source": { "source": "github", "repo": "example/foo" } },
+    "bar": { "source": { "source": "github", "repo": "example/bar" } }
+  }
+}
+JSON
+
+    MARKETPLACES_JSON='[{"name": "bar"}]' _install_claude_stub "${STUB_BIN}" '[]'
+
+    PATH="${STUB_BIN}:${PATH}" run zsh "${SETUP_DIR}/claude-sync.zsh"
+    [ "${status}" -eq 0 ]
+
+    run grep -c '^plugin marketplace add example/foo$' "${CLAUDE_LOG}"
+    [ "${status}" -eq 0 ]
+    run grep -c '^plugin marketplace add example/bar$' "${CLAUDE_LOG}"
+    [ "${status}" -eq 1 ]
+    # marketplace を先に登録してから plugin を入れる
+    run awk '/^plugin marketplace add example\/foo$/{a=NR} /^plugin install foo@foo$/{i=NR} END{exit !(a && i && a < i)}' "${CLAUDE_LOG}"
+    [ "${status}" -eq 0 ]
 }
 
 @test "plugin sync finds claude via util::ensure_homebrew_path even when the ambient PATH excludes it (models /etc/zshenv clobbering the delegated PATH, real-machine incident 2026-08-23)" {
