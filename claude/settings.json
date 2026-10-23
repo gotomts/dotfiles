@@ -287,7 +287,8 @@
     "freee-mcp@freee-mcp-marketplace": true,
     "ponytail@ponytail": true,
     "1password@1password": false,
-    "context-mode@context-mode": true
+    "context-mode@context-mode": true,
+    "yomiyasu@yomiyasu": true
   },
   "extraKnownMarketplaces": {
     "claude-collections": {
@@ -348,6 +349,12 @@
       "source": {
         "source": "github",
         "repo": "mksglu/context-mode"
+      }
+    },
+    "yomiyasu": {
+      "source": {
+        "source": "github",
+        "repo": "nanaism/yomiyasu"
       }
     }
   },
