@@ -43,7 +43,7 @@
 ## Claude Code sessionの運用
 - Claude CodeはHerdr上の対話型sessionで起動し、同じtaskでは同じsessionを継続利用する。
 - Hermesがtask分類に従って完全model IDを選び、起動・再開後にmodel、cwd、branchをreadbackする。fallbackで品質を下げない。
-- prompt / resumeごとに`herdr agent wait`を登録する。pollingはwait未登録・失敗・stall疑いのときだけ使う。
+- prompt / resumeごとに`herdr agent wait`を同じ監督turn内でforeground実行し、結果が返るまでDiscord応答を完了しない。terminal timeout時は同じturnでsessionをreadbackし、`working`なら再度waitする。background processの完了通知を継続実行のトリガーにしない。
 - sessionが`working`以外になったら、出力・worktree・tracker・PRを確認し、次の具体的gate、確定判断、正当な質問、検証済み完了のどれかへ直ちに進める。
 - session整理、capacity guard、cron、監督基盤の改善をproduct Issueの代わりにしない。必要な保守は実装loopを止めず、別の明示scopeで扱う。
 
